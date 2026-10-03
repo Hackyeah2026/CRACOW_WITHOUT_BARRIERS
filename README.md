@@ -160,6 +160,8 @@ Sekrety trzymamy w `dotnet user-secrets` lokalnie i w zmiennych środowiskowych 
 | Ustawienie | Po co | Zmienna na serwerze |
 |---|---|---|
 | `OpenRouteService:ApiKey` | trasy po ulicach dobrane do profilu ([darmowy klucz](https://openrouteservice.org/dev/#/signup)) | `OpenRouteService__ApiKey` |
+| `OpenAI:ApiKey` | ocena zdjęć w zgłoszeniach: czy widać na nich przeszkodę | `OpenAI__ApiKey` |
+| `OpenAI:Model` | model z obsługą obrazów (domyślnie `gpt-4.1-mini`) | `OpenAI__Model` |
 | `Mongo:ConnectionString` | zgłoszenia i konta urzędników | `Mongo__ConnectionString` |
 | `Mongo:Database` | nazwa bazy (domyślnie `krakow-bez-barier`) | `Mongo__Database` |
 | `Officials:Seed:N:Login` / `Password` / `DisplayName` / `Unit` | konta urzędników zakładane przy starcie hosta | `Officials__Seed__0__Login` itd. |
@@ -168,6 +170,10 @@ Przykład:
 
 ```bash
 dotnet user-secrets set "OpenRouteService:ApiKey" "<klucz>" --project src/Web
+```
+
+```bash
+dotnet user-secrets set "OpenAI:ApiKey" "<klucz>" --project src/Web
 ```
 
 ```bash
@@ -202,6 +208,7 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 | `POST /api/route` | trasa po ulicach; przyjmuje tylko punkty i 3 parametry (wózek, schody, krawężnik) | publiczny |
 | `GET /api/health/db` | stan połączenia z MongoDB | publiczny |
 | `POST /api/reports` | nowe zgłoszenie (limit 10 na 10 min z jednego IP) | publiczny, anonimowy |
+| `POST /api/photos/analyze` | ocena zdjęcia przez OpenAI (multipart, pole `photo`, JPEG/PNG/WebP do 4 MB, limit 20 na 10 min z jednego IP); zdjęcie nie jest zapisywane | mieszkaniec |
 | `POST /api/reports/status` | status zgłoszeń po identyfikatorach | publiczny |
 | `POST /api/official/login` / `logout` | sesja urzędnika (ciasteczko HttpOnly, SameSite=Strict) | publiczny, limit 5 prób na minutę |
 | `GET /api/official/me` | zalogowany urzędnik | urzędnik |
@@ -228,6 +235,7 @@ Profil potrzeb to dane o zdrowiu, dlatego:
 - **ocena miejsc liczy się w przeglądarce**;
 - do routingu idą tylko punkty trasy i trzy parametry (wózek, unikanie schodów, maksymalny krawężnik), a nie cały profil;
 - zgłoszenie zawiera tylko miejsce, wybrane udogodnienia i opis, bez profilu i danych osobowych;
+- zdjęcie dołączone do zgłoszenia przeglądarka zmniejsza i zapisuje jako JPEG (bez EXIF, więc bez położenia GPS); host przekazuje je tylko do oceny w OpenAI i go nie zapisuje;
 - klucze API i adres bazy są tylko na hoście.
 
 ## Ograniczenia

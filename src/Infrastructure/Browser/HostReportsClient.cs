@@ -89,7 +89,8 @@ internal sealed class HostOfficialClient(HttpClient http) : IOfficialClient
 internal static class HostApi
 {
     public static async Task<Result<T>> SendAsync<T>(Func<Task<HttpResponseMessage>> send, CancellationToken ct,
-        string unauthorized = "Nie jesteś zalogowany albo sesja wygasła.") where T : notnull
+        string unauthorized = "Nie jesteś zalogowany albo sesja wygasła.",
+        string unavailable = "Baza zgłoszeń jest chwilowo niedostępna. Spróbuj później.") where T : notnull
     {
         try
         {
@@ -106,7 +107,7 @@ internal static class HostApi
                 HttpStatusCode.Forbidden => "Brak uprawnień.",
                 HttpStatusCode.NotFound => "Nie znaleziono.",
                 HttpStatusCode.TooManyRequests => "Za dużo prób w krótkim czasie. Spróbuj ponownie za kilka minut.",
-                HttpStatusCode.ServiceUnavailable => "Baza zgłoszeń jest chwilowo niedostępna. Spróbuj później.",
+                HttpStatusCode.ServiceUnavailable => unavailable,
                 HttpStatusCode.BadRequest or HttpStatusCode.Conflict => await ProblemDetailAsync(response, ct) ?? "Nieprawidłowe dane.",
                 _ => "Serwer nie przyjął żądania. Spróbuj ponownie."
             });

@@ -17,6 +17,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddServerInfrastructure(
     builder.Configuration.GetSection(OpenRouteServiceOptions.Section).Get<OpenRouteServiceOptions>() ?? new());
 
+builder.Services.AddObstacleDetection(
+    builder.Configuration.GetSection(OpenAiOptions.Section).Get<OpenAiOptions>() ?? new());
+
 // Baza działa tylko na hoście: adres połączenia z hasłem nie może trafić do przeglądarki.
 builder.Services.AddMongo(
     builder.Configuration.GetSection(MongoOptions.Section).Get<MongoOptions>() ?? new());
@@ -73,6 +76,10 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(AccountEndpoints.RegisterLimit, context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(10) }));
+    // Analiza zdjęć kosztuje (płatne API), więc ma własny limit.
+    options.AddPolicy(PhotoEndpoints.AnalyzeLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10) }));
 });
 
 var app = builder.Build();
@@ -105,6 +112,7 @@ app.MapReportEndpoints();
 app.MapHazardEndpoints();
 app.MapAccountEndpoints();
 app.MapBusinessEndpoints();
+app.MapPhotoEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

@@ -1,0 +1,138 @@
+@inject ISender Sender
+
+<fieldset class="photo-analysis mb-3" aria-describedby="@($"{IdPrefix}-help")">
+    <legend class="h6">Zdjęcie (opcjonalnie)</legend>
+    <p id="@($"{IdPrefix}-help")" class="form-text mt-0">
+        Zrób albo dodaj zdjęcie, a AI oceni, czy widać na nim przeszkodę. Zdjęcie wysyłamy tylko do analizy w OpenAI:
+        nie zapisujemy go i nie trafia do urzędu, a dane o lokalizacji usuwamy z niego jeszcze w przeglądarce.
+        Unikaj fotografowania twarzy i tablic rejestracyjnych.
+    </p>
+
+    @if (!_busy)
+    {
+        <div class="photo-picker">
+            <InputFile id="@($"{IdPrefix}-camera")" class="visually-hidden" accept="image/*" capture="environment" OnChange="OnSelectedAsync" />
+            <label class="btn btn-outline-primary" for="@($"{IdPrefix}-camera")"><span aria-hidden="true">📷</span> Zrób zdjęcie</label>
+            <InputFile id="@($"{IdPrefix}-file")" class="visually-hidden" accept="image/*" OnChange="OnSelectedAsync" />
+            <label class="btn btn-outline-secondary" for="@($"{IdPrefix}-file")"><span aria-hidden="true">🖼️</span> Wybierz z urządzenia</label>
+            @if (_preview is not null)
+            {
+                <button type="button" class="btn btn-link" @onclick="Clear">Usuń zdjęcie</button>
+            }
+        </div>
+    }
+
+    @if (_preview is not null)
+    {
+        <img class="photo-preview" src="@_preview" alt="Podgląd dodanego zdjęcia" />
+    }
+
+    <div role="status" aria-live="polite">
+        @if (_busy)
+        {
+            <p class="mb-0 mt-2"><span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Analizuję zdjęcie…</p>
+        }
+        else if (_analysis is { } analysis)
+        {
+            <div class="photo-verdict photo-verdict-@analysis.Verdict.ToString().ToLowerInvariant()">
+                <strong><span aria-hidden="true">@Icon(analysis.Verdict)</span> @Label(analysis.Verdict)</strong>
+                <div>Prawdopodobieństwo przeszkody według AI: <strong>@analysis.Percent%</strong></div>
+                <div class="photo-meter" aria-hidden="true"><span style="width: @(analysis.Percent)%"></span></div>
+                @if (analysis.SuggestedKind is { } kind)
+                {
+                    <div>Rodzaj: @Labels.Of(kind)</div>
+                }
+                @if (!string.IsNullOrEmpty(analysis.Summary))
+                {
+                    <div class="report-description">„@analysis.Summary”</div>
+                }
+                <div class="form-text">Ocena AI może się mylić. Sprawdź ją, zanim wyślesz zgłoszenie.</div>
+                @if (OnApply.HasDelegate && analysis.Verdict != ObstacleVerdict.Unlikely)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" @onclick="() => OnApply.InvokeAsync(analysis)">
+                        Uzupełnij zgłoszenie na podstawie zdjęcia
+                    </button>
+                }
+            </div>
+        }
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-warning mt-2 mb-0" role="alert">@_error</div>
+    }
+</fieldset>
+
+@code {
+    private bool _busy;
+    private string? _preview;
+    private ObstacleAnalysis? _analysis;
+    private string? _error;
+
+    /// <summary>Przedrostek identyfikatorów pól, gdy na stronie jest więcej niż jeden formularz.</summary>
+    [Parameter] public string IdPrefix { get; set; } = "photo";
+
+    /// <summary>Gdy podane, wynik można jednym przyciskiem przenieść do formularza zgłoszenia.</summary>
+    [Parameter] public EventCallback<ObstacleAnalysis> OnApply { get; set; }
+
+    private async Task OnSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        _analysis = null;
+        if (!e.File.ContentType.StartsWith("image/", StringComparison.Ordinal))
+        {
+            _error = "Wybierz plik ze zdjęciem.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            // Zmniejszenie i zapis jako JPEG w przeglądarce: szybsza wysyłka, a przy okazji znika EXIF z położeniem GPS.
+            var resized = await e.File.RequestImageFileAsync("image/jpeg", PhotoUpload.MaxDimensionPx, PhotoUpload.MaxDimensionPx);
+            await using var stream = resized.OpenReadStream(PhotoUpload.MaxBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+
+            var photo = new PhotoUpload(buffer.ToArray(), "image/jpeg");
+            _preview = $"data:image/jpeg;base64,{Convert.ToBase64String(photo.Content)}";
+            StateHasChanged();
+
+            var result = await Sender.Send(new AnalyzePhotoCommand(photo));
+            if (result.IsSuccess)
+                _analysis = result.Value;
+            else
+                _error = result.Error;
+        }
+        catch (Exception ex) when (ex is IOException or JSException or InvalidOperationException)
+        {
+            _preview = null;
+            _error = "Nie udało się odczytać zdjęcia. Spróbuj innego pliku (JPEG, PNG lub WebP).";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Clear()
+    {
+        _preview = null;
+        _analysis = null;
+        _error = null;
+    }
+
+    private static string Label(ObstacleVerdict verdict) => verdict switch
+    {
+        ObstacleVerdict.Likely => "Na zdjęciu prawdopodobnie jest przeszkoda",
+        ObstacleVerdict.Uncertain => "Nie wiadomo, czy na zdjęciu jest przeszkoda",
+        _ => "Na zdjęciu raczej nie ma przeszkody"
+    };
+
+    private static string Icon(ObstacleVerdict verdict) => verdict switch
+    {
+        ObstacleVerdict.Likely => "⚠️",
+        ObstacleVerdict.Uncertain => "❔",
+        _ => "✅"
+    };
+}

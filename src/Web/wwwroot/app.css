@@ -1892,3 +1892,51 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .header__logo__image .st0 {
     fill: #ffffff;
 }
+/* Zdjęcie w zgłoszeniu z oceną AI: werdykt zawsze jako tekst i znak, kolor i pasek tylko go ilustrują. */
+.photo-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    align-items: center;
+}
+
+.photo-picker input:focus-visible + label {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.photo-preview {
+    display: block;
+    max-width: 100%;
+    max-height: 16rem;
+    margin-top: var(--spacing-2);
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+}
+
+.photo-verdict {
+    margin-top: var(--spacing-2);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--neutral-400);
+    border-left-width: 0.4rem;
+    border-radius: 0.5rem;
+    background: #fff;
+}
+
+.photo-verdict-likely { border-left-color: #b45309; }
+.photo-verdict-uncertain { border-left-color: var(--neutral-600); }
+.photo-verdict-unlikely { border-left-color: #047857; }
+
+.photo-meter {
+    height: 0.5rem;
+    margin: 0.35rem 0;
+    border-radius: var(--radius-full);
+    background: var(--neutral-200);
+    overflow: hidden;
+}
+
+.photo-meter span {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+}

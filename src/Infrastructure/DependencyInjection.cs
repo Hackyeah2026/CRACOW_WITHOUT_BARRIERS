@@ -19,6 +19,7 @@ public static class DependencyInjection
         .AddScoped<IRoutingClient, HostRoutingClient>()
         .AddScoped<IReportsClient, HostReportsClient>()
         .AddScoped<IHazardsClient, HostHazardsClient>()
+        .AddScoped<IPhotoAnalysisClient, HostPhotoAnalysisClient>()
         .AddScoped<IOfficialClient, HostOfficialClient>()
         .AddScoped<IAccountClient, HostAccountClient>();
 
@@ -30,6 +31,18 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri(routing.BaseUrl);
             client.Timeout = TimeSpan.FromSeconds(15);
+        });
+        return services;
+    }
+
+    /// <summary>Analiza zdjęć w zgłoszeniach modelem OpenAI; bez klucza host odpowiada "usługa niedostępna".</summary>
+    public static IServiceCollection AddObstacleDetection(this IServiceCollection services, OpenAiOptions openAi)
+    {
+        services.AddSingleton(openAi);
+        services.AddHttpClient<IObstacleDetector, OpenAiObstacleDetector>(client =>
+        {
+            client.BaseAddress = new Uri(openAi.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(60);
         });
         return services;
     }

@@ -95,6 +95,8 @@
                             </div>
                         </fieldset>
 
+                        <PhotoAnalysis IdPrefix="hazard-photo" OnApply="ApplyPhoto" />
+
                         <div class="mb-3">
                             <label class="form-label h6" for="hazard-description">
                                 Opis @(_kind == HazardKind.Other ? "" : "(opcjonalnie)")
@@ -241,6 +243,15 @@ else
         {
             _locating = false;
         }
+    }
+
+    /// <summary>Rodzaj z analizy zdjęcia; opis tylko wtedy, gdy użytkownik nic jeszcze nie napisał.</summary>
+    private void ApplyPhoto(ObstacleAnalysis analysis)
+    {
+        if (analysis.SuggestedKind is { } kind)
+            _kind = kind;
+        if (string.IsNullOrWhiteSpace(_description))
+            _description = analysis.Summary;
     }
 
     private async Task SubmitAsync()

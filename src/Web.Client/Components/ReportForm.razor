@@ -56,6 +56,8 @@
                 </div>
             </fieldset>
 
+            <PhotoAnalysis IdPrefix="report-photo" OnApply="ApplyPhoto" />
+
             <div class="mb-3">
                 <label class="form-label h6" for="report-description">
                     Opis @(_kind == ReportKind.MissingAmenity ? "(opcjonalnie)" : "")
@@ -118,6 +120,14 @@
             _features.Add(feature);
         else if (!on)
             _features.Remove(feature);
+    }
+
+    /// <summary>Przeszkoda na zdjęciu to bariera; opis z analizy tylko wtedy, gdy użytkownik nic jeszcze nie napisał.</summary>
+    private void ApplyPhoto(ObstacleAnalysis analysis)
+    {
+        _kind = ReportKind.Barrier;
+        if (string.IsNullOrWhiteSpace(_description))
+            _description = analysis.Summary;
     }
 
     private async Task SubmitAsync()

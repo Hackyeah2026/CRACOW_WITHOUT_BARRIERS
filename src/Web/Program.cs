@@ -1,4 +1,5 @@
 using Infrastructure;
+using Infrastructure.Mongo;
 using Infrastructure.Server;
 using Web.Components;
 using Web.Endpoints;
@@ -11,6 +12,10 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddServerInfrastructure(
     builder.Configuration.GetSection(OpenRouteServiceOptions.Section).Get<OpenRouteServiceOptions>() ?? new());
+
+// Baza działa tylko na hoście: adres połączenia z hasłem nie może trafić do przeglądarki.
+builder.Services.AddMongo(
+    builder.Configuration.GetSection(MongoOptions.Section).Get<MongoOptions>() ?? new());
 
 var app = builder.Build();
 
@@ -32,6 +37,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRouteEndpoints();
+app.MapHealthEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

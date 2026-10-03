@@ -6,6 +6,8 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 
 **Co doszło od poprzedniej wersji tego dokumentu (13:00):** routing po ulicach, komunikacja miejska z rozkładem i przesiadkami, nowy wygląd interfejsu (Łukasz).
 
+**Co doszło 3.10.2026 wieczorem:** przygotowane połączenie hosta z MongoDB (klaster w MongoDB Atlas). Na razie sama infrastruktura, bez kolekcji z danymi; szczegóły w sekcji "Baza danych (MongoDB)".
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -44,6 +46,19 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 - **Data danych** jest pod każdą podpowiedzią: źródło, zakres ważności rozkładu, dzień pobrania.
 - Wyszukiwanie działa w przeglądarce, na pliku z rozkładem; host nie bierze w nim udziału.
 
+### Baza danych (MongoDB)
+
+Stan: **przygotowane połączenie, bez danych.** Żadna funkcja aplikacji nie korzysta jeszcze z bazy; katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
+
+- **Gdzie działa baza:** klaster w MongoDB Atlas (cloud.mongodb.com). Łączy się z nim wyłącznie host (`Web`); przeglądarka nigdy nie dostaje adresu połączenia.
+- **Osobny projekt `Infrastructure.Mongo`**, podpięty tylko do hosta. Sterownik (`MongoDB.Driver` 3.12.0, licencja Apache-2.0) nie trafia do `Infrastructure`, bo ten projekt jest też częścią aplikacji w przeglądarce.
+- **Konfiguracja (sekcja `Mongo`):** `ConnectionString` (sekret), `Database` (domyślnie `krakow-bez-barier`, wpisane w `appsettings.json`), `ServerSelectionTimeoutSeconds` (5).
+- **Rejestracja:** `AddMongo` udostępnia `IMongoClient` i `IMongoDatabase` jako singletony. Klient powstaje przy pierwszym użyciu, więc aplikacja uruchamia się także bez skonfigurowanej bazy.
+- **Zapis dokumentów:** pola camelCase, enumy jako tekst, nieznane pola pomijane, czyli tak samo jak w plikach JSON katalogu. `Place.Id` staje się kluczem `_id`.
+- **Sprawdzenie połączenia:** `GET /api/health/db` zwraca `ok` z czasem odpowiedzi, `not-configured` (503), gdy brakuje adresu, albo `unreachable` (503), gdy baza nie odpowiada. Szczegóły błędu trafiają tylko do logów hosta.
+
+Jak dodać pierwszą kolekcję: interfejs repozytorium w `Application/Abstractions`, implementacja w `Infrastructure.Mongo` na `IMongoDatabase`, endpoint w `Web/Endpoints`, klient HTTP w `Infrastructure/Browser`.
+
 ### Warstwy
 
 | Projekt | Co zawiera |
@@ -52,9 +67,10 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 | `Application` | `Result`, `ICommand` / `IQuery` nad MediatR, zapytania o miejsca i kartę miejsca, zapis i odczyt profilu, układanie planu (kolejność, odcinki, komunikacja), ranking podpowiedzi |
 | `Infrastructure` | katalog miejsc i sieć komunikacji z plików statycznych, magazyn IndexedDB, klient routingu z cache i wariantem awaryjnym, klient OpenRouteService po stronie hosta |
 | `Web.Client` | strony: start, profil, miejsca, karta miejsca, plan; mapa Leaflet; panel komunikacji; stan sesji |
-| `Web` | host: serwuje aplikację, pośredniczy w routingu |
+| `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia |
+| `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`) |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 25 testów: silnik oceny, łączenie profili, kolejność przystanków, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń |
+| `Tests` | 44 testy: silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy |
 
 ### Dane
 
@@ -79,8 +95,11 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 | Wawel → Muzeum Narodowe (9:00) | tramwaj 8, Wawel 9:13 → Muzeum Narodowe 9:21 |
 | Przychodnia Medycyna Polska → Wojewódzka Biblioteka (limit 500 m) | brak połączenia, oznaczone na czerwono |
 
+- MongoDB bez dostępu do klastra: host uruchamia się bez adresu połączenia, `GET /api/health/db` zwraca `not-configured`; zapis i odczyt miejsca przez BSON oraz zachowanie przy niedostępnym serwerze są pokryte testami.
+
 ### Nie sprawdzone
 
+- **Połączenie z klastrem MongoDB Atlas.** Adres połączenia nie był jeszcze ustawiony; pierwsze sprawdzenie to `GET /api/health/db` po ustawieniu sekretu.
 - Wersja opublikowana (`dotnet publish`) i wdrożenie na serwer.
 - Routing na żywo dla profilu wózkowego z limitem krawężnika.
 - Komunikacja dla profilu bez limitu odcinka (próg 1 km) w przeglądarce; logika jest pokryta testami tylko pośrednio.
@@ -122,11 +141,16 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 | Biały ekran przy uruchomieniu z Ridera | nie odtworzone: te same pliki uruchomione poleceniem `dotnet run` działają | potrzebna treść błędów z konsoli; podejrzenia: pamięć podręczna przeglądarki po przebudowie, konfiguracja `Web.Client` zamiast `Web`, certyfikat dla profilu `https` |
 | Przebudowa projektu przy działającej aplikacji | host działa na starym kodzie, a pliki klienta są już nowe | po każdej przebudowie restart aplikacji |
 
+| Brak adresu IP na liście dostępu w MongoDB Atlas | połączenie kończy się limitem czasu, a endpoint zwraca `unreachable` | dodać adresy zespołu i serwera w Network Access; przyczyna jest w logach hosta |
+| Adres `mongodb+srv://` wymaga rekordów DNS SRV | w niektórych sieciach połączenie się nie uda | użyć dłuższego adresu `mongodb://` z Atlasa |
+
 ### Organizacja
 
 - Deploy na Mikrusa nie zaczęty, a plan zakładał go w pierwszej godzinie.
 - Brak README.
 - Klucz OpenRouteService każdy ustawia u siebie (`dotnet user-secrets set "OpenRouteService:ApiKey" ... --project src/Web`); na serwerze zmienna `OpenRouteService__ApiKey`. Bez klucza trasy są liczone w linii prostej.
+- Adres połączenia z MongoDB każdy ustawia u siebie (`dotnet user-secrets set "Mongo:ConnectionString" "mongodb+srv://..." --project src/Web`); na serwerze zmienna `Mongo__ConnectionString`. Zawiera hasło, więc nie trafia do repozytorium. Bez niego aplikacja działa jak dotąd.
+- W MongoDB Atlas potrzebny jest użytkownik bazy z rolą `readWrite` na bazie `krakow-bez-barier` oraz adresy zespołu i serwera w Network Access.
 - Kamień milowy 17:00 z planu prac (mapa z prawdziwymi danymi, wdrożona na serwerze) jest spełniony funkcjonalnie, ale nie w części "wdrożona".
 
 ## 3. Odstępstwa od planu
@@ -146,6 +170,7 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 | `BreakInserter` wstawia przerwy | ostrzeżenie i propozycja przejazdu komunikacją | przerwy (ławki, toalety) nadal do zrobienia |
 | Toalety w liście i podpowiedziach | dostępne tylko przez filtr kategorii | zajmowały górę rankingu |
 | Zasięg miejsc: Kraków | centrum (prostokąt ok. 3 × 3 km); komunikacja obejmuje cały Kraków | mniejszy plik i szybszy import; zasięg jest jednym wpisem w `CityImports` |
+| Bez bazy danych: pliki statyczne i IndexedDB | doszło połączenie hosta z MongoDB (na razie bez kolekcji) | przygotowanie pod dane wspólne dla użytkowników, np. zgłoszenia barier |
 | Solution w formacie `.sln` | `.slnx` | domyślny format SDK .NET 10; starsze wersje IDE mogą go nie otwierać |
 | Leaflet | wersja 1.9.4 wgrana do repozytorium | bez CDN; licencja BSD-2 |
 
@@ -161,11 +186,14 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 6. **Zasięg importu miejsc.** Centrum czy cały Kraków. Komunikacja obejmuje już całe miasto, więc różnica jest widoczna.
 7. **Drugie miasto.** Model ma `CityId` i `Coverage`, import jest parametryzowany, ale interfejs nie ma wyboru miasta.
 
+8. **Co trafia do MongoDB.** Kandydaci: zgłoszenia barier (punkt 10 zakresu), katalog miejsc, zapisane plany. Profil potrzeb powinien zostać na urządzeniu: aplikacja deklaruje, że dane o zdrowiu go nie opuszczają.
+
 ### Ryzyka przed demo
 
 - **Wersja opublikowana może zachowywać się inaczej** niż uruchamiana lokalnie (przycinanie kodu, ścieżki plików statycznych, kompresja dużych plików danych). Deploy na Mikrusa warto zrobić teraz, nie nad ranem.
 - **Mikrus:** nieznana ilość pamięci, port, subdomena z HTTPS i dostępność środowiska .NET 10.
 - **Rozkład jest ważny od 2.10.2026.** Demo 4.10 mieści się w zakresie, ale nagranie filmu o innej porze niż testy da inne godziny odjazdów; scenariusz filmu nie powinien zależeć od konkretnej godziny.
+- **MongoDB Atlas na serwerze:** adres IP Mikrusa musi być na liście dostępu, a darmowy klaster M0 ma limit 512 MB.
 - **Dostępność samej aplikacji** nie była testowana czytnikiem ekranu, a interfejs został przebudowany.
 - **Licencje:** przypis OSM (ODbL) jest w stopce i na mapie; źródło rozkładu ZTP jest podane przy podpowiedziach, ale warunków wykorzystania danych ZTP i regulaminu OpenRouteService nie sprawdziliśmy. Prawa do nagrodzonego rozwiązania przechodzą na fundatora, więc każda zależność musi być na otwartej licencji (MediatR przypięty do 12.4.1, Apache-2.0).
 
@@ -183,3 +211,4 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 | 8 | Opis planu przez OpenAI | punkt 8 zakresu |
 | 9 | Mapa hałasu MSIP, warstwy ZTP | mniej "brak danych" dla profili sensorycznych, cechy przystanków |
 | 10 | README, przegląd dostępności interfejsu | materiały do zgłoszenia |
+| 11 | MongoDB: ustawić adres połączenia, potwierdzić `GET /api/health/db`, zdecydować o pierwszej kolekcji | baza jest podłączona, ale jeszcze nieużywana |

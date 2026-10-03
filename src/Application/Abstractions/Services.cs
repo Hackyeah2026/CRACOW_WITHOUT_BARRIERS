@@ -7,7 +7,14 @@ namespace Application.Abstractions;
 public interface IPlaceCatalog
 {
     Task<IReadOnlyList<City>> GetCitiesAsync(CancellationToken ct);
-    Task<IReadOnlyList<Place>> GetAllAsync(string cityId, CancellationToken ct);
+    /// <summary>Kategorie, dla których miasto ma dane, z liczbą miejsc.</summary>
+    Task<IReadOnlyList<PlaceCategoryCount>> GetCategoriesAsync(string cityId, CancellationToken ct);
+
+    /// <summary>Miejsca z podanych kategorii. Katalog jest podzielony na kategorie, żeby widok nie pobierał całego miasta.</summary>
+    Task<IReadOnlyList<Place>> GetAsync(string cityId, IReadOnlyCollection<PlaceCategory> categories, CancellationToken ct);
+
+    /// <summary>Miejsce o podanym identyfikatorze z dowolnej kategorii; null, gdy go nie ma.</summary>
+    Task<Place?> FindAsync(string cityId, string placeId, CancellationToken ct);
 }
 
 public interface ITransitCatalog

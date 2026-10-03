@@ -25,8 +25,18 @@ public static class Labels
         PlaceCategory.QuietSpot => "Ciche miejsce",
         PlaceCategory.Food => "Jedzenie",
         PlaceCategory.DisabledParking => "Koperta",
+        PlaceCategory.Pharmacy => "Apteka",
+        PlaceCategory.Worship => "Miejsce kultu",
+        PlaceCategory.Park => "Park",
+        PlaceCategory.Shop => "Sklep",
+        PlaceCategory.Hotel => "Nocleg",
+        PlaceCategory.Service => "Poczta, bank, pomoc",
+        PlaceCategory.Education => "Szkoła, uczelnia",
         _ => category.ToString()
     };
+
+    /// <summary>Powyżej tylu pinezek symbole (elementy strony) zastępujemy kółkami rysowanymi na jednym płótnie.</summary>
+    public const int MaxIconMarkers = 600;
 
     /// <summary>Symbol na mapie dla punktów odpoczynku; pozostałe kategorie rysujemy kółkiem w kolorze oceny.</summary>
     public static string? MapIcon(PlaceCategory category) => category switch
@@ -34,6 +44,7 @@ public static class Labels
         PlaceCategory.Toilet => "🚽",
         PlaceCategory.Bench => "🪑",
         PlaceCategory.QuietSpot => "🤫",
+        PlaceCategory.DisabledParking => "🅿️",
         _ => null
     };
 

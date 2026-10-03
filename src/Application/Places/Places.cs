@@ -12,12 +12,24 @@ public static class ModeCategories
     /// <summary>Kategorie, które tworzą listę i podpowiedzi w danym trybie.</summary>
     public static IReadOnlyList<PlaceCategory> For(AppMode mode) => mode switch
     {
-        AppMode.Sightseeing => [PlaceCategory.Attraction, PlaceCategory.Museum, PlaceCategory.Culture, PlaceCategory.Food],
-        _ => [PlaceCategory.Office, PlaceCategory.Clinic, PlaceCategory.Library, PlaceCategory.Culture, PlaceCategory.Stop]
+        AppMode.Sightseeing =>
+            [PlaceCategory.Attraction, PlaceCategory.Museum, PlaceCategory.Culture, PlaceCategory.Worship, PlaceCategory.Park, PlaceCategory.Food],
+        _ =>
+        [
+            PlaceCategory.Office, PlaceCategory.Service, PlaceCategory.Clinic, PlaceCategory.Pharmacy, PlaceCategory.Library,
+            PlaceCategory.Culture, PlaceCategory.Stop
+        ]
     };
 
-    /// <summary>Miejsca pomocnicze: dostępne przez filtr kategorii, ale nie mieszane z podpowiedziami.</summary>
-    public static IReadOnlyList<PlaceCategory> Support { get; } = [PlaceCategory.Toilet];
+    /// <summary>
+    /// Miejsca pomocnicze: dostępne przez filtr kategorii, ale nie mieszane z podpowiedziami. Ich pliki są pobierane
+    /// dopiero po wybraniu kategorii, więc duże zbiory (ławki, sklepy) nie spowalniają zwykłej listy.
+    /// </summary>
+    public static IReadOnlyList<PlaceCategory> Support { get; } =
+    [
+        PlaceCategory.Toilet, PlaceCategory.Bench, PlaceCategory.DisabledParking, PlaceCategory.Shop, PlaceCategory.Hotel,
+        PlaceCategory.Education
+    ];
 }
 
 /// <summary>Ranking podpowiedzi: ocena dostępności + potwierdzone udogodnienia - odległość od punktu odniesienia.</summary>
@@ -53,13 +65,12 @@ internal sealed class GetPlacesQueryHandler(IPlaceCatalog catalog)
         if (city is null)
             return Result.Failure<IReadOnlyList<AssessedPlace>>($"Nieznane miasto: {query.CityId}.");
 
-        var places = await catalog.GetAllAsync(query.CityId, ct);
         var categories = query.Category is { } category ? [category] : ModeCategories.For(query.Mode);
+        var places = await catalog.GetAsync(query.CityId, categories, ct);
         var search = query.Search?.Trim();
         var origin = new GeoPoint(city.Lat, city.Lon);
 
         IReadOnlyList<AssessedPlace> result = places
-            .Where(p => categories.Contains(p.Category))
             .Where(p => string.IsNullOrEmpty(search) || p.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
             .Select(p =>
             {
@@ -79,11 +90,21 @@ internal sealed class GetPlaceDetailsQueryHandler(IPlaceCatalog catalog) : IQuer
 {
     public async Task<Result<AssessedPlace>> Handle(GetPlaceDetailsQuery query, CancellationToken ct)
     {
-        var place = (await catalog.GetAllAsync(query.CityId, ct)).FirstOrDefault(p => p.Id == query.PlaceId);
+        var place = await catalog.FindAsync(query.CityId, query.PlaceId, ct);
         return place is null
             ? Result.Failure<AssessedPlace>("Nie znaleziono miejsca.")
             : Result.Success(new AssessedPlace(place, AssessmentEngine.Assess(query.Profile, place), 0));
     }
+}
+
+/// <summary>Kategorie, które mają dane w tym mieście, z liczbą miejsc (do filtra kategorii).</summary>
+public sealed record GetPlaceCategoriesQuery(string CityId) : IQuery<IReadOnlyList<PlaceCategoryCount>>;
+
+internal sealed class GetPlaceCategoriesQueryHandler(IPlaceCatalog catalog)
+    : IQueryHandler<GetPlaceCategoriesQuery, IReadOnlyList<PlaceCategoryCount>>
+{
+    public async Task<Result<IReadOnlyList<PlaceCategoryCount>>> Handle(GetPlaceCategoriesQuery query, CancellationToken ct) =>
+        Result.Success(await catalog.GetCategoriesAsync(query.CityId, ct));
 }
 
 public sealed record GetCitiesQuery : IQuery<IReadOnlyList<City>>;

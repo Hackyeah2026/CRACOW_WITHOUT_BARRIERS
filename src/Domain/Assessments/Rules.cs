@@ -48,7 +48,8 @@ public sealed class MobilityRule : IAssessmentRule
             else if (place.StateOf(FeatureKey.StepFreeEntrance) == FeatureState.Yes)
                 yield return Reasons.Amenity(place, FeatureKey.StepFreeEntrance, "Wejście bez stopni.");
             else
-                yield return Reasons.Missing(FeatureKey.WheelchairAccess, "Brak informacji, czy wejście jest bez stopni.", blocking: true);
+                yield return Reasons.Missing(FeatureKey.WheelchairAccess,
+                    place.IsOutdoorPoint ? "Brak informacji, czy dojście jest bez stopni." : "Brak informacji, czy wejście jest bez stopni.", blocking: true);
 
             if (place.StateOf(FeatureKey.Stairs) == FeatureState.Yes)
             {
@@ -78,7 +79,7 @@ public sealed class MobilityRule : IAssessmentRule
         if (profile.AvoidCobblestone && place.StateOf(FeatureKey.SurfaceCobblestone) == FeatureState.Yes)
             yield return Reasons.Barrier(place, FeatureKey.SurfaceCobblestone, AssessmentStatus.Limited, "Nawierzchnia z bruku w otoczeniu miejsca.");
 
-        if (profile.NeedsAccessibleToilet && place.Category != PlaceCategory.Stop)
+        if (profile.NeedsAccessibleToilet && !place.IsOutdoorPoint)
         {
             switch (place.StateOf(FeatureKey.AccessibleToilet))
             {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Domain;
+using Domain.Places;
 using Tools;
 
 // Użycie (z katalogu repozytorium):
@@ -32,7 +33,7 @@ if (command == "transit")
     return 0;
 }
 
-var output = Path.Combine(dataDir, "places.json");
+var output = Path.Combine(dataDir, "places");
 var overrides = Path.Combine(root, "src", "Tools", "overrides", $"{cityId}.json");
 
 var places = await new OsmOverpassSource().GetPlacesAsync(cityId, city);
@@ -45,10 +46,22 @@ if (places.Count == 0)
 
 places = OverridesApplier.Apply(places, overrides);
 
-await File.WriteAllTextAsync(output, JsonSerializer.Serialize(places, DomainJson.Options));
+// Jeden plik na kategorię: aplikacja pobiera tylko kategorie potrzebne w danym widoku.
+if (Directory.Exists(output))
+    Directory.Delete(output, recursive: true);
+Directory.CreateDirectory(output);
+
+var groups = places.GroupBy(p => p.Category).OrderBy(g => g.Key).ToList();
+foreach (var group in groups)
+    await File.WriteAllTextAsync(Path.Combine(output, $"{group.Key}.json"), JsonSerializer.Serialize(group.ToList(), DomainJson.Options));
+
+var index = new PlaceIndex(DateOnly.FromDateTime(DateTime.UtcNow), groups.Select(g => new PlaceCategoryCount(g.Key, g.Count())).ToList());
+await File.WriteAllTextAsync(Path.Combine(output, "index.json"), JsonSerializer.Serialize(index, DomainJson.Indented));
+
 Console.WriteLine($"Zapisano {places.Count} miejsc do {output}");
-foreach (var group in places.GroupBy(p => p.Category).OrderByDescending(g => g.Count()))
-    Console.WriteLine($"  {group.Key}: {group.Count()}, z cechami: {group.Count(p => p.Features.Count > 0)}");
+foreach (var group in groups.OrderByDescending(g => g.Count()))
+    Console.WriteLine($"  {group.Key}: {group.Count()}, z cechami: {group.Count(p => p.Features.Count > 0)}, " +
+                      $"plik {new FileInfo(Path.Combine(output, $"{group.Key}.json")).Length / 1024} KB");
 return 0;
 
 static string FindRepoRoot()

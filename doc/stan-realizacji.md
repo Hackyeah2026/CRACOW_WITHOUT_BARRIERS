@@ -14,6 +14,8 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 **Co doszło 3.10.2026 ok. 21:00:** strona "Konto" łączy konto, zgłoszenia i profil potrzeb; profil jest zapisywany osobno dla konta (bez konta: konfiguracja tymczasowa); strona główna pokazuje pulpit zalogowanego albo skrócone informacje z zachętą do założenia konta. Szczegóły w sekcji "Konto, profil i strona główna".
 
+**Co doszło 3.10.2026 ok. 22:30:** katalog miejsc rozszerzony z 4 171 do 28 971 miejsc i podzielony na pliki per kategoria, pobierane dopiero wtedy, gdy widok ich potrzebuje. Szczegóły w sekcji "Katalog miejsc: zakres i podział na kategorie".
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -136,6 +138,40 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 
 **Endpointy:** `GET /api/hazards?cityId=`, `POST /api/hazards` i `GET /api/hazards/mine` (wymagają konta mieszkańca; limit wspólny ze zgłoszeniami), `GET /api/official/hazards?cityId=`, `PATCH /api/official/hazards/{id}`.
 
+### Katalog miejsc: zakres i podział na kategorie
+
+**Rozważone warianty wczytywania:** jeden duży plik (kilkanaście MB przy każdym wejściu), pliki per kategoria, kafle przestrzenne (ranking całego miasta przestaje działać bez pobrania wszystkiego), miejsca w MongoDB z zapytaniami po obszarze (katalog zależny od bazy), odpytywanie OpenStreetMap na żywo (publiczne Overpass API jest zawodne i wolne: podczas importu trzy instancje na zmianę zwracały błędy, limity czasu i nieaktualne dane). **Wybrane: pliki per kategoria**, bo aplikacja i tak pracuje zestawami kategorii, a katalog zostaje statyczny i działa bez serwera.
+
+- **Układ:** `data/{miasto}/places/index.json` (data importu, kategorie z liczbą miejsc) i `places/{Kategoria}.json`. `IPlaceCatalog` ma `GetAsync(miasto, kategorie)`, `FindAsync(miasto, id)` i `GetCategoriesAsync`; nie ma już metody zwracającej całe miasto.
+- **Co się pobiera:** lista w trybie "Załatwiam sprawę" to 7 plików (ok. 1,4 MB przed kompresją), "Zwiedzam" 6 plików (ok. 0,75 MB). Ławki (3,4 MB) i sklepy (1,3 MB) pobierają się dopiero po wybraniu kategorii w filtrze. Kompresja serwera zmniejsza pliki 6-15 razy (ławki: ok. 220 KB).
+- **Karta miejsca z bezpośredniego adresu** szuka najpierw w plikach już pobranych, potem w pozostałych od najmniejszych.
+- **Nowe kategorie:** apteka (wydzielona ze "Zdrowia"), miejsce kultu, park, sklep, nocleg, usługi (poczta, bank, pomoc społeczna; poczta przeszła z "Urzędu"), szkoła i uczelnia. Ławki i koperty, dotąd puste, są importowane. Tryb "Zwiedzam" obejmuje dodatkowo miejsca kultu i parki, "Załatwiam sprawę" apteki i usługi; reszta jest w filtrze kategorii z liczbą miejsc.
+- **Zmiany w imporcie:** cztery osobne zapytania z ponawianiem; perony uzupełniają cechy przystanków (387 przystanków); restauracje także bez tagu `wheelchair`; toalety prywatne pominięte, "dla klientów" i płatne opisane; ulice oznaczone jako atrakcje pominięte; adres także z `addr:place`; nowe tagi `elevator`, `hearing_loop`, `dog=yes`; data cechy to data sprawdzenia z OSM (`check_date`), a gdy jej nie ma, data ostatniej edycji obiektu (kolumna na karcie miejsca nazywa się teraz "Stan na dzień"). Importer odrzuca instancję Overpass z danymi starszymi niż 2 dni.
+- **Mapa:** powyżej 600 pinezek symbole są zastępowane kółkami rysowanymi na płótnie, żeby tysiące ławek nie zatrzymały przeglądarki.
+
+| Kategoria | Miejsc | Z informacją o wózkach |
+|---|---|---|
+| Ławka | 12 437 | 0 |
+| Sklep | 6 435 | 1 096 |
+| Jedzenie | 2 400 | 407 |
+| Przystanek | 2 179 | 441 |
+| Koperta | 1 871 | 21 |
+| Zdrowie | 746 | 96 |
+| Szkoła, uczelnia | 449 | 18 |
+| Nocleg | 383 | 55 |
+| Atrakcja | 364 | 42 |
+| Poczta, bank, pomoc | 314 | 80 |
+| Apteka | 273 | 85 |
+| Miejsce kultu | 229 | 27 |
+| Toaleta | 226 | 135 |
+| Urząd | 166 | 24 |
+| Park | 163 | 5 |
+| Kultura | 127 | 22 |
+| Muzeum | 123 | 27 |
+| Biblioteka | 86 | 21 |
+
+**Znany brak w zapisanych danych:** pierwsza grupa zapytań (miejsca z nazwą) przyszła z instancji z nieaktualną bazą, więc brakuje ok. 25 niedawno dodanych obiektów, w tym "Przychodni Medycyna Polska" ze ścieżki demo (jej ręczne uzupełnienie nie miało się do czego przypiąć). Kontrola świeżości jest już w importerze; trzeba powtórzyć `dotnet run --project src/Tools -- import krakow`, gdy główna instancja Overpass będzie dostępna.
+
 ### Warstwy
 
 | Projekt | Co zawiera |
@@ -147,13 +183,13 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
 | `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 69 testów: profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
+| `Tests` | 91 testów: mapowanie tagów OpenStreetMap na kategorie i cechy, profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 
 | Plik | Zawartość | Źródło |
 |---|---|---|
-| `data/krakow/places.json` (250 KB) | 858 miejsc w centrum Krakowa: przystanki 216, zdrowie 145, jedzenie 132, muzea 99, urzędy 70, atrakcje 61, toalety 57, kultura 52, biblioteki 26 | OpenStreetMap, pobrane 3.10.2026 |
+| `data/krakow/places/` (18 plików, 7,4 MB) | 28 971 miejsc w całym Krakowie, po jednym pliku na kategorię; liczby w sekcji "Katalog miejsc" | OpenStreetMap, pobrane 3.10.2026 |
 | `data/krakow/transit.json` (1,3 MB, ok. 330 KB po kompresji) | 218 linii, 589 przebiegów, 94 953 kursy, 3474 przystanki, cały Kraków | GTFS ZTP Kraków, rozkład ważny 2.10.2026-31.01.2027, pobrany 3.10.2026 |
 | `src/Tools/overrides/krakow.json` | ręczne uzupełnienia cech dla 10 miejsc | zespół, dane demonstracyjne |
 
@@ -206,7 +242,6 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | Adresy warstw ZTP w ArcGIS Hub (wiaty, koperty) nieznane | nie podpięte | ustalić ręcznie na stronie huba |
 | Adres MSIP z notatek zwraca 404 | – | działający katalog: `https://msip.um.krakow.pl/arcgis/rest/services` |
 | Główny serwer Overpass nie odpowiadał | import miejsc trwał dłużej | import próbuje kolejno trzech instancji; wynik jest plikiem w repozytorium |
-| Przystanki w `places.json` są deduplikowane po nazwie | jeden punkt na nazwę zamiast osobnych słupków | przystanki do planowania pochodzą już z GTFS; listę w katalogu można z nich odtworzyć |
 
 ### Technika
 

@@ -86,7 +86,7 @@ flowchart LR
         ORSC[Klient OpenRouteService]
     end
 
-    STATIC[/places.json<br/>transit.json/]
+    STATIC[/places/*.json<br/>transit.json/]
     ORS[(OpenRouteService)]
     DB[(MongoDB Atlas<br/>zgłoszenia, urzędnicy)]
 
@@ -188,7 +188,7 @@ Stan połączenia z bazą sprawdzisz pod `GET /api/health/db`. Panel urzędnika 
 
 | Źródło | Co bierzemy | Licencja |
 |---|---|---|
-| [OpenStreetMap](https://www.openstreetmap.org/copyright) (Overpass API) | 4 171 miejsc: przystanki, zdrowie, urzędy, atrakcje, toalety, jedzenie, kultura, muzea, biblioteki; tagi `wheelchair`, `toilets:wheelchair`, `kerb`, `surface`, `tactile_paving` i inne | ODbL, © autorzy OpenStreetMap |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) (Overpass API) | 28 971 miejsc w 18 kategoriach (po jednym pliku na kategorię): m.in. ławki, sklepy, jedzenie, przystanki, koperty, zdrowie, apteki, urzędy, atrakcje, parki, toalety; tagi `wheelchair`, `toilets:wheelchair`, `tactile_paving`, `bench`, `shelter`, `elevator`, `hearing_loop` | ODbL, © autorzy OpenStreetMap |
 | [GTFS ZTP Kraków](https://gtfs.ztp.krakow.pl/) | 218 linii, ok. 95 tys. kursów, 3 474 przystanki | według zasad udostępniania ZTP |
 | [OpenRouteService](https://openrouteservice.org/) | trasy piesze i wózkowe | według regulaminu usługi |
 | Uzupełnienia zespołu ([`overrides/krakow.json`](src/Tools/overrides/krakow.json)) | cechy sensoryczne i szczegóły dla miejsc ze ścieżki demo | **dane demonstracyjne**, oznaczone w aplikacji, niezweryfikowane |

@@ -1,6 +1,11 @@
 namespace Domain.Places;
 
-public enum PlaceCategory { Attraction, Museum, Office, Clinic, Library, Culture, Stop, Toilet, Bench, QuietSpot, Food, DisabledParking }
+// Nowe kategorie dopisujemy na końcu: nazwy trafiają do plików katalogu i do bazy zgłoszeń.
+public enum PlaceCategory
+{
+    Attraction, Museum, Office, Clinic, Library, Culture, Stop, Toilet, Bench, QuietSpot, Food, DisabledParking,
+    Pharmacy, Worship, Park, Shop, Hotel, Service, Education
+}
 
 public enum AppMode { Sightseeing, Errand }
 
@@ -29,12 +34,20 @@ public sealed record Place(
 {
     public GeoPoint Location => new(Lat, Lon);
 
+    /// <summary>Punkt w terenie, a nie obiekt z wnętrzem: nie oczekujemy tam np. toalety.</summary>
+    public bool IsOutdoorPoint => Category is PlaceCategory.Stop or PlaceCategory.Bench or PlaceCategory.DisabledParking or PlaceCategory.Park;
+
     public AccessibilityFeature? Feature(FeatureKey key) => Features.FirstOrDefault(f => f.Key == key);
 
     public FeatureState StateOf(FeatureKey key) => Feature(key)?.State ?? FeatureState.Unknown;
 
     public double? ValueOf(FeatureKey key) => Feature(key)?.Value;
 }
+
+/// <summary>Spis plików katalogu miasta: jeden plik na kategorię (data/{miasto}/places/{kategoria}.json).</summary>
+public sealed record PlaceIndex(DateOnly GeneratedOn, IReadOnlyList<PlaceCategoryCount> Categories);
+
+public sealed record PlaceCategoryCount(PlaceCategory Category, int Count);
 
 public sealed record City(
     string Id, string Name, double Lat, double Lon, int Zoom, CityCoverage Coverage, IReadOnlyList<string> Sources);

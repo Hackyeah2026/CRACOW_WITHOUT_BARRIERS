@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Domain;
 
-/// <summary>Wspólny format JSON dla places.json, IndexedDB i API.</summary>
+/// <summary>Wspólny format JSON dla plików katalogu miejsc, IndexedDB i API.</summary>
 public static class DomainJson
 {
     public static JsonSerializerOptions Options { get; } = Create(indented: false);

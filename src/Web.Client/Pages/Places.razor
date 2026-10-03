@@ -86,9 +86,9 @@
                         <label class="form-label" for="category">Kategoria</label>
                         <select id="category" class="form-select" @bind="_category" @bind:after="FilterChangedAsync">
                             <option value="">Wszystkie kategorie</option>
-                            @foreach (var category in ModeCategories.For(State.Mode).Concat(ModeCategories.Support))
+                            @foreach (var category in ModeCategories.For(State.Mode).Concat(ModeCategories.Support).Where(_counts.ContainsKey))
                             {
-                                <option value="@category">@Labels.Of(category)</option>
+                                <option value="@category">@Labels.Of(category) (@_counts[category])</option>
                             }
                         </select>
                     </div>
@@ -196,6 +196,7 @@
     private bool _fitToResults;
     private IReadOnlyList<MapMarker> _markers = [];
     private IReadOnlyList<MapMarker> _hazardMarkers = [];
+    private Dictionary<PlaceCategory, int> _counts = [];
     private string? _error;
     private string? _search;
     private string _category = "";
@@ -211,6 +212,10 @@
             _center = new GeoPoint(city.Lat, city.Lon);
             _zoom = city.Zoom;
         }
+
+        var counts = await Sender.Send(new GetPlaceCategoriesQuery(State.CityId));
+        if (counts.IsSuccess)
+            _counts = counts.Value.ToDictionary(c => c.Category, c => c.Count);
 
         // Bez odpowiedzi hosta mapa pokazuje same miejsca.
         var hazards = await Sender.Send(new GetVerifiedHazardsQuery(State.CityId));
@@ -248,9 +253,11 @@
         _error = null;
         _shown = PageSize;
         _places = result.Value;
+        // Tysiące symboli (np. wszystkie ławki) zatrzymałyby mapę, więc duże zbiory rysujemy kółkami.
+        var icons = _places.Count <= Labels.MaxIconMarkers;
         _markers = _places
             .Select(p => new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)})", p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status),
-                Icon: Labels.MapIcon(p.Place.Category)))
+                Icon: icons ? Labels.MapIcon(p.Place.Category) : null))
             .Concat(_hazardMarkers)
             .ToList();
         UpdateVisible();

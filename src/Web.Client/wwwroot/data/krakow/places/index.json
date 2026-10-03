@@ -1,0 +1,77 @@
+{
+  "generatedOn": "2026-10-03",
+  "categories": [
+    {
+      "category": "Attraction",
+      "count": 364
+    },
+    {
+      "category": "Museum",
+      "count": 123
+    },
+    {
+      "category": "Office",
+      "count": 166
+    },
+    {
+      "category": "Clinic",
+      "count": 746
+    },
+    {
+      "category": "Library",
+      "count": 86
+    },
+    {
+      "category": "Culture",
+      "count": 127
+    },
+    {
+      "category": "Stop",
+      "count": 2179
+    },
+    {
+      "category": "Toilet",
+      "count": 226
+    },
+    {
+      "category": "Bench",
+      "count": 12437
+    },
+    {
+      "category": "Food",
+      "count": 2400
+    },
+    {
+      "category": "DisabledParking",
+      "count": 1871
+    },
+    {
+      "category": "Pharmacy",
+      "count": 273
+    },
+    {
+      "category": "Worship",
+      "count": 229
+    },
+    {
+      "category": "Park",
+      "count": 163
+    },
+    {
+      "category": "Shop",
+      "count": 6435
+    },
+    {
+      "category": "Hotel",
+      "count": 383
+    },
+    {
+      "category": "Service",
+      "count": 314
+    },
+    {
+      "category": "Education",
+      "count": 449
+    }
+  ]
+}

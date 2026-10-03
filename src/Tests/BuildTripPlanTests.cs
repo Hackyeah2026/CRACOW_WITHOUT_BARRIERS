@@ -150,8 +150,14 @@ public class BuildTripPlanTests
         public Task<IReadOnlyList<City>> GetCitiesAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<City>>([new City("krakow", "Kraków", 50.0614, 19.9366, 14, CityCoverage.Full, [])]);
 
-        public Task<IReadOnlyList<Place>> GetAllAsync(string cityId, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<Place>>(Places);
+        public Task<IReadOnlyList<PlaceCategoryCount>> GetCategoriesAsync(string cityId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<PlaceCategoryCount>>([new(PlaceCategory.Museum, Places.Length)]);
+
+        public Task<IReadOnlyList<Place>> GetAsync(string cityId, IReadOnlyCollection<PlaceCategory> categories, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Place>>(Places.Where(p => categories.Contains(p.Category)).ToList());
+
+        public Task<Place?> FindAsync(string cityId, string placeId, CancellationToken ct) =>
+            Task.FromResult(Places.FirstOrDefault(p => p.Id == placeId));
     }
 
     private sealed class FakeRouting : IRoutingClient

@@ -41,11 +41,12 @@ internal sealed class BuildTripPlanCommandHandler(
 {
     public async Task<Result<TripPlan>> Handle(BuildTripPlanCommand command, CancellationToken ct)
     {
-        var all = await catalog.GetAllAsync(command.CityId, ct);
-        var places = command.PlaceIds.Distinct()
-            .Select(id => all.FirstOrDefault(p => p.Id == id))
-            .OfType<Place>()
-            .ToList();
+        var places = new List<Place>();
+        foreach (var id in command.PlaceIds.Distinct())
+        {
+            if (await catalog.FindAsync(command.CityId, id, ct) is { } place)
+                places.Add(place);
+        }
 
         if (command.Start is { } start)
         {

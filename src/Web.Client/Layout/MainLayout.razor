@@ -14,16 +14,12 @@
                 <NavLink class="nav-link" href="plan">Plan <span class="badge text-bg-light">@State.PlanPlaceIds.Count</span></NavLink>
             </li>
             <li class="nav-item"><NavLink class="nav-link" href="zglos">Zgłoś na mapie</NavLink></li>
-            <li class="nav-item"><NavLink class="nav-link" href="zgloszenia">Zgłoszenia</NavLink></li>
             <li class="nav-item">
                 <NavLink class="nav-link" href="konto">
+                    Konto
                     @if (State.User is { } user)
                     {
-                        <span aria-hidden="true">👤</span> <span class="visually-hidden">Konto: </span>@user.Login
-                    }
-                    else
-                    {
-                        <text>Zaloguj</text>
+                        <span class="badge text-bg-light"><span class="visually-hidden">zalogowano jako </span>@user.Login</span>
                     }
                 </NavLink>
             </li>
@@ -45,7 +41,7 @@
     {
         <text>Dla tego miasta nie mamy rozkładów komunikacji miejskiej.</text>
     }
-    Profil potrzeb jest zapisany tylko na tym urządzeniu.
+    Profil potrzeb jest zapisany tylko na tym urządzeniu, także gdy masz konto.
     <a href="urzednik">Panel urzędnika</a>
 </footer>
 

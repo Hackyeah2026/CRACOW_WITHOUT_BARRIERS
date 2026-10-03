@@ -1,5 +1,6 @@
 @page "/"
 @inject AppState State
+@inject ISender Sender
 @inject NavigationManager Navigation
 
 <PageTitle>Kraków bez barier</PageTitle>
@@ -7,13 +8,116 @@
 <!-- Hero Section -->
 <div class="hero-section">
     <div class="hero-content">
-        <h1 class="hero-title">Kraków bez barier</h1>
-        <p class="hero-subtitle">Podróżuj dostosując trasę do swoich potrzeb. Każdy ma prawo do dostępu.</p>
+        @if (State.User is { } user)
+        {
+            <h1 class="hero-title">Witaj, @user.Login</h1>
+            <p class="hero-subtitle">Twój Kraków bez barier: profil, plan i zgłoszenia w jednym miejscu.</p>
+        }
+        else
+        {
+            <h1 class="hero-title">Kraków bez barier</h1>
+            <p class="hero-subtitle">Miejsca i trasy ocenione pod Twoje potrzeby. Każdy ma prawo do dostępu.</p>
+        }
         <div class="hero-divider"></div>
     </div>
 </div>
 
 <div class="container py-5">
+    @if (State.User is not null)
+    {
+        <!-- Dashboard -->
+        <section aria-labelledby="dashboard-heading">
+            <h2 id="dashboard-heading" class="section-title">Twój pulpit</h2>
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card card-body h-100">
+                        <h3 class="h5">Profil potrzeb</h3>
+                        <ProfileOverview Max="5" />
+                        <a class="btn btn-outline-primary mt-auto align-self-start" href="konto/profil">
+                            @(State.Profile.IsEmpty ? "Ustaw profil" : "Edytuj profil")
+                        </a>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card card-body h-100">
+                        <h3 class="h5">Plan</h3>
+                        <p class="mb-1"><span class="dash-number">@State.PlanPlaceIds.Count</span> @PlacesWord(State.PlanPlaceIds.Count) w planie</p>
+                        <p class="text-body-secondary">
+                            @(State.PlanPlaceIds.Count == 0
+                                ? "Wybierz miejsca, a ułożymy trasę z ostrzeżeniami o utrudnieniach."
+                                : "Ułóż trasę po ulicach, z komunikacją miejską i ostrzeżeniami o utrudnieniach.")
+                        </p>
+                        <a class="btn btn-outline-primary mt-auto align-self-start" href="@(State.PlanPlaceIds.Count == 0 ? "miejsca" : "plan")">
+                            @(State.PlanPlaceIds.Count == 0 ? "Wybierz miejsca" : "Otwórz plan")
+                        </a>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card card-body h-100">
+                        <h3 class="h5">Moje zgłoszenia</h3>
+                        @if (_summary is null)
+                        {
+                            <p class="text-body-secondary" role="status">@(_summaryError ?? "Wczytuję…")</p>
+                        }
+                        else if (_summary.Total == 0)
+                        {
+                            <p class="text-body-secondary">Nie masz jeszcze zgłoszeń. Widzisz barierę, hałas albo tłum? Daj znać urzędowi.</p>
+                        }
+                        else
+                        {
+                            <p class="mb-1"><span class="dash-number">@_summary.Total</span> wysłanych</p>
+                            <ul class="list-unstyled mb-2">
+                                <li>czeka na decyzję: <strong>@_summary.Waiting</strong></li>
+                                <li>w toku: <strong>@_summary.InProgress</strong></li>
+                                <li>załatwione lub potwierdzone: <strong>@_summary.Done</strong></li>
+                                <li>z odpowiedzią urzędu: <strong>@_summary.Answered</strong></li>
+                            </ul>
+                        }
+                        <div class="d-flex flex-wrap gap-2 mt-auto">
+                            <a class="btn btn-outline-primary" href="konto">Zobacz zgłoszenia</a>
+                            <a class="btn btn-outline-secondary" href="zglos">Zgłoś na mapie</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    <!-- Mode Selection -->
+    <section class="py-4 mt-4">
+        <h2 class="section-title">Co chcesz zrobić?</h2>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
+                    <div class="mode-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 19a4 4 0 0 1-4-4v-3H1V6h6V1h4v5h6v6h-3v3a4 4 0 0 1-4 4Z"/></svg>
+                    </div>
+                    <h3 class="mode-title">Zwiedzam</h3>
+                    <p class="mode-subtitle">Atrakcje, muzea, kawiarnie i kultura</p>
+                    <small class="mode-description">Odkrywaj Kraków dostosowany do Twoich potrzeb</small>
+                </button>
+            </div>
+            <div class="col-lg-6">
+                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Errand)"
+                        style="animation-delay: 0.1s;">
+                    <div class="mode-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 22V2m12 20V2M2 11h20" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="4" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="10" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="16" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="mode-title">Załatwiam sprawę</h3>
+                    <p class="mode-subtitle">Urzędy, przychodnie, biblioteki</p>
+                    <small class="mode-description">Zaplanuj efektywnie swoją dzień</small>
+                </button>
+            </div>
+        </div>
+    </section>
+    }
+    else
+    {
     <!-- Mode Selection -->
     <section class="py-4">
         <h2 class="section-title">Co chcesz zrobić?</h2>
@@ -48,95 +152,86 @@
         </div>
     </section>
 
-    <!-- Current Profile -->
-    <section class="py-4 mt-4">
-        <div class="profile-card-container">
-            <div class="profile-section-left">
-                <h2 class="section-title">Twój profil potrzeb</h2>
-                <p class="text-muted">Dostosuj aplikację do siebie, aby widzieć tylko dostępne dla Ciebie miejsca.</p>
-            </div>
-            <div class="profile-section-right">
-                <div class="profile-display">
-                    <ProfileSummary />
+        <!-- Co daje aplikacja -->
+        <section class="py-4 mt-4" aria-labelledby="features-heading">
+            <h2 id="features-heading" class="section-title">Co tu znajdziesz</h2>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card card-body h-100">
+                        <div class="feature-icon" aria-hidden="true">🧭</div>
+                        <h3 class="h5 mt-2">Miejsca ocenione pod Ciebie</h3>
+                        <p class="text-body-secondary">Ustaw profil potrzeb, a pokażemy, które miejsca są dostępne, a gdzie czeka bariera. Brak danych nigdy nie udaje dostępności.</p>
+                        <a class="mt-auto" href="profil">@(State.Profile.IsEmpty ? "Ustaw profil potrzeb" : "Zmień profil potrzeb")</a>
+                    </div>
                 </div>
-                <a class="btn btn-primary btn-lg" href="profil">
-                    @if (State.Profile.IsEmpty)
-                    {
-                        <span>Ustaw profil potrzeb</span>
-                    }
-                    else
-                    {
-                        <span>Zmień profil</span>
-                    }
-                </a>
+                <div class="col-md-4">
+                    <div class="card card-body h-100">
+                        <div class="feature-icon" aria-hidden="true">🗺️</div>
+                        <h3 class="h5 mt-2">Plan trasy</h3>
+                        <p class="text-body-secondary">Trasa po ulicach dobrana do profilu, podjazd komunikacją miejską i ostrzeżenia o utrudnieniach potwierdzonych przez urząd.</p>
+                        <a class="mt-auto" href="miejsca">Wybierz miejsca do planu</a>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-body h-100">
+                        <div class="feature-icon" aria-hidden="true">⚠️</div>
+                        <h3 class="h5 mt-2">Zgłoszenia do urzędu</h3>
+                        <p class="text-body-secondary">Zaznacz na mapie przeszkodę, hałas albo tłum lub zgłoś brak udogodnienia w miejscu. Do wysłania potrzebne jest konto.</p>
+                        <a class="mt-auto" href="zglos">Zobacz mapę zgłoszeń</a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Sneak Peek: 3 Scenarios -->
-    <section class="py-6 mt-6 scenarios-section">
-        <h2 class="section-title text-center mb-5">3 osoby, 3 podróże</h2>
-        <div class="row g-4">
-            <!-- Marta -->
-            <div class="col-lg-4">
-                <div class="scenario-card fade-in" style="animation-delay: 0.1s;">
-                    <div class="scenario-avatar wheelchair">🦽</div>
-                    <h3 class="scenario-name">Marta</h3>
-                    <p class="scenario-desc">Porusza się na wózku elektrycznym</p>
-                    <ul class="scenario-badges">
-                        <li><span class="badge bg-info">Brak schodów</span></li>
-                        <li><span class="badge bg-info">Równy teren</span></li>
-                        <li><span class="badge bg-info">Przejścia szerokie</span></li>
-                    </ul>
-                </div>
+        <!-- Zachęta do konta -->
+        <section class="py-6 mt-6 cta-section text-center" aria-labelledby="account-cta-heading">
+            <h2 id="account-cta-heading" class="h3 mb-3">Załóż konto: wystarczy login i hasło</h2>
+            <p class="mb-4">
+                Z kontem wysyłasz zgłoszenia, śledzisz odpowiedzi urzędu i masz zapisany profil potrzeb.
+                @(State.Profile.IsEmpty ? "" : "Profil ustawiony teraz przejdzie na Twoje konto.")
+            </p>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                <a class="btn btn-light btn-lg px-5" href="konto?nowe=true">Załóż konto</a>
+                <a class="btn btn-outline-light btn-lg px-5" href="konto">Mam konto</a>
             </div>
-            <!-- Kuba -->
-            <div class="col-lg-4">
-                <div class="scenario-card fade-in" style="animation-delay: 0.2s;">
-                    <div class="scenario-avatar autism">🧠</div>
-                    <h3 class="scenario-name">Kuba</h3>
-                    <p class="scenario-desc">Ze spektrum autyzmu</p>
-                    <ul class="scenario-badges">
-                        <li><span class="badge bg-warning">Cisza</span></li>
-                        <li><span class="badge bg-warning">Mniej tłumu</span></li>
-                        <li><span class="badge bg-warning">Jasne światło</span></li>
-                    </ul>
-                </div>
-            </div>
-            <!-- Pani Zofia -->
-            <div class="col-lg-4">
-                <div class="scenario-card fade-in" style="animation-delay: 0.3s;">
-                    <div class="scenario-avatar senior">👵</div>
-                    <h3 class="scenario-name">Pani Zofia</h3>
-                    <p class="scenario-desc">Senior, lubi odpoczywać</p>
-                    <ul class="scenario-badges">
-                        <li><span class="badge bg-secondary">Ławki do siedzenia</span></li>
-                        <li><span class="badge bg-secondary">Dostępne toalety</span></li>
-                        <li><span class="badge bg-secondary">Bez stresów</span></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        <p class="text-center text-muted mt-5 small">Każdy profil dostaje inny ranking miejsc. Sprawdź, jak się zmienia świat, gdy dostosujemy go do potrzeb.</p>
-    </section>
-
-    <!-- Call to Action -->
-    <section class="py-6 mt-6 cta-section text-center">
-        <h2 class="h3 mb-4">Gotów na odkrycie dostępnego Krakowa?</h2>
-        <a class="btn btn-primary btn-lg px-5" href="@(State.Profile.IsEmpty ? "profil" : "miejsca")">
-            Zacznij teraz
-        </a>
-    </section>
+        </section>
+    }
 </div>
 
 @code {
-    protected override Task OnInitializedAsync() => State.EnsureLoadedAsync();
+    private ReportsSummary? _summary;
+    private string? _summaryError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        if (State.User is null)
+            return;
+
+        var reports = await Sender.Send(new GetMyReportsQuery());
+        var hazards = await Sender.Send(new GetMyHazardsQuery());
+        if (reports.IsFailure || hazards.IsFailure)
+        {
+            _summaryError = "Nie udało się wczytać zgłoszeń. Spróbuj później.";
+            return;
+        }
+
+        _summary = new ReportsSummary(
+            reports.Value.Count + hazards.Value.Count,
+            reports.Value.Count(r => r.Status == ReportStatus.New) + hazards.Value.Count(h => h.Status == HazardStatus.Pending),
+            reports.Value.Count(r => r.Status is ReportStatus.InReview or ReportStatus.Planned),
+            reports.Value.Count(r => r.Status == ReportStatus.Resolved) + hazards.Value.Count(h => h.Status is HazardStatus.Verified or HazardStatus.Removed),
+            reports.Value.Count(r => r.OfficialNote is not null) + hazards.Value.Count(h => h.OfficialNote is not null));
+    }
 
     private async Task ChooseAsync(AppMode mode)
     {
         await State.SetModeAsync(mode);
-        // Po wyborze trybu zawsze najpierw profil potrzeb: od niego zależy ocena miejsc.
-        Navigation.NavigateTo("profil");
+        // Ocena miejsc zależy od profilu, więc bez niego najpierw prowadzimy do jego ustawienia.
+        Navigation.NavigateTo(State.Profile.IsEmpty ? "profil" : "miejsca");
     }
-}
 
+    private static string PlacesWord(int count) => count == 1 ? "miejsce" : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "miejsca" : "miejsc";
+
+    private sealed record ReportsSummary(int Total, int Waiting, int InProgress, int Done, int Answered);
+}

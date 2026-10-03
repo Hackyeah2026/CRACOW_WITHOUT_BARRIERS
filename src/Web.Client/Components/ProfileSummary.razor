@@ -1,7 +1,7 @@
 @implements IDisposable
 @inject AppState State
 
-@if (State.Profile.IsEmpty)
+@if (Shown.IsEmpty)
 {
     <p class="mb-0">Profil nie jest ustawiony. Bez niego nie pokażemy oceny dopasowanej do Ciebie.</p>
 }
@@ -24,6 +24,11 @@ else
 
     public void Dispose() => State.Changed -= StateHasChanged;
 
+    /// <summary>Profil do pokazania zamiast zapisanego, np. niezapisane jeszcze zmiany w edytorze.</summary>
+    [Parameter] public NeedsProfile? Profile { get; set; }
+
+    private NeedsProfile Shown => Profile ?? State.Profile;
+
     private List<string> Names => NeedsProfilePresets.All
-        .Where(p => State.Profile.Presets.Contains(p.Id)).Select(p => p.Name).ToList();
+        .Where(p => Shown.Presets.Contains(p.Id)).Select(p => p.Name).ToList();
 }

@@ -12,6 +12,8 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 **Co doszło 3.10.2026 ok. 20:30:** konta mieszkańców (rejestracja i logowanie samym loginem i hasłem). Wysłanie zgłoszenia miejsca albo punktu na mapie wymaga konta, a urzędnik widzi login zgłaszającego. Szczegóły w sekcji "Konta mieszkańców".
 
+**Co doszło 3.10.2026 ok. 21:00:** strona "Konto" łączy konto, zgłoszenia i profil potrzeb; profil jest zapisywany osobno dla konta (bez konta: konfiguracja tymczasowa); strona główna pokazuje pulpit zalogowanego albo skrócone informacje z zachętą do założenia konta. Szczegóły w sekcji "Konto, profil i strona główna".
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -71,10 +73,18 @@ Jak dodać kolejną kolekcję: interfejs repozytorium w `Application/Abstraction
 - **Konto jest potrzebne tylko do zgłoszeń.** Miejsca, profil i plan działają bez logowania; profil potrzeb nadal nie opuszcza urządzenia i nie jest częścią konta.
 - **Sesja** to ciasteczko hosta `kbb.user` (HttpOnly, SameSite=Strict, 30 dni), osobne od sesji urzędnika `kbb.official`, więc obie mogą działać w jednej przeglądarce i żadna nie daje uprawnień drugiej.
 - **Zgłaszający:** host zapisuje login z sesji w polu `reportedBy` zgłoszenia i punktu (nie bierze go z treści żądania). Widzi go tylko urzędnik w panelu; nie ma go w widoku zgłaszającego ani na publicznej liście potwierdzonych punktów. Zgłoszenia sprzed wprowadzenia kont nie mają zgłaszającego.
-- **"Zgłoszenia" (`/zgloszenia`)** pokazują zgłoszenia konta (`GET /api/reports/mine`, `GET /api/hazards/mine`), więc działają na każdym urządzeniu po zalogowaniu. Zgłoszenia wysłane wcześniej anonimowo nie są już widoczne na tej liście.
+- **Zakładka "Moje zgłoszenia" na stronie Konto** pokazuje zgłoszenia konta (`GET /api/reports/mine`, `GET /api/hazards/mine`), więc działają na każdym urządzeniu po zalogowaniu. Zgłoszenia wysłane wcześniej anonimowo nie są już widoczne na tej liście.
 - **Hasła** jak u urzędników: PBKDF2-SHA256. Rejestracja: limit 5 kont na 10 minut z adresu IP; logowanie: 5 prób na minutę; zajęty login → 409.
 
 **Endpointy:** `POST /api/account/register`, `POST /api/account/login`, `POST /api/account/logout`, `GET /api/account/me`.
+
+### Konto, profil i strona główna
+
+- **Strona "Konto"** (`/konto`; stary adres `/zgloszenia` prowadzi w to samo miejsce) zastąpiła osobne strony konta i zgłoszeń. Bez logowania: formularz logowania i rejestracji (`/konto?nowe=true` otwiera rejestrację). Po zalogowaniu dwie zakładki: "Moje zgłoszenia" i "Profil potrzeb" (`/konto/profil`) z pełnym edytorem profilu.
+- **Profil potrzeb a konto.** Profil nadal jest tylko w IndexedDB na urządzeniu, ale ma dwa rodzaje wpisów: konfiguracja tymczasowa (bez konta, klucz `current`) i profil konta (klucz `account:{login}`). Aplikacja używa profilu konta, gdy ktoś jest zalogowany, a po wylogowaniu wraca do konfiguracji tymczasowej. Konto bez profilu przejmuje konfigurację tymczasową przy pierwszym logowaniu na danym urządzeniu.
+- **Strona "Profil"** (`/profil`): dla zalogowanych podsumowanie zapisanego profilu z przejściem do edycji na stronie Konto; dla niezalogowanych edytor konfiguracji tymczasowej z informacją, że konto pozwala ją zapisać.
+- **Strona główna:** dla zalogowanych pulpit (profil, liczba miejsc w planie, zgłoszenia według etapu obsługi) i wybór trybu; dla niezalogowanych wybór trybu, trzy krótkie opisy funkcji i zachęta do założenia konta. Sekcja "3 osoby, 3 podróże" została usunięta.
+- Edytor profilu jest wspólnym komponentem (`ProfileEditor`); podgląd pokazuje niezapisane jeszcze zmiany.
 
 ### Zgłoszenia i panel urzędnika
 
@@ -82,7 +92,7 @@ Jak dodać kolejną kolekcję: interfejs repozytorium w `Application/Abstraction
 
 - Na karcie miejsca przycisk "Zgłoś": rodzaj (brakuje udogodnienia / bariera / błędne dane w aplikacji), lista udogodnień do zaznaczenia (winda, toaleta, pętla indukcyjna, PJM, ławki itd.), opis do 1000 znaków.
 - Wysyłane jest miejsce, udogodnienia i opis; host dopisuje login konta. **Profil potrzeb nie trafia na serwer**; formularz mówi to wprost i prosi, żeby nie wpisywać danych osobowych.
-- Strona **"Zgłoszenia"** (`/zgloszenia`) pokazuje status i odpowiedź urzędu dla zgłoszeń konta.
+- Strona **"Konto"** pokazuje status i odpowiedź urzędu dla zgłoszeń konta.
 - `POST /api/reports` ma limit 10 zgłoszeń na 10 minut z jednego adresu IP.
 
 **Urzędnik (`/urzednik`, link w stopce):**
@@ -137,7 +147,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
 | `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 65 testów: konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
+| `Tests` | 69 testów: profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 
@@ -168,6 +178,8 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 - **Punkty z utrudnieniami na bazie testowej** (`krakow-bez-barier-test`): zgłoszenie punktu z mapy, lista "Zgłoszenia", potwierdzenie w panelu, statystyki, symbol na mapie miejsc, ostrzeżenie i symbol w planie (profil "kule lub balkonik", schody ok. 40 m od trasy), zgłoszenie miejsca wybranego na mapie.
 
 - **Konta mieszkańców na bazie testowej:** bez konta formularze pokazują prośbę o logowanie, a `POST /api/hazards` i `GET /api/reports/mine` zwracają 401; rejestracja z powrotem do formularza; zajęty login → 409; wysłanie punktu z konta i lista "Zgłoszenia"; login zgłaszającego w panelu urzędnika; sesja mieszkańca nie daje dostępu do panelu; wylogowanie, złe hasło → 401, ponowne logowanie.
+
+- **Konto, profil i strona główna** (baza testowa): strona główna bez konta i pulpit po zalogowaniu; konfiguracja tymczasowa "Senior" przejęta przez konto przy logowaniu; podsumowanie profilu na `/profil` i edytor na `/konto/profil`; zakładka zgłoszeń pod `/konto` i `/zgloszenia`.
 
 ### Nie sprawdzone
 
@@ -221,6 +233,8 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | Trasa nie omija potwierdzonych utrudnień | plan ostrzega, ale prowadzi tą samą drogą | OpenRouteService przyjmuje obszary do ominięcia (`avoid_polygons`); do podpięcia dla punktów istotnych dla profilu |
 | Publiczna lista potwierdzonych punktów jest pobierana w całości (do 2000) | przy dużej liczbie punktów rośnie odpowiedź | zapytanie po obszarze mapy |
 | Opis punktu jest tekstem mieszkańca pokazywanym publicznie po potwierdzeniu | urzędnik musi go przeczytać przed potwierdzeniem; nie może go poprawić | edycja opisu w panelu |
+| Profil konta jest zapisany na urządzeniu, nie na serwerze | po zalogowaniu na innym urządzeniu profil trzeba ustawić od nowa; na wspólnym urządzeniu profil konta zostaje w przeglądarce po wylogowaniu (nie jest używany, ale nie jest kasowany) | zgodne z zasadą, że dane o zdrowiu nie opuszczają urządzenia; synchronizacja przez serwer wymagałaby zgody użytkownika i decyzji zespołu |
+| Tytuł w banerze strony głównej był granatowy na granatowym tle | nieczytelny nagłówek | poprawione: biały tekst |
 | Konto mieszkańca nie ma e-maila | nie ma odzyskiwania ani zmiany hasła, nie da się też usunąć konta z aplikacji | zmiana hasła po zalogowaniu i usuwanie konta; odzyskiwanie wymaga kanału kontaktu |
 | Login zgłaszającego to dane o osobie, powiązane z miejscami, które zgłasza | wchodzi w zakres RODO (informacja o przetwarzaniu, prawo do usunięcia) | krótka informacja przy rejestracji i procedura usunięcia konta przed wdrożeniem dla urzędu |
 | Lista zgłoszeń w panelu ma limit 500 najnowszych | przy większej liczbie starsze nie są widoczne | stronicowanie, gdy będzie potrzebne |

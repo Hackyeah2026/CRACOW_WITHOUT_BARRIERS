@@ -1,5 +1,6 @@
 using Domain.Assessments;
 using Domain.Hazards;
+using Domain.Needs;
 using Domain.Places;
 using Domain.Reports;
 using Domain.Transit;
@@ -209,6 +210,32 @@ public static class Labels
 
     public static MapMarker Marker(VerifiedHazard hazard, string idPrefix = "") =>
         new(idPrefix + hazard.Id, Verified(hazard), hazard.Lat, hazard.Lon, Color(HazardStatus.Verified), Icon: Icon(hazard.Kind));
+
+    /// <summary>Ustawione potrzeby jako krótka lista do podsumowania profilu.</summary>
+    public static IReadOnlyList<string> Needs(NeedsProfile profile)
+    {
+        var needs = new List<string>();
+        void Add(bool on, string text) { if (on) needs.Add(text); }
+
+        Add(profile.StepFreeRequired, "wejście bez stopni");
+        Add(profile.AvoidStairs, "bez schodów");
+        Add(profile.AvoidCobblestone, "bez bruku i nierównej nawierzchni");
+        Add(profile.NeedsAccessibleToilet, "toaleta dostosowana");
+        Add(profile.NeedsTactilePaving, "ścieżki dotykowe");
+        Add(profile.NeedsAudioDescription, "audiodeskrypcja");
+        Add(profile.NeedsAssistanceDog, "wstęp z psem asystującym");
+        Add(profile.NeedsSignLanguage, "obsługa w PJM");
+        Add(profile.NeedsInductionLoop, "pętla indukcyjna");
+        Add(profile.NeedsVisualInformation, "informacja wizualna");
+        Add(profile.MaxNoiseLevel is not null, profile.MaxNoiseLevel == 1 ? "tylko bardzo cicho" : "najwyżej umiarkowany hałas");
+        Add(profile.MaxCrowdLevel is not null, profile.MaxCrowdLevel == 1 ? "tylko mało ludzi" : "najwyżej umiarkowany tłum");
+        Add(profile.PrefersQuietRoom, "pokój wyciszenia");
+        Add(profile.NeedsEasyToRead, "tekst łatwy do czytania");
+        Add(profile.NeedsPictograms, "piktogramy");
+        Add(profile.NeedsSeating, "miejsca do siedzenia");
+        Add(profile.MaxDistanceWithoutRestM is not null, $"odpoczynek co {profile.MaxDistanceWithoutRestM} m");
+        return needs;
+    }
 
     /// <summary>Login zgłaszającego w panelu urzędnika; zgłoszenia sprzed wprowadzenia kont go nie mają.</summary>
     public static string Reporter(string? login) => login ?? "brak (zgłoszenie sprzed wprowadzenia kont)";

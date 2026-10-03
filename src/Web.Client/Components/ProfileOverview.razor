@@ -1,0 +1,28 @@
+@implements IDisposable
+@inject AppState State
+
+<ProfileSummary />
+@if (Needs.Count > 0)
+{
+    <ul class="needs-list" aria-label="Ustawione potrzeby">
+        @foreach (var need in Needs.Take(Max))
+        {
+            <li>@need</li>
+        }
+        @if (Needs.Count > Max)
+        {
+            <li>i @(Needs.Count - Max) więcej</li>
+        }
+    </ul>
+}
+
+@code {
+    /// <summary>Ile potrzeb pokazać, zanim reszta zostanie zwinięta do liczby.</summary>
+    [Parameter] public int Max { get; set; } = int.MaxValue;
+
+    private IReadOnlyList<string> Needs => Labels.Needs(State.Profile);
+
+    protected override void OnInitialized() => State.Changed += StateHasChanged;
+
+    public void Dispose() => State.Changed -= StateHasChanged;
+}

@@ -1,4 +1,6 @@
 @page "/konto"
+@page "/konto/{Section}"
+@page "/zgloszenia"
 @using System.Text.RegularExpressions
 @inject AppState State
 @inject ISender Sender
@@ -6,29 +8,135 @@
 
 <PageTitle>Konto</PageTitle>
 
-<h1>Konto</h1>
-
 @if (!_loaded)
 {
+    <h1>Konto</h1>
     <p role="status">Wczytuję…</p>
 }
 else if (State.User is { } user)
 {
-    <p>Jesteś zalogowany jako <strong>@user.Login</strong>.</p>
-    <p class="text-body-secondary">
-        Z konta wysyłasz zgłoszenia do urzędu i sprawdzasz odpowiedzi w zakładce <a href="zgloszenia">Zgłoszenia</a>.
-        Urząd widzi Twój login przy zgłoszeniach. Profil potrzeb nie jest częścią konta i zostaje na tym urządzeniu.
-    </p>
-    <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-primary" href="zglos">Zgłoś na mapie</a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="mb-0">Konto</h1>
+            <p class="text-body-secondary mb-0">Zalogowano jako <strong>@user.Login</strong></p>
+        </div>
         <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="LogoutAsync">Wyloguj</button>
     </div>
+
+    <ul class="nav nav-tabs mb-3" aria-label="Sekcje konta">
+        <li class="nav-item">
+            <a class="nav-link @(ShowsProfile ? "" : "active")" aria-current="@(ShowsProfile ? null : "page")" href="konto">
+                Moje zgłoszenia
+                @if (_loadedFor is not null)
+                {
+                    <span class="badge text-bg-light border ms-1">@(_reports.Count + _hazards.Count)</span>
+                }
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(ShowsProfile ? "active" : "")" aria-current="@(ShowsProfile ? "page" : null)" href="konto/profil">Profil potrzeb</a>
+        </li>
+    </ul>
+
+    @if (ShowsProfile)
+    {
+        <p class="text-body-secondary">
+            Profil konta: według niego oceniamy miejsca i układamy trasy, gdy jesteś zalogowany.
+            Jest zapisany na tym urządzeniu i przypisany do konta; nie wysyłamy go na serwer, więc na innym urządzeniu ustawisz go osobno.
+        </p>
+        <ProfileEditor SaveLabel="Zapisz profil" Note="Profil konta zostaje na tym urządzeniu. Nie wysyłamy go na serwer." />
+    }
+    else
+    {
+        <p class="text-body-secondary">
+            Zgłoszenia wysłane z Twojego konta i odpowiedzi urzędu.
+            Nowe wyślesz z karty miejsca albo z zakładki <a href="zglos">Zgłoś na mapie</a>.
+        </p>
+
+        @if (_loadedFor is null && _error is null)
+        {
+            <p role="status">Wczytuję zgłoszenia…</p>
+        }
+        else if (_error is not null)
+        {
+            <div class="alert alert-warning" role="alert">@_error</div>
+        }
+        else if (_reports.Count == 0 && _hazards.Count == 0)
+        {
+            <div class="alert alert-info">
+                Nie masz jeszcze żadnego zgłoszenia. Otwórz <a href="miejsca">kartę miejsca</a> i użyj przycisku „Zgłoś”
+                albo zaznacz utrudnienie w zakładce <a href="zglos">Zgłoś na mapie</a>.
+            </div>
+        }
+        else
+        {
+            @if (_reports.Count > 0)
+            {
+                <h2 class="h4">Miejsca</h2>
+                <ul class="list-unstyled">
+                    @foreach (var report in _reports)
+                    {
+                        <li class="card card-body mb-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                <h3 class="h5 mb-1"><a href="@($"miejsca/{report.PlaceId}")">@report.PlaceName</a></h3>
+                                <ReportStatusBadge Status="report.Status" />
+                            </div>
+                            <p class="small text-body-secondary mb-2">Wysłane @Labels.When(report.CreatedAt)</p>
+                            <p class="mb-1"><strong>@Labels.Of(report.Kind)</strong>@(report.Features.Count > 0 ? $": {Labels.Features(report.Features)}" : "")</p>
+                            @if (report.OfficialNote is not null)
+                            {
+                                <div class="border-start border-3 ps-3 mt-2">
+                                    <p class="small text-body-secondary mb-1">Odpowiedź urzędu, @Labels.When(report.UpdatedAt)</p>
+                                    <p class="mb-0">@report.OfficialNote</p>
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (_hazards.Count > 0)
+            {
+                <h2 class="h4">Punkty zaznaczone na mapie</h2>
+                <ul class="list-unstyled">
+                    @foreach (var hazard in _hazards)
+                    {
+                        <li class="card card-body mb-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                <h3 class="h5 mb-1"><span aria-hidden="true">@Labels.Icon(hazard.Kind)</span> @Labels.Of(hazard.Kind)</h3>
+                                <span class="status-badge @Labels.Css(hazard.Status)">@Labels.Of(hazard.Status)</span>
+                            </div>
+                            <p class="small text-body-secondary mb-2">
+                                Wysłane @Labels.When(hazard.CreatedAt) · punkt @hazard.Lat.ToString("F5"), @hazard.Lon.ToString("F5")
+                            </p>
+                            @if (!string.IsNullOrEmpty(hazard.Description))
+                            {
+                                <p class="mb-1 report-description">@hazard.Description</p>
+                            }
+                            @if (hazard.Status == HazardStatus.Verified)
+                            {
+                                <p class="mb-1">Punkt jest widoczny na mapie i ostrzega w planach tras.</p>
+                            }
+                            @if (hazard.OfficialNote is not null)
+                            {
+                                <div class="border-start border-3 ps-3 mt-2">
+                                    <p class="small text-body-secondary mb-1">Odpowiedź urzędu, @Labels.When(hazard.UpdatedAt)</p>
+                                    <p class="mb-0">@hazard.OfficialNote</p>
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    }
 }
 else
 {
+    <h1>Konto</h1>
     <p class="text-body-secondary">
-        Konto jest potrzebne tylko do wysyłania zgłoszeń. Wystarczy login i hasło: nie pytamy o e-mail ani imię.
-        Miejsca, profil i plan działają bez logowania.
+        Z kontem wysyłasz zgłoszenia do urzędu, śledzisz odpowiedzi i masz zapisany profil potrzeb.
+        Wystarczy login i hasło: nie pytamy o e-mail ani imię. Miejsca i plan trasy działają też bez logowania.
     </p>
 
     <div class="mode-selector mb-3" role="group" aria-label="Logowanie albo rejestracja">
@@ -82,6 +190,8 @@ else
 }
 
 @code {
+    private const string ProfileSection = "profil";
+
     private bool _loaded;
     private bool _registering;
     private bool _busy;
@@ -90,13 +200,45 @@ else
     private string _repeat = "";
     private string? _error;
 
+    /// <summary>Login konta, dla którego wczytano zgłoszenia; null przed wczytaniem.</summary>
+    private string? _loadedFor;
+    private IReadOnlyList<ReportStatusView> _reports = [];
+    private IReadOnlyList<HazardStatusView> _hazards = [];
+
+    /// <summary>Sekcja z adresu: "profil" albo brak (zgłoszenia).</summary>
+    [Parameter] public string? Section { get; set; }
+
     /// <summary>Strona, na którą wracamy po zalogowaniu, np. formularz zgłoszenia.</summary>
     [SupplyParameterFromQuery(Name = "powrot")] public string? ReturnTo { get; set; }
+
+    /// <summary>Otwiera od razu formularz rejestracji (odnośniki "Załóż konto").</summary>
+    [SupplyParameterFromQuery(Name = "nowe")] public bool StartRegistering { get; set; }
+
+    private bool ShowsProfile => string.Equals(Section, ProfileSection, StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
         await State.EnsureLoadedAsync();
+        _registering = StartRegistering;
         _loaded = true;
+        await LoadReportsAsync();
+    }
+
+    private async Task LoadReportsAsync()
+    {
+        if (State.User is not { } user || _loadedFor == user.Login)
+            return;
+
+        var reports = await Sender.Send(new GetMyReportsQuery());
+        var hazards = await Sender.Send(new GetMyHazardsQuery());
+        if (reports.IsSuccess && hazards.IsSuccess)
+        {
+            (_reports, _hazards, _loadedFor, _error) = (reports.Value, hazards.Value, user.Login, null);
+        }
+        else
+        {
+            _error = reports.Error ?? hazards.Error;
+        }
     }
 
     private void Switch(bool registering)
@@ -128,9 +270,11 @@ else
         }
 
         _password = _repeat = "";
-        State.SetUser(result.Value);
+        await State.SetUserAsync(result.Value);
         if (SafeReturnTo() is { } target)
             Navigation.NavigateTo(target);
+        else
+            await LoadReportsAsync();
     }
 
     private async Task LogoutAsync()
@@ -138,7 +282,8 @@ else
         _busy = true;
         await Sender.Send(new LogoutUserCommand());
         _busy = false;
-        State.SetUser(null);
+        (_reports, _hazards, _loadedFor) = ([], [], null);
+        await State.SetUserAsync(null);
     }
 
     /// <summary>Tylko ścieżka wewnątrz aplikacji: parametr z adresu nie może wyprowadzić na obcą stronę.</summary>

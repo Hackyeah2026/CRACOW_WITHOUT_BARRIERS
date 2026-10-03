@@ -6,229 +6,51 @@
 
 <div class="profile-hero">
     <div class="container">
-        <h1>Dostosuj profil potrzeb</h1>
+        <h1>@(State.User is null ? "Dostosuj profil potrzeb" : "Twój profil potrzeb")</h1>
         <p class="hero-subtext">Pytamy o to, czego potrzebujesz, a nie o diagnozę. Możesz wybrać kilka profili naraz, a potem zmienić każdy parametr.</p>
     </div>
 </div>
 
 <div class="container py-5">
-    <div class="profile-grid">
-        <!-- Left: Presets & Parameters -->
-        <div class="profile-editor">
-            <!-- Presets Selection -->
-            <section class="form-section">
-                <div class="section-header">
-                    <span class="section-number">1</span>
-                    <div>
-                        <h2>Wybierz gotowy profil</h2>
-                        <p class="section-help">Zaznacz wszystkie, które się do Ciebie odnoszą</p>
-                    </div>
-                </div>
-
-                <div class="presets-grid">
-                    @foreach (var preset in NeedsProfilePresets.All)
-                    {
-                        var id = $"preset-{preset.Id}";
-                        var isSelected = _draft.Presets.Contains(preset.Id);
-                        <label class="preset-option @(isSelected ? "selected" : "")">
-                            <input type="checkbox"
-                                   checked="@isSelected"
-                                   @onchange="e => TogglePreset(preset.Id, (bool)e.Value!)" />
-                            <div class="preset-interior">
-                                <div class="preset-icon">
-                                    @switch (preset.Id)
-                                    {
-                                        case NeedsProfilePresets.ElectricWheelchair:
-                                        case NeedsProfilePresets.ManualWheelchair: <span>🦽</span>; break;
-                                        case NeedsProfilePresets.WalkingAid: <span>🦯</span>; break;
-                                        case NeedsProfilePresets.Blind: <span>👓</span>; break;
-                                        case NeedsProfilePresets.Deaf:
-                                        case NeedsProfilePresets.HardOfHearing: <span>👂</span>; break;
-                                        case NeedsProfilePresets.Autism:
-                                        case NeedsProfilePresets.SensorySensitivity: <span>🧠</span>; break;
-                                        case NeedsProfilePresets.EasyRead: <span>🔤</span>; break;
-                                        case NeedsProfilePresets.Senior: <span>👵</span>; break;
-                                        case NeedsProfilePresets.Stroller: <span>👨‍👧‍👦</span>; break;
-                                        default: <span>✓</span>; break;
-                                    }
-                                </div>
-                                <div class="preset-text">
-                                    <strong>@preset.Name</strong>
-                                    <span class="preset-area">@preset.Area</span>
-                                    <p class="preset-desc">@preset.Description</p>
-                                </div>
-                            </div>
-                        </label>
-                    }
-                </div>
-            </section>
-
-            <!-- Parameters -->
-            <section class="form-section mt-5">
-                <div class="section-header">
-                    <span class="section-number">2</span>
-                    <div>
-                        <h2>Dostosuj parametry</h2>
-                        <p class="section-help">Precyzuj swoje potrzeby</p>
-                    </div>
-                </div>
-
-                <div class="parameters-columns">
-                    <!-- Mobility -->
-                    <div class="param-group">
-                        <h3 class="param-group-title">🚶 Ruch i poruszanie się</h3>
-                        <Toggle Id="step-free" Label="Wejście bez stopni jest konieczne" Value="_draft.StepFreeRequired" OnChange="v => { _draft = _draft with { StepFreeRequired = v }; StateHasChanged(); }" />
-                        <Toggle Id="stairs" Label="Unikam schodów" Value="_draft.AvoidStairs" OnChange="v => { _draft = _draft with { AvoidStairs = v }; StateHasChanged(); }" />
-                        <Toggle Id="cobble" Label="Unikam bruku i nierównych powierzchni" Value="_draft.AvoidCobblestone" OnChange="v => { _draft = _draft with { AvoidCobblestone = v }; StateHasChanged(); }" />
-                        <Toggle Id="toilet" Label="Potrzebuję toalety dostosowanej" Value="_draft.NeedsAccessibleToilet" OnChange="v => { _draft = _draft with { NeedsAccessibleToilet = v }; StateHasChanged(); }" />
-                    </div>
-
-                    <!-- Vision -->
-                    <div class="param-group">
-                        <h3 class="param-group-title">👓 Wzrok</h3>
-                        <Toggle Id="tactile" Label="Potrzebuję ścieżek dotykowych / oznaczeń fakturalnych" Value="_draft.NeedsTactilePaving" OnChange="v => { _draft = _draft with { NeedsTactilePaving = v }; StateHasChanged(); }" />
-                        <Toggle Id="audiodesc" Label="Potrzebuję audiodeskrypcji / przewodnika audio" Value="_draft.NeedsAudioDescription" OnChange="v => { _draft = _draft with { NeedsAudioDescription = v }; StateHasChanged(); }" />
-                        <Toggle Id="guide-dog" Label="Poruszam się z psem asystującym" Value="_draft.NeedsAssistanceDog" OnChange="v => { _draft = _draft with { NeedsAssistanceDog = v }; StateHasChanged(); }" />
-                    </div>
-
-                    <!-- Hearing -->
-                    <div class="param-group">
-                        <h3 class="param-group-title">👂 Słuch</h3>
-                        <Toggle Id="sign-lang" Label="Potrzebuję obsługi w Polskim Języku Migowym (PJM)" Value="_draft.NeedsSignLanguage" OnChange="v => { _draft = _draft with { NeedsSignLanguage = v }; StateHasChanged(); }" />
-                        <Toggle Id="ind-loop" Label="Potrzebuję pętli indukcyjnej" Value="_draft.NeedsInductionLoop" OnChange="v => { _draft = _draft with { NeedsInductionLoop = v }; StateHasChanged(); }" />
-                        <Toggle Id="visual-info" Label="Potrzebuję informacji i komunikatów wizualnych" Value="_draft.NeedsVisualInformation" OnChange="v => { _draft = _draft with { NeedsVisualInformation = v }; StateHasChanged(); }" />
-                    </div>
-
-                    <!-- Sensory -->
-                    <div class="param-group">
-                        <h3 class="param-group-title">🧠 Sensoryka</h3>
-                        <div class="form-group">
-                            <label>Hałas - co tolerujesz?</label>
-                            <select class="form-select" value="@(_draft.MaxNoiseLevel?.ToString() ?? "")"
-                                    @onchange="e => { _draft = _draft with { MaxNoiseLevel = ParseLevel(e.Value) }; StateHasChanged(); }">
-                                <option value="">Nie ma znaczenia</option>
-                                <option value="1">Tylko bardzo cicho</option>
-                                <option value="2">Najwyżej umiarkowany</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Tłum - co tolerujesz?</label>
-                            <select class="form-select" value="@(_draft.MaxCrowdLevel?.ToString() ?? "")"
-                                    @onchange="e => { _draft = _draft with { MaxCrowdLevel = ParseLevel(e.Value) }; StateHasChanged(); }">
-                                <option value="">Nie ma znaczenia</option>
-                                <option value="1">Tylko mało ludzi</option>
-                                <option value="2">Najwyżej umiarkowany</option>
-                            </select>
-                        </div>
-                        <Toggle Id="quiet-room" Label="Preferuję miejsca z pokojem wyciszenia" Value="_draft.PrefersQuietRoom" OnChange="v => { _draft = _draft with { PrefersQuietRoom = v }; StateHasChanged(); }" />
-                    </div>
-
-                    <!-- Cognitive -->
-                    <div class="param-group">
-                        <h3 class="param-group-title">🔤 Poznawcze i komunikacja</h3>
-                        <Toggle Id="etr" Label="Potrzebuję tekstu łatwego do czytania (ETR)" Value="_draft.NeedsEasyToRead" OnChange="v => { _draft = _draft with { NeedsEasyToRead = v }; StateHasChanged(); }" />
-                        <Toggle Id="picto" Label="Potrzebuję oznaczeń piktogramowych" Value="_draft.NeedsPictograms" OnChange="v => { _draft = _draft with { NeedsPictograms = v }; StateHasChanged(); }" />
-                    </div>
-
-                    <!-- Fitness -->
-                    <div class="param-group">
-                        <h3 class="param-group-title">💪 Kondycja i odpoczynek</h3>
-                        <Toggle Id="seating" Label="Potrzebuję łatwo dostępnych miejsc do siedzenia" Value="_draft.NeedsSeating" OnChange="v => { _draft = _draft with { NeedsSeating = v }; StateHasChanged(); }" />
-                        <div class="form-group">
-                            <label>Maksymalny dystans bez odpoczynku (metry)</label>
-                            <input class="form-control" type="number" min="50" step="50"
-                                   value="@_draft.MaxDistanceWithoutRestM"
-                                   @onchange="e => { _draft = _draft with { MaxDistanceWithoutRestM = int.TryParse(e.Value?.ToString(), out var m) && m > 0 ? m : null }; StateHasChanged(); }" />
-                            <small class="form-text">Pozostaw puste, jeśli brak limitu</small>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Actions -->
-            <section class="form-section mt-5">
-                <div class="form-actions">
-                    <button type="button" class="btn btn-primary btn-lg" @onclick="SaveAsync">
-                        ✓ Gotowy, pokaż miejsca
-                    </button>
-                    <button type="button" class="btn btn-secondary" @onclick="() => { _draft = NeedsProfile.Empty; StateHasChanged(); }">
-                        Wyczyść profil
-                    </button>
-                </div>
-                <p class="form-note">💾 Profil zostaje na Twoim urządzeniu. Nie wysyłamy go na serwer.</p>
-            </section>
-        </div>
-
-        <!-- Right: Live Preview (Sticky) -->
-        <div class="profile-preview">
-            <div class="preview-sticky">
-                <h3 class="preview-title">📋 Twój profil</h3>
-                <div class="preview-content">
-                    <ProfileSummary />
-                </div>
-                <div class="preview-stats">
-                    <div class="stat">
-                        <span class="stat-label">Wybranych presetów:</span>
-                        <span class="stat-value">@_draft.Presets.Count</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-label">Parametrów dostosowanych:</span>
-                        <span class="stat-value">@CountCustomParameters()</span>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-primary w-100 mt-3" @onclick="SaveAsync">
-                    Dalej
-                </button>
+    @if (!_loaded)
+    {
+        <p role="status">Wczytuję…</p>
+    }
+    else if (State.User is { } user)
+    {
+        <section class="card card-body" aria-labelledby="saved-profile-heading">
+            <h2 id="saved-profile-heading" class="h4">Profil zapisany dla konta @user.Login</h2>
+            <ProfileOverview />
+            <p class="text-body-secondary mt-3">
+                @(State.Profile.IsEmpty
+                    ? "Ustaw profil, żeby oceny miejsc i trasy były dopasowane do Ciebie."
+                    : "Według tego profilu oceniamy miejsca i układamy trasy.")
+                Profil jest zapisany na tym urządzeniu i przypisany do Twojego konta; nie wysyłamy go na serwer.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary btn-lg" href="konto/profil">@(State.Profile.IsEmpty ? "Ustaw profil" : "Edytuj profil")</a>
+                <a class="btn btn-outline-secondary btn-lg" href="miejsca">Pokaż miejsca</a>
             </div>
+        </section>
+    }
+    else
+    {
+        <div class="alert alert-info" role="note">
+            <strong>Konfiguracja tymczasowa.</strong> Bez konta profil działa tylko w tej przeglądarce.
+            <a class="alert-link" href="konto?powrot=profil">Zaloguj się albo załóż konto</a>, żeby zapisać go dla konta
+            i edytować ze strony Konto; ustawienia wybrane tutaj przejdą na nowe konto.
         </div>
-    </div>
+        <ProfileEditor SaveLabel="✓ Gotowe, pokaż miejsca" OnSaved="@(() => Navigation.NavigateTo("miejsca"))"
+                       Note="Konfiguracja tymczasowa zostaje w tej przeglądarce. Nie wysyłamy jej na serwer." />
+    }
 </div>
 
 @code {
-    private NeedsProfile _draft = NeedsProfile.Empty;
+    private bool _loaded;
 
     protected override async Task OnInitializedAsync()
     {
         await State.EnsureLoadedAsync();
-        _draft = State.Profile;
-    }
-
-    private void TogglePreset(string id, bool selected)
-    {
-        var ids = _draft.Presets.Where(p => p != id).ToList();
-        if (selected)
-            ids.Add(id);
-        _draft = NeedsProfilePresets.Build(ids);
-    }
-
-    private static int? ParseLevel(object? value) => int.TryParse(value?.ToString(), out var level) ? level : null;
-
-    private int CountCustomParameters()
-    {
-        var count = 0;
-        if (_draft.StepFreeRequired) count++;
-        if (_draft.AvoidStairs) count++;
-        if (_draft.AvoidCobblestone) count++;
-        if (_draft.NeedsAccessibleToilet) count++;
-        if (_draft.MaxNoiseLevel.HasValue) count++;
-        if (_draft.MaxCrowdLevel.HasValue) count++;
-        if (_draft.PrefersQuietRoom) count++;
-        if (_draft.NeedsSeating) count++;
-        if (_draft.MaxDistanceWithoutRestM.HasValue) count++;
-        if (_draft.NeedsTactilePaving) count++;
-        if (_draft.NeedsAudioDescription) count++;
-        if (_draft.NeedsAssistanceDog) count++;
-        if (_draft.NeedsInductionLoop) count++;
-        if (_draft.NeedsSignLanguage) count++;
-        if (_draft.NeedsVisualInformation) count++;
-        if (_draft.NeedsEasyToRead) count++;
-        if (_draft.NeedsPictograms) count++;
-        return count;
-    }
-
-    private async Task SaveAsync()
-    {
-        await State.SetProfileAsync(_draft);
-        Navigation.NavigateTo("miejsca");
+        _loaded = true;
     }
 }

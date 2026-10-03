@@ -23,6 +23,7 @@ public sealed class AppState(ISender sender, ILocalStore store)
     /// <summary>Wybrane miasto; null do czasu wczytania listy miast.</summary>
     public City? City => Cities.FirstOrDefault(c => c.Id == CityId);
     public AppMode Mode { get; private set; } = AppMode.Sightseeing;
+    /// <summary>Profil zalogowanego konta albo, bez konta, konfiguracja tymczasowa tej przeglądarki. Zawsze tylko na urządzeniu.</summary>
     public NeedsProfile Profile { get; private set; } = NeedsProfile.Empty;
     public List<string> PlanPlaceIds { get; private set; } = [];
 
@@ -46,9 +47,10 @@ public sealed class AppState(ISender sender, ILocalStore store)
 
     private async Task LoadAsync()
     {
-        var profile = await sender.Send(new GetProfileQuery());
-        if (profile.IsSuccess)
-            Profile = profile.Value;
+        // Najpierw konto: od niego zależy, czy czytamy profil konta, czy konfigurację tymczasową.
+        var user = await sender.Send(new GetCurrentUserQuery());
+        User = user.IsSuccess ? user.Value : null;
+        await LoadProfileAsync();
 
         if (await store.GetAsync<Session>(LocalStores.Profile, SessionKey) is { } session)
         {
@@ -64,16 +66,22 @@ public sealed class AppState(ISender sender, ILocalStore store)
         if (Cities.Count > 0 && City is null)
             CityId = DefaultCityId;
 
-        var user = await sender.Send(new GetCurrentUserQuery());
-        User = user.IsSuccess ? user.Value : null;
-
         Changed?.Invoke();
     }
 
-    public void SetUser(UserProfile? user)
+    /// <summary>Po zalogowaniu albo wylogowaniu: profil potrzeb przełącza się między profilem konta a konfiguracją tymczasową.</summary>
+    public async Task SetUserAsync(UserProfile? user)
     {
         User = user;
+        await LoadProfileAsync();
         Changed?.Invoke();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        var profile = await sender.Send(new GetProfileQuery(User?.Login));
+        if (profile.IsSuccess)
+            Profile = profile.Value;
     }
 
     public async Task SetModeAsync(AppMode mode)
@@ -85,7 +93,7 @@ public sealed class AppState(ISender sender, ILocalStore store)
     public async Task SetProfileAsync(NeedsProfile profile)
     {
         Profile = profile;
-        await sender.Send(new SaveProfileCommand(profile));
+        await sender.Send(new SaveProfileCommand(profile, User?.Login));
         Changed?.Invoke();
     }
 

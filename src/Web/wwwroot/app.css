@@ -902,6 +902,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .hero-title {
+    color: white;
     font-size: clamp(2rem, 5vw, 3.5rem);
     font-weight: 800;
     margin: 0;
@@ -1817,4 +1818,35 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 
 .stat-bar.stat-bar-alt {
     background: #b45309;
+}
+
+/* Lista ustawionych potrzeb w podsumowaniu profilu */
+.needs-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    list-style: none;
+}
+
+.needs-list li {
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--neutral-400);
+    border-radius: 1rem;
+    background: #fff;
+    font-size: 0.9rem;
+}
+
+/* Strona główna: kafle pulpitu i krótkie opisy funkcji */
+.dash-number {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--primary);
+}
+
+.feature-icon {
+    font-size: 2rem;
+    line-height: 1;
 }

@@ -5,95 +5,164 @@
 
 <PageTitle>Miejsca</PageTitle>
 
-<h1>Miejsca: @Labels.Of(State.Mode)</h1>
-
-<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-    <div class="btn-group" role="group" aria-label="Tryb">
-        @foreach (var mode in Enum.GetValues<AppMode>())
-        {
-            <button type="button" class="btn @(State.Mode == mode ? "btn-primary" : "btn-outline-primary")"
-                    aria-pressed="@(State.Mode == mode ? "true" : "false")" @onclick="() => SetModeAsync(mode)">
-                @Labels.Of(mode)
-            </button>
-        }
+<div class="places-hero">
+    <div class="container">
+        <h1>@Labels.Of(State.Mode)</h1>
+        <p class="text-secondary">Przeglądaj dostępne dla Ciebie miejsca</p>
     </div>
-    <span>Profil: <ProfileSummaryInline /></span>
-    <a href="profil">zmień</a>
 </div>
 
-<div class="row g-2 mb-3">
-    <div class="col-md-6">
-        <label class="form-label" for="search">Szukaj po nazwie</label>
-        <input id="search" class="form-control" type="search" @bind="_search" @bind:after="LoadAsync" />
-    </div>
-    <div class="col-md-6">
-        <label class="form-label" for="category">Kategoria</label>
-        <select id="category" class="form-select" @bind="_category" @bind:after="LoadAsync">
-            <option value="">Wszystkie</option>
-            @foreach (var category in ModeCategories.For(State.Mode).Concat(ModeCategories.Support))
+<div class="container py-4">
+    <div class="places-header mb-4">
+        <div class="mode-selector">
+            @foreach (var mode in Enum.GetValues<AppMode>())
             {
-                <option value="@category">@Labels.Of(category)</option>
+                <button type="button"
+                        class="btn @(State.Mode == mode ? "btn-primary" : "btn-outline-secondary")"
+                        aria-pressed="@(State.Mode == mode ? "true" : "false")"
+                        @onclick="() => SetModeAsync(mode)">
+                    @(mode == AppMode.Sightseeing ? "🏛️" : "🏪")
+                    @Labels.Of(mode)
+                </button>
             }
-        </select>
-    </div>
-</div>
-
-@if (_error is not null)
-{
-    <div class="alert alert-danger" role="alert">@_error</div>
-}
-else if (_places is null)
-{
-    <p role="status">Wczytuję miejsca…</p>
-}
-else
-{
-    <p role="status" aria-live="polite">
-        Znaleziono @_places.Count miejsc:
-        @Count(AssessmentStatus.Accessible) dostępnych, @Count(AssessmentStatus.Limited) z ograniczeniami,
-        @Count(AssessmentStatus.Inaccessible) niedostępnych, @Count(AssessmentStatus.Unknown) bez danych.
-    </p>
-
-    <div class="row g-3">
-        <div class="col-lg-6 order-lg-2">
-            <MapView Markers="_markers" OnMarkerSelected="OpenDetails" />
         </div>
-        <div class="col-lg-6 order-lg-1">
-            <h2 class="h5">@(State.Profile.IsEmpty ? "Lista miejsc" : "Najlepiej dopasowane do Ciebie")</h2>
-            <ul class="list-unstyled place-list">
-                @foreach (var item in _places.Take(_shown))
-                {
-                    <li class="place-item">
-                        <div>
-                            <a class="place-name" href="miejsca/@item.Place.Id">@item.Place.Name</a>
-                            <div class="small text-body-secondary">
-                                @Labels.Of(item.Place.Category)@(item.Place.Address is null ? "" : $" · {item.Place.Address}")
+        <div class="profile-badge">
+            <small class="text-muted">Profil:</small>
+            <ProfileSummaryInline />
+            <a class="ms-2" href="profil">zmień</a>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>Błąd:</strong> @_error
+        </div>
+    }
+    else if (_places is null)
+    {
+        <div class="text-center py-5">
+            <div  class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Wczytuję...</span>
+            </div>
+            <p role="status">Wczytuję miejsca…</p>
+        </div>
+    }
+    else
+    {
+        <!-- Statistics -->
+        <div class="places-stats mb-4">
+            <div class="stat-card accessible">
+                <div class="stat-number">@Count(AssessmentStatus.Accessible)</div>
+                <div class="stat-label">dostępnych</div>
+            </div>
+            <div class="stat-card limited">
+                <div class="stat-number">@Count(AssessmentStatus.Limited)</div>
+                <div class="stat-label">ograniczone</div>
+            </div>
+            <div class="stat-card inaccessible">
+                <div class="stat-number">@Count(AssessmentStatus.Inaccessible)</div>
+                <div class="stat-label">niedostępne</div>
+            </div>
+            <div class="stat-card unknown">
+                <div class="stat-number">@Count(AssessmentStatus.Unknown)</div>
+                <div class="stat-label">bez danych</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="places-grid">
+            <div class="places-sidebar">
+                <div class="filter-section">
+                    <h3 class="filter-title">Filtry</h3>
+                    <div class="form-group">
+                        <label class="form-label" for="search">Szukaj</label>
+                        <input id="search" class="form-control" type="search" placeholder="np. Muzeum, kawiarnia…"
+                               @bind="_search" @bind:after="LoadAsync" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="category">Kategoria</label>
+                        <select id="category" class="form-select" @bind="_category" @bind:after="LoadAsync">
+                            <option value="">Wszystkie kategorie</option>
+                            @foreach (var category in ModeCategories.For(State.Mode).Concat(ModeCategories.Support))
+                            {
+                                <option value="@category">@Labels.Of(category)</option>
+                            }
+                        </select>
+                    </div>
+                    <p class="small text-muted mt-3">
+                        Znaleziono <strong>@_places.Count</strong> miejsc
+                    </p>
+                </div>
+            </div>
+
+            <div class="places-content">
+                <div class="places-list">
+                    @foreach (var item in _places.Take(_shown))
+                    {
+                        <div class="place-card">
+                            <div class="place-card-header">
+                                <div>
+                                    <a class="place-card-title" href="miejsca/@item.Place.Id">@item.Place.Name</a>
+                                    <div class="place-card-meta">
+                                        <span class="place-category">@Labels.Of(item.Place.Category)</span>
+                                        @if (item.Place.Address is not null)
+                                        {
+                                            <span class="place-address">@item.Place.Address</span>
+                                        }
+                                    </div>
+                                </div>
+                                <AssessmentBadge Status="item.Assessment.Status" />
                             </div>
-                            <AssessmentBadge Status="item.Assessment.Status" />
+
                             @if (FirstReason(item) is { } reason)
                             {
-                                <span class="small ms-1">@reason</span>
+                                <div class="place-card-reason">
+                                    @reason
+                                </div>
                             }
+
+                            <div class="place-card-footer">
+                                <button type="button"
+                                        class="btn btn-sm @(State.IsInPlan(item.Place.Id) ? "btn-success" : "btn-primary")"
+                                        aria-label="@(State.IsInPlan(item.Place.Id) ? "Usuń z planu" : "Dodaj do planu"): @item.Place.Name"
+                                        @onclick="() => State.TogglePlaceAsync(item.Place.Id)">
+                                    @if (State.IsInPlan(item.Place.Id))
+                                    {
+                                        <span>✓ W planie</span>
+                                    }
+                                    else
+                                    {
+                                        <span>+ Do planu</span>
+                                    }
+                                </button>
+                                <a class="btn btn-sm btn-outline-secondary" href="miejsca/@item.Place.Id">
+                                    Szczegóły
+                                </a>
+                            </div>
                         </div>
-                        <button type="button" class="btn @(State.IsInPlan(item.Place.Id) ? "btn-success" : "btn-outline-primary")"
-                                aria-pressed="@(State.IsInPlan(item.Place.Id) ? "true" : "false")"
-                                aria-label="@(State.IsInPlan(item.Place.Id) ? "Usuń z planu" : "Dodaj do planu"): @item.Place.Name"
-                                @onclick="() => State.TogglePlaceAsync(item.Place.Id)">
-                            @(State.IsInPlan(item.Place.Id) ? "✓ W planie" : "+ Do planu")
+                    }
+                </div>
+
+                @if (_places.Count > _shown)
+                {
+                    <div class="text-center mt-4">
+                        <button type="button" class="btn btn-secondary" @onclick="() => _shown += PageSize">
+                            Pokaż więcej (@(_places.Count - _shown) pozostałych)
                         </button>
-                    </li>
+                    </div>
                 }
-            </ul>
-            @if (_places.Count > _shown)
-            {
-                <button type="button" class="btn btn-outline-secondary" @onclick="() => _shown += PageSize">Pokaż więcej</button>
-            }
+            </div>
+
+            <div class="places-map">
+                <MapView Markers="_markers" OnMarkerSelected="OpenDetails" />
+            </div>
         </div>
-    </div>
-}
+    }
+</div>
 
 @code {
-    private const int PageSize = 30;
+    private const int PageSize = 20;
     private IReadOnlyList<AssessedPlace>? _places;
     private IReadOnlyList<MapMarker> _markers = [];
     private string? _error;

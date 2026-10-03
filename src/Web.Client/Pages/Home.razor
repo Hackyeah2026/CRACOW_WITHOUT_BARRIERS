@@ -4,28 +4,130 @@
 
 <PageTitle>Kraków bez barier</PageTitle>
 
-<h1>Kraków bez barier</h1>
-<p class="lead">Sprawdź, czy miejsce jest dostępne dla Ciebie, i ułóż trasę, którą da się pokonać.</p>
-
-<h2 class="h4 mt-4">Co chcesz zrobić?</h2>
-<div class="row g-3">
-    <div class="col-md-6">
-        <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
-            <span class="mode-title">Zwiedzam</span>
-            <span>Atrakcje, muzea i kultura. Podpowiedzi i plan dnia.</span>
-        </button>
-    </div>
-    <div class="col-md-6">
-        <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Errand)">
-            <span class="mode-title">Załatwiam sprawę</span>
-            <span>Urzędy, przychodnie, biblioteki i przystanki.</span>
-        </button>
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="hero-content">
+        <h1 class="hero-title">Kraków bez barier</h1>
+        <p class="hero-subtitle">Podróżuj dostosując trasę do swoich potrzeb. Każdy ma prawo do dostępu.</p>
+        <div class="hero-divider"></div>
     </div>
 </div>
 
-<h2 class="h4 mt-4">Twój profil</h2>
-<ProfileSummary />
-<a class="btn btn-outline-primary btn-lg mt-2" href="profil">@(State.Profile.IsEmpty ? "Ustaw profil potrzeb" : "Zmień profil")</a>
+<div class="container py-5">
+    <!-- Mode Selection -->
+    <section class="py-4">
+        <h2 class="section-title">Co chcesz zrobić?</h2>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
+                    <div class="mode-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 19a4 4 0 0 1-4-4v-3H1V6h6V1h4v5h6v6h-3v3a4 4 0 0 1-4 4Z"/></svg>
+                    </div>
+                    <h3 class="mode-title">Zwiedzam</h3>
+                    <p class="mode-subtitle">Atrakcje, muzea, kawiarnie i kultura</p>
+                    <small class="mode-description">Odkrywaj Kraków dostosowany do Twoich potrzeb</small>
+                </button>
+            </div>
+            <div class="col-lg-6">
+                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Errand)"
+                        style="animation-delay: 0.1s;">
+                    <div class="mode-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 22V2m12 20V2M2 11h20" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="4" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="10" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="16" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="mode-title">Załatwiam sprawę</h3>
+                    <p class="mode-subtitle">Urzędy, przychodnie, biblioteki</p>
+                    <small class="mode-description">Zaplanuj efektywnie swoją dzień</small>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Current Profile -->
+    <section class="py-4 mt-4">
+        <div class="profile-card-container">
+            <div class="profile-section-left">
+                <h2 class="section-title">Twój profil potrzeb</h2>
+                <p class="text-muted">Dostosuj aplikację do siebie, aby widzieć tylko dostępne dla Ciebie miejsca.</p>
+            </div>
+            <div class="profile-section-right">
+                <div class="profile-display">
+                    <ProfileSummary />
+                </div>
+                <a class="btn btn-primary btn-lg" href="profil">
+                    @if (State.Profile.IsEmpty)
+                    {
+                        <span>Ustaw profil potrzeb</span>
+                    }
+                    else
+                    {
+                        <span>Zmień profil</span>
+                    }
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sneak Peek: 3 Scenarios -->
+    <section class="py-6 mt-6 scenarios-section">
+        <h2 class="section-title text-center mb-5">3 osoby, 3 podróże</h2>
+        <div class="row g-4">
+            <!-- Marta -->
+            <div class="col-lg-4">
+                <div class="scenario-card fade-in" style="animation-delay: 0.1s;">
+                    <div class="scenario-avatar wheelchair">🦽</div>
+                    <h3 class="scenario-name">Marta</h3>
+                    <p class="scenario-desc">Porusza się na wózku elektrycznym</p>
+                    <ul class="scenario-badges">
+                        <li><span class="badge bg-info">Brak schodów</span></li>
+                        <li><span class="badge bg-info">Równy teren</span></li>
+                        <li><span class="badge bg-info">Przejścia szerokie</span></li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Kuba -->
+            <div class="col-lg-4">
+                <div class="scenario-card fade-in" style="animation-delay: 0.2s;">
+                    <div class="scenario-avatar autism">🧠</div>
+                    <h3 class="scenario-name">Kuba</h3>
+                    <p class="scenario-desc">Ze spektrum autyzmu</p>
+                    <ul class="scenario-badges">
+                        <li><span class="badge bg-warning">Cisza</span></li>
+                        <li><span class="badge bg-warning">Mniej tłumu</span></li>
+                        <li><span class="badge bg-warning">Jasne światło</span></li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Pani Zofia -->
+            <div class="col-lg-4">
+                <div class="scenario-card fade-in" style="animation-delay: 0.3s;">
+                    <div class="scenario-avatar senior">👵</div>
+                    <h3 class="scenario-name">Pani Zofia</h3>
+                    <p class="scenario-desc">Senior, lubi odpoczywać</p>
+                    <ul class="scenario-badges">
+                        <li><span class="badge bg-secondary">Ławki do siedzenia</span></li>
+                        <li><span class="badge bg-secondary">Dostępne toalety</span></li>
+                        <li><span class="badge bg-secondary">Bez stresów</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <p class="text-center text-muted mt-5 small">Każdy profil dostaje inny ranking miejsc. Sprawdź, jak się zmienia świat, gdy dostosujemy go do potrzeb.</p>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="py-6 mt-6 cta-section text-center">
+        <h2 class="h3 mb-4">Gotów na odkrycie dostępnego Krakowa?</h2>
+        <a class="btn btn-primary btn-lg px-5" href="@(State.Profile.IsEmpty ? "profil" : "miejsca")">
+            Zacznij teraz
+        </a>
+    </section>
+</div>
 
 @code {
     protected override Task OnInitializedAsync() => State.EnsureLoadedAsync();
@@ -36,3 +138,4 @@
         Navigation.NavigateTo(State.Profile.IsEmpty ? "profil" : "miejsca");
     }
 }
+

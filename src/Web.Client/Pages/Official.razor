@@ -34,7 +34,7 @@ else
 {
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
-            <h1 class="mb-0">Zgłoszenia mieszkańców</h1>
+            <h1 class="mb-0">Panel urzędnika</h1>
             <p class="text-body-secondary mb-0">
                 @_official.DisplayName@(string.IsNullOrEmpty(_official.Unit) ? "" : $" · {_official.Unit}")
             </p>
@@ -47,9 +47,35 @@ else
         <div class="alert alert-danger" role="alert">@_error</div>
     }
 
+    <ul class="nav nav-tabs mb-3" aria-label="Widoki panelu">
+        @foreach (var (tab, name) in Tabs)
+        {
+            <li class="nav-item">
+                <button type="button" class="nav-link @(_tab == tab ? "active" : "")" aria-current="@(_tab == tab ? "page" : null)" @onclick="() => _tab = tab">
+                    @name
+                    @if (Waiting(tab) is > 0 and var waiting)
+                    {
+                        <span class="badge text-bg-warning ms-1">@waiting<span class="visually-hidden"> czeka na decyzję</span></span>
+                    }
+                </button>
+            </li>
+        }
+        <li class="nav-item ms-auto">
+            <button type="button" class="btn btn-outline-primary" @onclick="LoadAsync">Odśwież</button>
+        </li>
+    </ul>
+
     @if (_reports is null)
     {
         <p role="status">Wczytuję zgłoszenia…</p>
+    }
+    else if (_tab == PanelTab.Hazards)
+    {
+        <OfficialHazards Hazards="_hazards" OnChanged="LoadAsync" />
+    }
+    else if (_tab == PanelTab.Stats)
+    {
+        <OfficialStats Reports="_reports" Hazards="_hazards" />
     }
     else
     {
@@ -124,7 +150,6 @@ else
                             Pokaż wszystkie miejsca <span class="visually-hidden">(usuń filtr miejsca)</span>
                         </button>
                     }
-                    <button type="button" class="btn btn-outline-primary ms-auto" @onclick="LoadAsync">Odśwież</button>
                 </div>
 
                 @{ var visible = Visible().ToList(); }
@@ -206,6 +231,13 @@ else
     private string _password = "";
     private string? _loginError;
     private string? _error;
+    private enum PanelTab { Reports, Hazards, Stats }
+
+    private static readonly (PanelTab Tab, string Name)[] Tabs =
+        [(PanelTab.Reports, "Zgłoszenia miejsc"), (PanelTab.Hazards, "Punkty na mapie"), (PanelTab.Stats, "Statystyki")];
+
+    private PanelTab _tab;
+    private IReadOnlyList<Hazard> _hazards = [];
     private IReadOnlyList<Report>? _reports;
     private IReadOnlyList<MapMarker> _markers = [];
     private string _statusFilter = "open";
@@ -246,6 +278,7 @@ else
         await Sender.Send(new OfficialLogoutCommand());
         _official = null;
         _reports = null;
+        _hazards = [];
         _editing = null;
     }
 
@@ -262,6 +295,13 @@ else
             return;
         }
 
+        // Punkty wczytujemy osobno: ich brak nie może ukryć zgłoszeń miejsc.
+        var hazards = await Sender.Send(new GetHazardsQuery(State.CityId));
+        if (hazards.IsSuccess)
+            _hazards = hazards.Value;
+        else
+            _error = hazards.Error;
+
         _reports = result.Value;
         _markers = _reports
             .Where(r => ReportStatistics.IsOpen(r.Status))
@@ -269,6 +309,14 @@ else
             .Select(g => new MapMarker(g.Key, $"{g.First().PlaceName}: otwarte zgłoszenia {g.Count()}", g.First().Lat, g.First().Lon, "#d97706"))
             .ToList();
     }
+
+    /// <summary>Ile spraw w zakładce nie ma jeszcze żadnej decyzji.</summary>
+    private int Waiting(PanelTab tab) => tab switch
+    {
+        PanelTab.Reports => _reports?.Count(r => r.Status == ReportStatus.New) ?? 0,
+        PanelTab.Hazards => _hazards.Count(h => h.Status == HazardStatus.Pending),
+        _ => 0
+    };
 
     private IEnumerable<Report> Visible() => _reports!
         .Where(r => _placeFilter is null || r.PlaceId == _placeFilter)

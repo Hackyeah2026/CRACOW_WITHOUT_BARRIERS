@@ -1,6 +1,7 @@
 using Application;
 using Application.Abstractions;
 using Application.Trips;
+using Domain.Hazards;
 using Domain.Needs;
 using Domain.Places;
 using Domain.Transit;
@@ -23,17 +24,19 @@ public class BuildTripPlanTests
         new(id, "krakow", id.ToUpperInvariant(), PlaceCategory.Museum, lat, lon, null, null, []);
 
     private static async Task<Result<Domain.Trips.TripPlan>> BuildAsync(
-        IReadOnlyList<string> ids, GeoPoint? start = null, bool optimize = true)
+        IReadOnlyList<string> ids, GeoPoint? start = null, bool optimize = true,
+        NeedsProfile? profile = null, IReadOnlyList<VerifiedHazard>? hazards = null)
     {
         var services = new ServiceCollection()
             .AddApplication()
             .AddSingleton<IPlaceCatalog, FakeCatalog>()
             .AddSingleton<IRoutingClient, FakeRouting>()
             .AddSingleton<ITransitCatalog, NoTransit>()
+            .AddSingleton<IHazardsClient>(new FakeHazards(hazards))
             .BuildServiceProvider();
 
         return await services.GetRequiredService<ISender>().Send(
-            new BuildTripPlanCommand("krakow", ids, NeedsProfile.Empty, AppMode.Sightseeing, new DateTime(2026, 10, 2, 12, 0, 0), start, optimize));
+            new BuildTripPlanCommand("krakow", ids, profile ?? NeedsProfile.Empty, AppMode.Sightseeing, new DateTime(2026, 10, 2, 12, 0, 0), start, optimize));
     }
 
     private static IEnumerable<string> Ids(Domain.Trips.TripPlan plan) => plan.Stops.Select(s => s.Place.Id);
@@ -105,6 +108,41 @@ public class BuildTripPlanTests
 
         Assert.True(result.IsFailure);
         Assert.Contains("Kraków", result.Error);
+    }
+
+    [Fact]
+    public async Task Verified_hazard_near_the_route_is_attached_to_its_leg()
+    {
+        // Schody w połowie drogi a → c i hałas daleko od trasy.
+        var stairs = new VerifiedHazard("h1", HazardKind.Stairs, 50.0695, 19.9321, "", new DateOnly(2026, 10, 3));
+        var noise = new VerifiedHazard("h2", HazardKind.Noise, 50.0600, 19.9500, "", new DateOnly(2026, 10, 3));
+
+        var result = await BuildAsync(["a", "c"], profile: new NeedsProfile { StepFreeRequired = true }, hazards: [stairs, noise]);
+
+        var found = Assert.Single(result.Value.Legs[0].Hazards!);
+        Assert.Equal("h1", found.Hazard.Id);
+        Assert.True(found.ConcernsProfile);
+    }
+
+    [Fact]
+    public async Task Plan_is_built_when_hazards_are_unavailable()
+    {
+        var result = await BuildAsync(["a", "c"], hazards: null);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Legs[0].Hazards!);
+    }
+
+    /// <summary>Bez listy punktów udaje host, który nie odpowiada.</summary>
+    private sealed class FakeHazards(IReadOnlyList<VerifiedHazard>? verified) : IHazardsClient
+    {
+        public Task<Result<HazardReceipt>> SubmitAsync(HazardDraft draft, CancellationToken ct) => throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<HazardStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<VerifiedHazard>>> GetVerifiedAsync(string cityId, CancellationToken ct) => Task.FromResult(
+            verified is null ? Result.Failure<IReadOnlyList<VerifiedHazard>>("Brak połączenia z serwerem.") : Result.Success(verified));
     }
 
     private sealed class FakeCatalog : IPlaceCatalog

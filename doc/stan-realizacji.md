@@ -8,6 +8,8 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 **Co doszło 3.10.2026 wieczorem:** przygotowane połączenie hosta z MongoDB (klaster w MongoDB Atlas), a na nim zgłoszenia mieszkańców (brakujące udogodnienia, bariery, błędne dane) i panel urzędnika do ich obsługi; szczegóły w sekcjach "Baza danych (MongoDB)" i "Zgłoszenia i panel urzędnika".
 
+**Co doszło 3.10.2026 późnym wieczorem:** punkty z utrudnieniami zaznaczane na mapie (przeszkody terenowe, hałas, tłum), zakładka "Zgłoś na mapie", weryfikacja punktów i statystyki w panelu urzędnika; punkty potwierdzone przez urzędnika są widoczne na mapie i ostrzegają w planie trasy. Szczegóły w sekcji "Punkty z utrudnieniami na mapie".
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -24,7 +26,7 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 | – | **Komunikacja miejska (poza pierwotnym planem)** | zrobione | patrz niżej |
 | 8 | Opis planu przez AI | brak | |
 | 9 | Publiczne API z OpenAPI | brak | jest tylko wewnętrzny `POST /api/route` |
-| 10 | Zgłoszenie bariery | zrobione, inaczej niż w planie | zgłoszenia trafiają do bazy na hoście i obsługuje je urzędnik w panelu; nie wpływają jeszcze na ocenę i trasę |
+| 10 | Zgłoszenie bariery | zrobione, inaczej niż w planie | zgłoszenia miejsc i punkty na mapie trafiają do bazy na hoście i obsługuje je urzędnik w panelu; punkty potwierdzone przez urzędnika ostrzegają w planie trasy; ocena miejsc się nie zmienia |
 | 11 | Harmonogram godzinowy | brak | |
 | 12 | Tryb offline (PWA) | brak | |
 
@@ -48,7 +50,7 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 ### Baza danych (MongoDB)
 
-Stan: **połączenie działa, dwie kolekcje: `reports` (zgłoszenia) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
+Stan: **połączenie działa, trzy kolekcje: `reports` (zgłoszenia miejsc), `hazards` (punkty z utrudnieniami) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
 
 - **Gdzie działa baza:** klaster w MongoDB Atlas (cloud.mongodb.com). Łączy się z nim wyłącznie host (`Web`); przeglądarka nigdy nie dostaje adresu połączenia.
 - **Osobny projekt `Infrastructure.Mongo`**, podpięty tylko do hosta. Sterownik (`MongoDB.Driver` 3.12.0, licencja Apache-2.0) nie trafia do `Infrastructure`, bo ten projekt jest też częścią aplikacji w przeglądarce.
@@ -89,6 +91,28 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 
 **Endpointy:** `POST /api/reports`, `POST /api/reports/status` (identyfikatory w treści żądania), `POST /api/official/login`, `POST /api/official/logout`, `GET /api/official/me`, `GET /api/official/reports?cityId=&status=&placeId=`, `PATCH /api/official/reports/{id}`.
 
+### Punkty z utrudnieniami na mapie
+
+**Mieszkaniec (bez konta), zakładka "Zgłoś na mapie" (`/zglos`):**
+
+- Tryb "Utrudnienie w terenie": kliknięcie w mapę albo przycisk "Jestem tutaj" stawia przesuwalną pinezkę; do tego rodzaj (schody, wysoki krawężnik, nierówna nawierzchnia, stromy odcinek, wąskie przejście, roboty, hałas, tłum, ostre światło, inne) i opis do 500 znaków. Wysyłane jest tylko położenie, rodzaj i opis.
+- Tryb "Miejsce z katalogu": wybór miejsca na mapie albo z wyszukiwarki i ten sam formularz zgłoszenia co na karcie miejsca.
+- Identyfikator punktu zostaje w IndexedDB (magazyn `hazards`, wersja bazy 2); strona "Zgłoszenia" pokazuje decyzję urzędu.
+
+**Urzędnik (`/urzednik`), trzy zakładki:**
+
+- "Zgłoszenia miejsc": jak dotąd.
+- "Punkty na mapie": lista z filtrem statusu i mapą; decyzja: czeka na weryfikację → potwierdzone / odrzucone / już nie występuje, z opcjonalną odpowiedzią dla zgłaszającego.
+- "Statystyki": udział zamkniętych zgłoszeń, mediana czasu do decyzji, sprawy czekające ponad 7 dni, nowe zgłoszenia z 14 dni, rozkłady według statusu, rodzaju, kategorii miejsca, brakujących udogodnień i rodzaju utrudnienia (`ReportAnalytics`).
+
+**Co dzieje się z punktem potwierdzonym:**
+
+- Jest publiczny (`GET /api/hazards?cityId=`): symbol na mapie miejsc i na mapie zgłaszania. Opis zgłaszającego staje się widoczny dla wszystkich dopiero po potwierdzeniu.
+- Przy układaniu planu każdy odcinek dostaje punkty leżące do 40 m od trasy (`HazardRules.AlongRoute`), w kolejności marszu: komunikat "W tym miejscu jest zweryfikowane utrudnienie dla ...", odległość od trasy, data potwierdzenia, symbol na mapie planu. Punkty istotne dla profilu (`HazardRules.Concerns`, np. schody dla wózka, hałas dla profilu sensorycznego) są wyróżnione i policzone w podsumowaniu planu.
+- Trasa **nie omija** punktu, plan tylko o nim ostrzega. Gdy host nie odpowiada, plan układa się bez ostrzeżeń.
+
+**Endpointy:** `GET /api/hazards?cityId=`, `POST /api/hazards` (limit wspólny ze zgłoszeniami), `POST /api/hazards/status`, `GET /api/official/hazards?cityId=`, `PATCH /api/official/hazards/{id}`.
+
 ### Warstwy
 
 | Projekt | Co zawiera |
@@ -100,7 +124,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
 | `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 54 testy: silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
+| `Tests` | 63 testy: punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 
@@ -127,6 +151,8 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 
 - MongoDB bez dostępu do klastra: host uruchamia się bez adresu połączenia, `GET /api/health/db` zwraca `not-configured`; zapis i odczyt miejsca przez BSON oraz zachowanie przy niedostępnym serwerze są pokryte testami.
 - **Zgłoszenia na klastrze Atlas** (osobna baza `krakow-bez-barier-test`, konto urzędnika z zmiennych środowiskowych): wysłanie zgłoszenia z karty Sukiennic, walidacja pustego formularza, lista "Moje zgłoszenia", logowanie urzędnika (złe hasło i nieznany login → 401, szósta próba w minucie → 429), zestawienie i mapa w panelu, zmiana statusu z odpowiedzią widoczna u zgłaszającego, wylogowanie.
+
+- **Punkty z utrudnieniami na bazie testowej** (`krakow-bez-barier-test`): zgłoszenie punktu z mapy, lista "Zgłoszenia", potwierdzenie w panelu, statystyki, symbol na mapie miejsc, ostrzeżenie i symbol w planie (profil "kule lub balkonik", schody ok. 40 m od trasy), zgłoszenie miejsca wybranego na mapie.
 
 ### Nie sprawdzone
 
@@ -177,6 +203,9 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | Adres `mongodb+srv://` wymaga rekordów DNS SRV | w niektórych sieciach połączenie się nie uda | użyć dłuższego adresu `mongodb://` z Atlasa |
 | Limity zgłoszeń i logowań liczone per adres IP | za reverse proxy na serwerze wszyscy mają ten sam adres, więc limit będzie wspólny | włączyć `UseForwardedHeaders` z adresem proxy przy wdrożeniu |
 | Ciasteczko urzędnika ma flagę `Secure` tylko przy żądaniu HTTPS | za proxy kończącym HTTPS host widzi HTTP | jak wyżej: nagłówki `X-Forwarded-Proto` |
+| Trasa nie omija potwierdzonych utrudnień | plan ostrzega, ale prowadzi tą samą drogą | OpenRouteService przyjmuje obszary do ominięcia (`avoid_polygons`); do podpięcia dla punktów istotnych dla profilu |
+| Publiczna lista potwierdzonych punktów jest pobierana w całości (do 2000) | przy dużej liczbie punktów rośnie odpowiedź | zapytanie po obszarze mapy |
+| Opis punktu jest tekstem mieszkańca pokazywanym publicznie po potwierdzeniu | urzędnik musi go przeczytać przed potwierdzeniem; nie może go poprawić | edycja opisu w panelu |
 | Lista zgłoszeń w panelu ma limit 500 najnowszych | przy większej liczbie starsze nie są widoczne | stronicowanie, gdy będzie potrzebne |
 | Zmienna `--neutral-400` nie była zdefiniowana w `app.css` | pola wyboru (profil, formularze) nie miały obramowania | poprawione: `#6b7280`, kontrast 4,8:1 |
 
@@ -251,3 +280,4 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | 9 | Mapa hałasu MSIP, warstwy ZTP | mniej "brak danych" dla profili sensorycznych, cechy przystanków |
 | 10 | README, przegląd dostępności interfejsu | materiały do zgłoszenia |
 | 11 | Konta urzędników na serwerze (`Officials__Seed__...`), zgłoszenia potwierdzone przez urząd widoczne na karcie miejsca | zgłoszenia i panel działają lokalnie |
+| 12 | Omijanie potwierdzonych utrudnień przez routing, punkty w pobliżu miejsca na jego karcie | teraz plan tylko ostrzega |

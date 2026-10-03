@@ -1,7 +1,9 @@
 using Domain.Assessments;
+using Domain.Hazards;
 using Domain.Places;
 using Domain.Reports;
 using Domain.Transit;
+using Web.Client.Components;
 
 namespace Web.Client.Services;
 
@@ -139,6 +141,74 @@ public static class Labels
         ReportStatus.InReview or ReportStatus.Planned => "status-limited",
         _ => "status-unknown"
     };
+
+    public static string Of(HazardKind kind) => kind switch
+    {
+        HazardKind.Stairs => "Schody lub stopnie",
+        HazardKind.HighKerb => "Wysoki krawężnik",
+        HazardKind.UnevenSurface => "Nierówna nawierzchnia",
+        HazardKind.SteepSlope => "Stromy odcinek",
+        HazardKind.NarrowPassage => "Wąskie przejście",
+        HazardKind.Roadworks => "Roboty lub zastawiony chodnik",
+        HazardKind.Noise => "Hałas",
+        HazardKind.Crowd => "Tłum",
+        HazardKind.BrightLight => "Ostre lub migające światło",
+        HazardKind.Other => "Inne utrudnienie",
+        _ => kind.ToString()
+    };
+
+    /// <summary>Symbol punktu na mapie; rodzaj jest zawsze także w nazwie pinezki.</summary>
+    public static string Icon(HazardKind kind) => kind switch
+    {
+        HazardKind.Roadworks => "🚧",
+        HazardKind.Noise => "🔊",
+        HazardKind.Crowd => "👥",
+        HazardKind.BrightLight => "💡",
+        _ => "⚠️"
+    };
+
+    /// <summary>Kogo utrudnienie dotyczy najbardziej, do zdania "utrudnienie dla ...".</summary>
+    public static string AffectedGroup(HazardKind kind) => kind switch
+    {
+        HazardKind.Stairs or HazardKind.HighKerb or HazardKind.SteepSlope or HazardKind.NarrowPassage
+            => "dla wózków i osób z ograniczoną sprawnością ruchową",
+        HazardKind.UnevenSurface => "dla wózków, osób z ograniczoną sprawnością ruchową i osób niewidomych",
+        HazardKind.Noise => "dla osób wrażliwych na hałas",
+        HazardKind.Crowd => "dla osób wrażliwych na tłum",
+        HazardKind.BrightLight => "dla osób wrażliwych na bodźce",
+        _ => "dla pieszych"
+    };
+
+    /// <summary>Nazwa potwierdzonego punktu na mapie.</summary>
+    public static string Verified(VerifiedHazard hazard) =>
+        $"Zweryfikowane utrudnienie {AffectedGroup(hazard.Kind)}: {Of(hazard.Kind).ToLowerInvariant()}";
+
+    public static string Of(HazardStatus status) => status switch
+    {
+        HazardStatus.Pending => "Czeka na weryfikację",
+        HazardStatus.Verified => "Potwierdzone",
+        HazardStatus.Rejected => "Odrzucone",
+        HazardStatus.Removed => "Już nie występuje",
+        _ => status.ToString()
+    };
+
+    public static string Css(HazardStatus status) => status switch
+    {
+        HazardStatus.Verified => "status-accessible",
+        HazardStatus.Rejected => "status-inaccessible",
+        HazardStatus.Removed => "status-limited",
+        _ => "status-unknown"
+    };
+
+    public static string Color(HazardStatus status) => status switch
+    {
+        HazardStatus.Pending => "#d97706",
+        HazardStatus.Verified => "#dc3545",
+        _ => "#adb5bd"
+    };
+
+    public static MapMarker Marker(VerifiedHazard hazard, string idPrefix = "") =>
+        new(idPrefix + hazard.Id, Verified(hazard), hazard.Lat, hazard.Lon, Color(HazardStatus.Verified), Icon: Icon(hazard.Kind));
 
     public static string Features(IReadOnlyList<FeatureKey> features) => string.Join(", ", features.Select(Of));
 

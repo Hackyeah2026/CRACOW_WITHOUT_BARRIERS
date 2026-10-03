@@ -1,5 +1,6 @@
 using Application.Abstractions;
 using Domain.Assessments;
+using Domain.Hazards;
 using Domain.Needs;
 using Domain.Places;
 using Domain.Transit;
@@ -34,7 +35,8 @@ public static class StartLocationRules
     public const int MaxDistanceFromCityM = 30_000;
 }
 
-internal sealed class BuildTripPlanCommandHandler(IPlaceCatalog catalog, IRoutingClient routing, ITransitCatalog transit)
+internal sealed class BuildTripPlanCommandHandler(
+    IPlaceCatalog catalog, IRoutingClient routing, ITransitCatalog transit, IHazardsClient hazards)
     : ICommandHandler<BuildTripPlanCommand, TripPlan>
 {
     public async Task<Result<TripPlan>> Handle(BuildTripPlanCommand command, CancellationToken ct)
@@ -75,6 +77,10 @@ internal sealed class BuildTripPlanCommandHandler(IPlaceCatalog catalog, IRoutin
         var network = await transit.GetNetworkAsync(command.CityId, ct);
         var planner = network is null ? null : new TransitPlanner(network);
 
+        // Bez odpowiedzi hosta plan układa się jak dotąd, tylko bez potwierdzonych utrudnień.
+        var verified = await hazards.GetVerifiedAsync(command.CityId, ct);
+        IReadOnlyList<VerifiedHazard> knownHazards = verified.IsSuccess ? verified.Value : [];
+
         var legs = new List<TripLeg>();
         for (var i = 0; i < ordered.Count - 1; i++)
         {
@@ -84,7 +90,8 @@ internal sealed class BuildTripPlanCommandHandler(IPlaceCatalog catalog, IRoutin
 
             var advice = TransitFor(planner, command, route.Value, ordered[i].Location, ordered[i + 1].Location);
             legs.Add(new TripLeg(ordered[i].Id, ordered[i + 1].Id, route.Value.DistanceM, route.Value.DurationMin,
-                route.Value.Geometry, route.Value.IsEstimated, LegWarnings(route.Value, command.Profile, advice?.Status == TransitStatus.Found), advice));
+                route.Value.Geometry, route.Value.IsEstimated, LegWarnings(route.Value, command.Profile, advice?.Status == TransitStatus.Found), advice,
+                HazardRules.AlongRoute(knownHazards, route.Value.Geometry, command.Profile)));
         }
 
         return Result.Success(new TripPlan(Guid.NewGuid().ToString("N"), command.Mode, DateTimeOffset.UtcNow, stops, legs));

@@ -1,0 +1,194 @@
+@inject ISender Sender
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+            <div>
+                <label class="form-label mb-1" for="hazard-status-filter">Status</label>
+                <select id="hazard-status-filter" class="form-select" @bind="_statusFilter" @bind:after="FilterChanged">
+                    <option value="">Wszystkie</option>
+                    @foreach (var status in Enum.GetValues<HazardStatus>())
+                    {
+                        <option value="@status">@Labels.Of(status)</option>
+                    }
+                </select>
+            </div>
+            @if (_selectedId is not null)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => Select(null)">
+                    Pokaż wszystkie punkty <span class="visually-hidden">(usuń wybór punktu)</span>
+                </button>
+            }
+        </div>
+
+        @{ var visible = Visible().ToList(); }
+        <p class="small text-body-secondary" role="status">
+            Pokazano @visible.Count z @Hazards.Count punktów. Punkt potwierdzony jest widoczny dla wszystkich na mapie i ostrzega w planach tras.
+        </p>
+
+        @if (visible.Count == 0)
+        {
+            <div class="alert alert-info">Brak punktów o tym statusie.</div>
+        }
+
+        <ul class="list-unstyled">
+            @foreach (var hazard in visible)
+            {
+                <li class="card card-body mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <div>
+                            <h2 class="h5 mb-0"><span aria-hidden="true">@Labels.Icon(hazard.Kind)</span> @Labels.Of(hazard.Kind)</h2>
+                            <p class="small text-body-secondary mb-1">
+                                utrudnienie @Labels.AffectedGroup(hazard.Kind) · wysłane @Labels.When(hazard.CreatedAt) · @hazard.Lat.ToString("F5"), @hazard.Lon.ToString("F5")
+                            </p>
+                        </div>
+                        <span class="status-badge @Labels.Css(hazard.Status)">@Labels.Of(hazard.Status)</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(hazard.Description))
+                    {
+                        <p class="mb-1 report-description">@hazard.Description</p>
+                    }
+                    @if (hazard.HandledBy is not null)
+                    {
+                        <p class="small mb-1 border-start border-3 ps-2">
+                            Decyzja (@hazard.HandledBy, @Labels.When(hazard.UpdatedAt))@(hazard.OfficialNote is null ? "" : $": {hazard.OfficialNote}")
+                        </p>
+                    }
+
+                    @if (_editing?.Id == hazard.Id)
+                    {
+                        <form class="mt-2" @onsubmit="() => SaveAsync(_editing.Id, _editing.Status, _editing.Note)" @onsubmit:preventDefault>
+                            <div class="mb-2">
+                                <label class="form-label" for="hazard-edit-status">Decyzja</label>
+                                <select id="hazard-edit-status" class="form-select" @bind="_editing.Status">
+                                    @foreach (var status in Enum.GetValues<HazardStatus>())
+                                    {
+                                        <option value="@status">@Labels.Of(status)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="hazard-edit-note">Odpowiedź dla zgłaszającego (widoczna dla niego)</label>
+                                <textarea id="hazard-edit-note" class="form-control" rows="3" maxlength="@Hazard.MaxNoteLength" @bind="_editing.Note"></textarea>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" disabled="@_busy">@(_busy ? "Zapisuję…" : "Zapisz")</button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => _editing = null">Anuluj</button>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            @if (hazard.Status == HazardStatus.Pending)
+                            {
+                                <button type="button" class="btn btn-primary btn-sm" disabled="@_busy" @onclick="() => SaveAsync(hazard.Id, HazardStatus.Verified, hazard.OfficialNote)">
+                                    ✓ Potwierdź <span class="visually-hidden">punkt: @Labels.Of(hazard.Kind)</span>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" disabled="@_busy" @onclick="() => SaveAsync(hazard.Id, HazardStatus.Rejected, hazard.OfficialNote)">
+                                    Odrzuć <span class="visually-hidden">punkt: @Labels.Of(hazard.Kind)</span>
+                                </button>
+                            }
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => Edit(hazard)">
+                                Decyzja z odpowiedzią <span class="visually-hidden">dla punktu: @Labels.Of(hazard.Kind)</span>
+                            </button>
+                            @if (_selectedId != hazard.Id)
+                            {
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Select(hazard.Id)">
+                                    Pokaż na mapie <span class="visually-hidden">punkt: @Labels.Of(hazard.Kind)</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                    @if (_saveError is not null && _failedId == hazard.Id)
+                    {
+                        <div class="alert alert-danger mt-2 mb-0" role="alert">@_saveError</div>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+    <div class="col-lg-5">
+        <MapView Label="Mapa zgłoszonych punktów z utrudnieniami" Markers="_markers" FitToMarkers="true" OnMarkerSelected="Select" />
+        <p class="small text-body-secondary mt-2">
+            Pomarańczowe pinezki czekają na weryfikację, czerwone są potwierdzone, szare odrzucone albo nieaktualne.
+            Kliknij pinezkę, żeby zobaczyć tylko ten punkt.
+        </p>
+    </div>
+</div>
+
+@code {
+    private string _statusFilter = nameof(HazardStatus.Pending);
+    private string? _selectedId;
+    private IReadOnlyList<Hazard>? _shown;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private EditState? _editing;
+    private bool _busy;
+    private string? _saveError;
+    private string? _failedId;
+
+    [Parameter, EditorRequired] public IReadOnlyList<Hazard> Hazards { get; set; } = [];
+
+    /// <summary>Po zapisaniu decyzji: panel wczytuje dane na nowo.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_shown, Hazards))
+        {
+            _shown = Hazards;
+            UpdateMarkers();
+        }
+    }
+
+    private IEnumerable<Hazard> Visible() => Hazards
+        .Where(h => _selectedId is null ? _statusFilter == "" || h.Status.ToString() == _statusFilter : h.Id == _selectedId);
+
+    private void FilterChanged()
+    {
+        _selectedId = null;
+        UpdateMarkers();
+    }
+
+    private void Select(string? id)
+    {
+        _selectedId = id;
+        UpdateMarkers();
+    }
+
+    /// <summary>Mapa pokazuje to samo co lista, więc po wybraniu punktu przybliża się do niego.</summary>
+    private void UpdateMarkers() => _markers = Visible()
+        .Select(h => new MapMarker(h.Id, $"{Labels.Of(h.Kind)} ({Labels.Of(h.Status).ToLowerInvariant()})", h.Lat, h.Lon, Labels.Color(h.Status)))
+        .ToList();
+
+    private void Edit(Hazard hazard)
+    {
+        _saveError = null;
+        _editing = new EditState { Id = hazard.Id, Status = hazard.Status, Note = hazard.OfficialNote ?? "" };
+    }
+
+    private async Task SaveAsync(string id, HazardStatus status, string? note)
+    {
+        _busy = true;
+        _saveError = null;
+        var result = await Sender.Send(new ReviewHazardCommand(id, new HazardReview(status, note)));
+        _busy = false;
+
+        if (result.IsFailure)
+        {
+            _saveError = result.Error;
+            _failedId = id;
+            return;
+        }
+
+        _editing = null;
+        await OnChanged.InvokeAsync();
+    }
+
+    private sealed class EditState
+    {
+        public string Id { get; init; } = "";
+        public HazardStatus Status { get; set; }
+        public string Note { get; set; } = "";
+    }
+}

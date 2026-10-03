@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Application.Abstractions;
 using Domain;
+using Domain.Hazards;
 using Domain.Reports;
 
 namespace Infrastructure.Browser;
@@ -15,6 +16,20 @@ internal sealed class HostReportsClient(HttpClient http) : IReportsClient
     public Task<Result<IReadOnlyList<ReportStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct) =>
         HostApi.SendAsync<IReadOnlyList<ReportStatusView>>(
             () => http.PostAsJsonAsync("api/reports/status", new { ids }, DomainJson.Options, ct), ct);
+}
+
+/// <summary>Punkty z utrudnieniami (api/hazards): wysyłka, stan własnych punktów i lista potwierdzonych przez urząd.</summary>
+internal sealed class HostHazardsClient(HttpClient http) : IHazardsClient
+{
+    public Task<Result<HazardReceipt>> SubmitAsync(HazardDraft draft, CancellationToken ct) =>
+        HostApi.SendAsync<HazardReceipt>(() => http.PostAsJsonAsync("api/hazards", draft, DomainJson.Options, ct), ct);
+
+    public Task<Result<IReadOnlyList<HazardStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct) =>
+        HostApi.SendAsync<IReadOnlyList<HazardStatusView>>(
+            () => http.PostAsJsonAsync("api/hazards/status", new { ids }, DomainJson.Options, ct), ct);
+
+    public Task<Result<IReadOnlyList<VerifiedHazard>>> GetVerifiedAsync(string cityId, CancellationToken ct) =>
+        HostApi.SendAsync<IReadOnlyList<VerifiedHazard>>(() => http.GetAsync($"api/hazards?cityId={Uri.EscapeDataString(cityId)}", ct), ct);
 }
 
 /// <summary>Panel urzędnika. Ciasteczko sesji wysyła przeglądarka (to samo pochodzenie), kod go nie widzi.</summary>
@@ -53,6 +68,14 @@ internal sealed class HostOfficialClient(HttpClient http) : IOfficialClient
     public Task<Result<Report>> UpdateStatusAsync(string id, ReportStatusChange change, CancellationToken ct) =>
         HostApi.SendAsync<Report>(
             () => http.PatchAsJsonAsync($"api/official/reports/{Uri.EscapeDataString(id)}", change, DomainJson.Options, ct), ct);
+
+    public Task<Result<IReadOnlyList<Hazard>>> GetHazardsAsync(string? cityId, CancellationToken ct) =>
+        HostApi.SendAsync<IReadOnlyList<Hazard>>(() => http.GetAsync(
+            cityId is null ? "api/official/hazards" : $"api/official/hazards?cityId={Uri.EscapeDataString(cityId)}", ct), ct);
+
+    public Task<Result<Hazard>> ReviewHazardAsync(string id, HazardReview review, CancellationToken ct) =>
+        HostApi.SendAsync<Hazard>(
+            () => http.PatchAsJsonAsync($"api/official/hazards/{Uri.EscapeDataString(id)}", review, DomainJson.Options, ct), ct);
 }
 
 /// <summary>Zamienia odpowiedzi hosta na <see cref="Result"/> z komunikatem zrozumiałym dla użytkownika.</summary>

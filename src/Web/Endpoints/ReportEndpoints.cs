@@ -94,15 +94,15 @@ public static class ReportEndpoints
         return app;
     }
 
-    private static OfficialProfile ProfileOf(ClaimsPrincipal user) => new(
+    internal static OfficialProfile ProfileOf(ClaimsPrincipal user) => new(
         user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
         user.FindFirstValue(ClaimTypes.Name) ?? "",
         user.FindFirstValue(UnitClaim) ?? "");
 
-    /// <summary>Identyfikator zgłoszenia to 32 znaki szesnastkowe (Guid "N").</summary>
-    private static bool IsReportId(string id) => id.Length == 32 && id.All(char.IsAsciiHexDigitLower);
+    /// <summary>Identyfikator zgłoszenia i punktu na mapie to 32 znaki szesnastkowe (Guid "N").</summary>
+    internal static bool IsReportId(string id) => id.Length == 32 && id.All(char.IsAsciiHexDigitLower);
 
-    private static async ValueTask<object?> DatabaseUnavailableFilter(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    internal static async ValueTask<object?> DatabaseUnavailableFilter(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         try
         {

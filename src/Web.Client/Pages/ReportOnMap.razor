@@ -1,0 +1,295 @@
+@page "/zglos"
+@inject AppState State
+@inject ISender Sender
+@inject IJSRuntime JS
+
+<PageTitle>Zgłoś na mapie</PageTitle>
+
+<h1>Zgłoś na mapie</h1>
+<p class="text-body-secondary">
+    Zaznacz punkt z utrudnieniem w terenie (przeszkoda, hałas, tłum) albo wybierz miejsce z katalogu i zgłoś brak udogodnienia.
+    Punkt trafia do urzędu; po potwierdzeniu przez urzędnika pojawia się na mapie i w planach innych osób.
+</p>
+
+<div class="mode-selector mb-3" role="group" aria-label="Co chcesz zgłosić">
+    <button type="button" class="btn @(_target == Target.Point ? "btn-primary" : "btn-outline-secondary")"
+            aria-pressed="@(_target == Target.Point ? "true" : "false")" @onclick="() => _target = Target.Point">
+        <span aria-hidden="true">⚠️</span> Utrudnienie w terenie
+    </button>
+    <button type="button" class="btn @(_target == Target.Place ? "btn-primary" : "btn-outline-secondary")"
+            aria-pressed="@(_target == Target.Place ? "true" : "false")" @onclick="ShowPlacesAsync">
+        <span aria-hidden="true">🏛️</span> Miejsce z katalogu
+    </button>
+</div>
+
+@if (_target == Target.Point)
+{
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <MapView @key="Target.Point" Label="Mapa: wskaż punkt z utrudnieniem" Center="CityCenter" Zoom="@(State.City?.Zoom ?? 14)"
+                     Markers="_hazardMarkers" PickPoint="_point" PickLabel="Zgłaszany punkt"
+                     OnPointPicked="SetPoint" OnMarkerSelected="SelectHazard" />
+            <p class="small mt-2 mb-1" role="status">
+                @(_point is { } point
+                    ? $"Zgłaszany punkt: {point.Lat:F5}, {point.Lon:F5}. Możesz przeciągnąć pinezkę albo kliknąć w inne miejsce."
+                    : "Kliknij na mapie miejsce, w którym jest utrudnienie.")
+                Z klawiatury: przejdź do pinezki klawiszem Tab i przesuwaj ją strzałkami.
+            </p>
+            <button type="button" class="btn btn-outline-primary" disabled="@_locating" @onclick="UseMyLocationAsync">
+                <span aria-hidden="true">📍</span> @(_locating ? "Ustalam lokalizację…" : "Jestem tutaj: użyj mojej lokalizacji")
+            </button>
+            @if (_locationError is not null)
+            {
+                <div class="alert alert-warning mt-2" role="alert">@_locationError</div>
+            }
+            @if (_selectedHazard is not null)
+            {
+                <div class="hazard-note" role="status">
+                    <span aria-hidden="true">@Labels.Icon(_selectedHazard.Kind)</span> @Labels.Verified(_selectedHazard),
+                    potwierdzone @_selectedHazard.VerifiedOn.ToString("dd.MM.yyyy").
+                    @if (!string.IsNullOrEmpty(_selectedHazard.Description))
+                    {
+                        <div class="report-description">„@_selectedHazard.Description”</div>
+                    }
+                </div>
+            }
+            else if (_hazardMarkers.Count > 0)
+            {
+                <p class="small text-body-secondary mt-2 mb-0">
+                    Symbole na mapie to utrudnienia już potwierdzone przez urząd (@_hazardMarkers.Count). Kliknij symbol, żeby zobaczyć opis.
+                </p>
+            }
+        </div>
+
+        <div class="col-lg-5">
+            <section class="card card-body" aria-labelledby="hazard-heading">
+                <h2 id="hazard-heading" class="h5">Utrudnienie w tym punkcie</h2>
+
+                @if (_receipt is not null)
+                {
+                    <div class="alert alert-success mb-2" role="status">
+                        Dziękujemy, punkt trafił do urzędu. Po potwierdzeniu będzie widoczny na mapie i w planach.
+                        Decyzję sprawdzisz w zakładce <a href="zgloszenia">Zgłoszenia</a>.
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary align-self-start" @onclick="Reset">Zgłoś kolejny punkt</button>
+                }
+                else
+                {
+                    <form @onsubmit="SubmitAsync" @onsubmit:preventDefault novalidate>
+                        <fieldset class="mb-3">
+                            <legend class="h6">Rodzaj utrudnienia</legend>
+                            <div class="hazard-kinds">
+                                @foreach (var kind in Enum.GetValues<HazardKind>())
+                                {
+                                    var id = $"hazard-kind-{kind}";
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="hazard-kind" id="@id"
+                                               checked="@(_kind == kind)" @onchange="() => _kind = kind" />
+                                        <label class="form-check-label" for="@id"><span aria-hidden="true">@Labels.Icon(kind)</span> @Labels.Of(kind)</label>
+                                    </div>
+                                }
+                            </div>
+                        </fieldset>
+
+                        <div class="mb-3">
+                            <label class="form-label h6" for="hazard-description">
+                                Opis @(_kind == HazardKind.Other ? "" : "(opcjonalnie)")
+                            </label>
+                            <textarea id="hazard-description" class="form-control" rows="3" maxlength="@HazardDraft.MaxDescriptionLength"
+                                      aria-describedby="hazard-description-help" @bind="_description" @bind:event="oninput"></textarea>
+                            <div id="hazard-description-help" class="form-text">
+                                Np. „Krawężnik ok. 15 cm, brak obniżenia przy przejściu”. @_description.Length / @HazardDraft.MaxDescriptionLength znaków.
+                                Nie wpisuj danych osobowych: po potwierdzeniu opis zobaczą inni.
+                            </div>
+                        </div>
+
+                        @if (_errors.Count > 0)
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                @foreach (var error in _errors)
+                                {
+                                    <div>@error</div>
+                                }
+                            </div>
+                        }
+
+                        <p class="form-text">
+                            Zgłoszenie jest anonimowe: wysyłamy tylko położenie punktu, rodzaj utrudnienia i opis. Twój profil potrzeb zostaje na tym urządzeniu.
+                        </p>
+
+                        <button type="submit" class="btn btn-primary" disabled="@(_sending || _point is null)">
+                            @(_sending ? "Wysyłam…" : _point is null ? "Najpierw wskaż punkt na mapie" : "Wyślij zgłoszenie")
+                        </button>
+                    </form>
+                }
+            </section>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="mb-2">
+                <label class="form-label" for="report-place-search">Szukaj miejsca</label>
+                <input id="report-place-search" class="form-control" type="search" placeholder="np. Muzeum, urząd…"
+                       @bind="_search" @bind:after="LoadPlacesAsync" />
+            </div>
+            <MapView @key="Target.Place" Label="Mapa: wybierz miejsce, którego dotyczy zgłoszenie" Center="CityCenter" Zoom="@(State.City?.Zoom ?? 14)"
+                     Markers="_placeMarkers" FitToMarkers="_fitPlaces" OnMarkerSelected="SelectPlace" />
+            <p class="small text-body-secondary mt-2" role="status">
+                @(_places is null ? "Wczytuję miejsca…" : $"Na mapie: {_places.Count} miejsc w trybie „{Labels.Of(State.Mode)}”. Kliknij pinezkę albo wybierz miejsce z listy.")
+            </p>
+            @if (_places is { Count: > 0 and <= MaxListedPlaces })
+            {
+                <ul class="list-unstyled">
+                    @foreach (var item in _places)
+                    {
+                        <li>
+                            <button type="button" class="btn btn-link p-0 text-start" @onclick="() => SelectPlace(item.Place.Id)">
+                                @item.Place.Name <span class="text-body-secondary">(@Labels.Of(item.Place.Category))</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+        <div class="col-lg-5">
+            @if (_place is null)
+            {
+                <div class="alert alert-info" role="status">Wybierz miejsce na mapie, żeby zgłosić barierę, brak udogodnienia albo błędne dane.</div>
+            }
+            else
+            {
+                <h2 class="h5 mb-0"><a href="miejsca/@_place.Id">@_place.Name</a></h2>
+                <p class="small text-body-secondary mb-0">@Labels.Of(_place.Category)@(_place.Address is null ? "" : $" · {_place.Address}")</p>
+                <ReportForm @key="_place.Id" Place="_place" StartOpen="true" />
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private const int MaxListedPlaces = 15;
+
+    private enum Target { Point, Place }
+
+    private Target _target = Target.Point;
+
+    private IReadOnlyList<VerifiedHazard> _hazards = [];
+    private IReadOnlyList<MapMarker> _hazardMarkers = [];
+    private VerifiedHazard? _selectedHazard;
+    private GeoPoint? _point;
+    private HazardKind _kind = HazardKind.Stairs;
+    private string _description = "";
+    private IReadOnlyList<string> _errors = [];
+    private bool _sending;
+    private bool _locating;
+    private string? _locationError;
+    private HazardReceipt? _receipt;
+
+    private IReadOnlyList<AssessedPlace>? _places;
+    private IReadOnlyList<MapMarker> _placeMarkers = [];
+    private bool _fitPlaces;
+    private string? _search;
+    private Place? _place;
+
+    private GeoPoint CityCenter => State.City is { } city ? new GeoPoint(city.Lat, city.Lon) : new GeoPoint(50.0614, 19.9366);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+
+        // Bez odpowiedzi hosta mapa jest pusta, ale punkt nadal da się wskazać.
+        var hazards = await Sender.Send(new GetVerifiedHazardsQuery(State.CityId));
+        if (hazards.IsSuccess)
+        {
+            _hazards = hazards.Value;
+            _hazardMarkers = _hazards.Select(h => Labels.Marker(h)).ToList();
+        }
+    }
+
+    private void SetPoint(GeoPoint point)
+    {
+        _point = point;
+        _selectedHazard = null;
+        _errors = [];
+    }
+
+    private void SelectHazard(string id) => _selectedHazard = _hazards.FirstOrDefault(h => h.Id == id);
+
+    private async Task UseMyLocationAsync()
+    {
+        _locating = true;
+        _locationError = null;
+        try
+        {
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/geolocation.js");
+            var position = await module.InvokeAsync<Position>("getCurrentPosition");
+            if (position.Ok)
+                SetPoint(new GeoPoint(position.Lat, position.Lon));
+            else
+                _locationError = position.Reason == "denied"
+                    ? "Przeglądarka nie ma zgody na lokalizację. Włącz ją w ustawieniach strony albo wskaż punkt na mapie."
+                    : "Nie udało się ustalić lokalizacji. Wskaż punkt na mapie.";
+        }
+        finally
+        {
+            _locating = false;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_point is not { } point)
+            return;
+
+        var draft = new HazardDraft(State.CityId, point.Lat, point.Lon, _kind, _description.Trim());
+        _errors = draft.Validate();
+        if (_errors.Count > 0)
+            return;
+
+        _sending = true;
+        var result = await Sender.Send(new SubmitHazardCommand(draft));
+        _sending = false;
+
+        if (result.IsFailure)
+        {
+            _errors = [result.Error!];
+            return;
+        }
+
+        _receipt = result.Value;
+    }
+
+    private void Reset()
+    {
+        _receipt = null;
+        _point = null;
+        _kind = HazardKind.Stairs;
+        _description = "";
+        _errors = [];
+    }
+
+    private async Task ShowPlacesAsync()
+    {
+        _target = Target.Place;
+        if (_places is null)
+            await LoadPlacesAsync();
+    }
+
+    private async Task LoadPlacesAsync()
+    {
+        var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, Search: _search));
+        _places = result.IsSuccess ? result.Value : [];
+        // Pierwszy widok to centrum miasta; po wyszukaniu mapa dopasowuje się do wyników.
+        _fitPlaces = !string.IsNullOrWhiteSpace(_search);
+        _placeMarkers = _places
+            .Select(p => new MapMarker(p.Place.Id, p.Place.Name, p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status)))
+            .ToList();
+    }
+
+    private void SelectPlace(string id) => _place = _places?.FirstOrDefault(p => p.Place.Id == id)?.Place ?? _place;
+
+    private sealed record Position(bool Ok, double Lat, double Lon, string? Reason);
+}

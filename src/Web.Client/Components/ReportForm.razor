@@ -98,6 +98,11 @@
     /// <summary>Wywoływane po przyjęciu zgłoszenia, np. żeby odświeżyć listę zgłoszeń miejsca.</summary>
     [Parameter] public EventCallback<ReportReceipt> OnSubmitted { get; set; }
 
+    /// <summary>Formularz od razu rozwinięty, np. gdy miejsce zostało dopiero co wybrane na mapie.</summary>
+    [Parameter] public bool StartOpen { get; set; }
+
+    protected override void OnInitialized() => _open = StartOpen;
+
     private void ToggleFeature(FeatureKey feature, bool on)
     {
         if (on && !_features.Contains(feature))

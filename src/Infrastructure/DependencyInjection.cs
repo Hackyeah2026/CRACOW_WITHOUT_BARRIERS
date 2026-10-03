@@ -15,6 +15,7 @@ public static class DependencyInjection
         .AddScoped<ILocalStore, IndexedDbLocalStore>()
         .AddScoped<IRoutingClient, HostRoutingClient>()
         .AddScoped<IReportsClient, HostReportsClient>()
+        .AddScoped<IHazardsClient, HostHazardsClient>()
         .AddScoped<IOfficialClient, HostOfficialClient>();
 
     /// <summary>Usługi hosta: integracje wymagające kluczy API.</summary>

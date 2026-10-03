@@ -35,6 +35,9 @@
     /// <summary>Włącza wybór punktu: kliknięcie w mapę albo przesunięcie pinezki zgłasza nowe położenie.</summary>
     [Parameter] public EventCallback<GeoPoint> OnPointPicked { get; set; }
 
+    /// <summary>Jak czytnik ekranu i podpowiedź nazywają przesuwalną pinezkę.</summary>
+    [Parameter] public string PickLabel { get; set; } = "Punkt startu";
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -42,7 +45,7 @@
             _self = DotNetObjectReference.Create(this);
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/map.js");
             await _module.InvokeVoidAsync("init", _id, Center.Lat, Center.Lon, Zoom, _self,
-                OnBoundsChanged.HasDelegate, OnPointPicked.HasDelegate);
+                OnBoundsChanged.HasDelegate, OnPointPicked.HasDelegate, PickLabel);
         }
 
         if (_module is null)

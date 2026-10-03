@@ -6,22 +6,23 @@
 <h1>Moje zgłoszenia</h1>
 <p class="text-body-secondary">
     Zgłoszenia wysłane z tego urządzenia i odpowiedzi urzędu. Nie zakładamy konta: listę pamięta tylko ta przeglądarka.
-    Nowe zgłoszenie wyślesz z karty miejsca.
+    Nowe zgłoszenie wyślesz z karty miejsca albo z zakładki <a href="zglos">Zgłoś na mapie</a>.
 </p>
 
-@if (_reports is null)
+@if (_reports is null || _hazards is null)
 {
     <p role="status">Wczytuję…</p>
 }
-else if (_reports.Count == 0)
+else if (_reports.Count == 0 && _hazards.Count == 0)
 {
     <div class="alert alert-info">
-        Nie wysłano jeszcze żadnego zgłoszenia. Otwórz <a href="miejsca">kartę miejsca</a> i użyj przycisku „Zgłoś”.
+        Nie wysłano jeszcze żadnego zgłoszenia. Otwórz <a href="miejsca">kartę miejsca</a> i użyj przycisku „Zgłoś”
+        albo zaznacz utrudnienie w zakładce <a href="zglos">Zgłoś na mapie</a>.
     </div>
 }
 else
 {
-    @if (_reports.Any(r => r.Current is null))
+    @if (_reports.Any(r => r.Current is null) || _hazards.Any(h => h.Current is null))
     {
         <div class="alert alert-warning" role="status">
             Nie udało się sprawdzić stanu części zgłoszeń. Serwer może być chwilowo niedostępny.
@@ -55,14 +56,57 @@ else
             </li>
         }
     </ul>
+
+    @if (_hazards.Count > 0)
+    {
+        <h2 class="h4">Punkty zaznaczone na mapie</h2>
+        <ul class="list-unstyled">
+            @foreach (var hazard in _hazards)
+            {
+                <li class="card card-body mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <h3 class="h5 mb-1"><span aria-hidden="true">@Labels.Icon(hazard.Receipt.Kind)</span> @Labels.Of(hazard.Receipt.Kind)</h3>
+                        @if (hazard.Current is { } current)
+                        {
+                            <span class="status-badge @Labels.Css(current.Status)">@Labels.Of(current.Status)</span>
+                        }
+                    </div>
+                    <p class="small text-body-secondary mb-2">
+                        Wysłane @Labels.When(hazard.Receipt.CreatedAt) · punkt @hazard.Receipt.Lat.ToString("F5"), @hazard.Receipt.Lon.ToString("F5")
+                    </p>
+                    @if (hazard.Current is { } c)
+                    {
+                        @if (!string.IsNullOrEmpty(c.Description))
+                        {
+                            <p class="mb-1 report-description">@c.Description</p>
+                        }
+                        @if (c.Status == HazardStatus.Verified)
+                        {
+                            <p class="mb-1">Punkt jest widoczny na mapie i ostrzega w planach tras.</p>
+                        }
+                        @if (c.OfficialNote is not null)
+                        {
+                            <div class="border-start border-3 ps-3 mt-2">
+                                <p class="small text-body-secondary mb-1">Odpowiedź urzędu, @Labels.When(c.UpdatedAt)</p>
+                                <p class="mb-0">@c.OfficialNote</p>
+                            </div>
+                        }
+                    }
+                </li>
+            }
+        </ul>
+    }
 }
 
 @code {
     private IReadOnlyList<MyReport>? _reports;
+    private IReadOnlyList<MyHazard>? _hazards;
 
     protected override async Task OnInitializedAsync()
     {
         var result = await Sender.Send(new GetMyReportsQuery());
         _reports = result.IsSuccess ? result.Value : [];
+        var hazards = await Sender.Send(new GetMyHazardsQuery());
+        _hazards = hazards.IsSuccess ? hazards.Value : [];
     }
 }

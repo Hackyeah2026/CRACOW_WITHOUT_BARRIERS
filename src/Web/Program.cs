@@ -86,6 +86,7 @@ app.MapStaticAssets();
 app.MapRouteEndpoints();
 app.MapHealthEndpoints();
 app.MapReportEndpoints();
+app.MapHazardEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

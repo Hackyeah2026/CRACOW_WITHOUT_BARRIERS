@@ -1779,3 +1779,42 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .official-login {
     max-width: 26rem;
 }
+
+/* Punkty z utrudnieniami */
+.hazard-note {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--neutral-400);
+    border-left-width: 0.4rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #1b1b1b;
+}
+
+.hazard-concerns {
+    border-color: #842029;
+    background: #f8d7da;
+}
+
+.hazard-kinds {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: 0 var(--spacing-4);
+}
+
+/* Statystyki w panelu urzędnika: wartość jest zawsze liczbą w tabeli, słupek tylko ją ilustruje. */
+.stat-table td.stat-bar-cell {
+    width: 50%;
+    vertical-align: middle;
+}
+
+.stat-bar {
+    height: 0.9rem;
+    min-width: 2px;
+    border-radius: 0.2rem;
+    background: var(--primary);
+}
+
+.stat-bar.stat-bar-alt {
+    background: #b45309;
+}

@@ -1,4 +1,5 @@
 using Application.Abstractions;
+using Domain.Hazards;
 using Domain.Reports;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,7 @@ internal sealed class ReportsStartup(MongoCollections collections, OfficialsOpti
             await MongoCollections.RunAsync(async () =>
             {
                 await MongoReportRepository.EnsureIndexesAsync(collections.Get<Report>(MongoCollections.Reports), ct);
+                await MongoHazardRepository.EnsureIndexesAsync(collections.Get<Hazard>(MongoCollections.Hazards), ct);
                 await SeedOfficialsAsync(ct);
                 return true;
             });

@@ -1,3 +1,4 @@
+using Domain.Hazards;
 using Domain.Reports;
 
 namespace Application.Abstractions;
@@ -13,6 +14,19 @@ public interface IReportRepository
 
     /// <summary>Zmienia status i odpowiedź urzędu; null, gdy zgłoszenia nie ma.</summary>
     Task<Report?> UpdateStatusAsync(string id, ReportStatusChange change, string officialLogin, DateTime now, CancellationToken ct);
+}
+
+/// <summary>Punkty z utrudnieniami w bazie hosta.</summary>
+public interface IHazardRepository
+{
+    Task AddAsync(Hazard hazard, CancellationToken ct);
+    Task<IReadOnlyList<Hazard>> GetByIdsAsync(IReadOnlyCollection<string> ids, CancellationToken ct);
+
+    /// <summary>Najnowsze punkty w mieście; bez statusu wszystkie.</summary>
+    Task<IReadOnlyList<Hazard>> ListAsync(string? cityId, HazardStatus? status, int limit, CancellationToken ct);
+
+    /// <summary>Zapisuje decyzję urzędnika; null, gdy punktu nie ma.</summary>
+    Task<Hazard?> ReviewAsync(string id, HazardReview review, string officialLogin, DateTime now, CancellationToken ct);
 }
 
 /// <summary>Konta urzędników w bazie hosta.</summary>
@@ -32,6 +46,14 @@ public interface IReportsClient
     Task<Result<IReadOnlyList<ReportStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct);
 }
 
+/// <summary>Punkty z utrudnieniami: wysyłka z przeglądarki do hosta i odczyt punktów potwierdzonych przez urząd.</summary>
+public interface IHazardsClient
+{
+    Task<Result<HazardReceipt>> SubmitAsync(HazardDraft draft, CancellationToken ct);
+    Task<Result<IReadOnlyList<HazardStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct);
+    Task<Result<IReadOnlyList<VerifiedHazard>>> GetVerifiedAsync(string cityId, CancellationToken ct);
+}
+
 /// <summary>Panel urzędnika w przeglądarce. Sesję trzyma ciasteczko hosta niedostępne dla skryptów.</summary>
 public interface IOfficialClient
 {
@@ -43,4 +65,8 @@ public interface IOfficialClient
 
     Task<Result<IReadOnlyList<Report>>> GetReportsAsync(ReportFilter filter, CancellationToken ct);
     Task<Result<Report>> UpdateStatusAsync(string id, ReportStatusChange change, CancellationToken ct);
+
+    /// <summary>Wszystkie punkty z utrudnieniami w mieście, także niezweryfikowane.</summary>
+    Task<Result<IReadOnlyList<Hazard>>> GetHazardsAsync(string? cityId, CancellationToken ct);
+    Task<Result<Hazard>> ReviewHazardAsync(string id, HazardReview review, CancellationToken ct);
 }

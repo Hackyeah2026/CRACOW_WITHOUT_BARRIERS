@@ -153,6 +153,10 @@ else
         <p role="status">
             @_plan.Stops.Count przystanków, około @Labels.Distance(_plan.TotalDistanceM) drogi,
             około @Math.Ceiling(_plan.TotalDurationMin) min w ruchu (bez czasu na miejscu).
+            @if (_hazards.Count > 0)
+            {
+                <text>Przy trasie: @_hazards.Count @(_hazards.Count == 1 ? "utrudnienie potwierdzone" : "utrudnień potwierdzonych") przez urząd, z tego dla Twojego profilu: @_hazards.Count(h => h.ConcernsProfile).</text>
+            }
         </p>
 
         <div class="row g-3">
@@ -199,6 +203,22 @@ else
                                 {
                                     <div class="text-warning-emphasis"><span aria-hidden="true">!</span> @warning</div>
                                 }
+                                @foreach (var hazard in leg.Hazards ?? [])
+                                {
+                                    <div class="hazard-note @(hazard.ConcernsProfile ? "hazard-concerns" : "")">
+                                        <span aria-hidden="true">@Labels.Icon(hazard.Hazard.Kind)</span>
+                                        W tym miejscu jest @Labels.Verified(hazard.Hazard).ToLowerInvariant()
+                                        (@(hazard.DistanceM < 10 ? "na trasie" : $"około {Labels.Distance(hazard.DistanceM)} od trasy"), potwierdzone @hazard.Hazard.VerifiedOn.ToString("dd.MM.yyyy")).
+                                        @if (hazard.ConcernsProfile)
+                                        {
+                                            <strong>Dotyczy Twojego profilu.</strong>
+                                        }
+                                        @if (!string.IsNullOrEmpty(hazard.Hazard.Description))
+                                        {
+                                            <div class="report-description">„@hazard.Hazard.Description”</div>
+                                        }
+                                    </div>
+                                }
                                 @if (leg.Transit is not null)
                                 {
                                     <TransitPanel Advice="leg.Transit" />
@@ -221,6 +241,10 @@ else
                     <li><span class="map-legend-pin" aria-hidden="true"></span> przystanek po drodze</li>
                     <li><span class="map-legend-pin stop-end" aria-hidden="true"></span> cel</li>
                     <li><span class="map-legend-line map-legend-walk" aria-hidden="true"></span> pieszo</li>
+                    @if (_hazards.Count > 0)
+                    {
+                        <li><span aria-hidden="true">⚠️</span> utrudnienie potwierdzone przez urząd</li>
+                    }
                     @if (_route.Any(r => r.IsTransit))
                     {
                         <li><span class="map-legend-line map-legend-transit" aria-hidden="true"></span> propozycja przejazdu komunikacją miejską</li>
@@ -240,6 +264,7 @@ else
     private TripPlan? _plan;
     private IReadOnlyList<MapMarker> _markers = [];
     private IReadOnlyList<MapRouteSegment> _route = [];
+    private IReadOnlyList<HazardOnRoute> _hazards = [];
     private string? _error;
     private string? _locationError;
     private string? _moveStatus;
@@ -379,10 +404,13 @@ else
 
             _plan = result.Value;
             var count = _plan.Stops.Count;
+            // Ten sam punkt może leżeć przy dwóch odcinkach; na mapie i w podsumowaniu liczymy go raz.
+            _hazards = _plan.Legs.SelectMany(l => l.Hazards ?? []).DistinctBy(h => h.Hazard.Id).ToList();
             _markers = _plan.Stops
                 .Select((s, i) => new MapMarker(s.IsUserLocation ? "" : s.Place.Id,
                     StopRole(i, count) is { } role ? $"{s.Place.Name} ({role.ToLowerInvariant()})" : s.Place.Name,
                     s.Place.Lat, s.Place.Lon, StopColor(i, count), s.Order.ToString()))
+                .Concat(_hazards.Select(h => Labels.Marker(h.Hazard) with { Id = "" }))
                 .ToList();
             _route = RouteSegments(_plan);
         }

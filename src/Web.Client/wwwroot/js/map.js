@@ -10,7 +10,7 @@ const LABEL_OFFSETS = { top: [0, -16], right: [16, 0], left: [-16, 0], bottom: [
 // O ile pikseli strzałka klawiatury przesuwa pinezkę wybieranego punktu.
 const PICK_STEP_PX = 10;
 
-export function init(id, lat, lon, zoom, dotnet, reportBounds, pickable) {
+export function init(id, lat, lon, zoom, dotnet, reportBounds, pickable, pickLabel) {
     // Canvas zamiast SVG: katalog całego miasta to kilka tysięcy pinezek.
     const map = L.map(id, { preferCanvas: true }).setView([lat, lon], zoom);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -21,7 +21,7 @@ export function init(id, lat, lon, zoom, dotnet, reportBounds, pickable) {
     const entry = {
         map, dotnet, frame: map.getContainer().parentElement,
         markers: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
-        labelled: [], routeLabels: [], allBounds: null, pick: null
+        labelled: [], routeLabels: [], allBounds: null, pick: null, pickLabel: pickLabel || 'Punkt startu'
     };
     maps[id] = entry;
 
@@ -106,7 +106,7 @@ export function showAllMarkers(id) {
     if (entry?.allBounds) entry.map.fitBounds(entry.allBounds, { animate: false, maxZoom: 17 });
 }
 
-// Przesuwalna pinezka wybieranego punktu. point: { lat, lon } albo null, gdy punkt nie jest wybrany.
+// Przesuwalna pinezka wybieranego punktu (start planu albo zgłaszane utrudnienie). point: { lat, lon } albo null, gdy punkt nie jest wybrany.
 export function setPick(id, point) {
     const entry = maps[id];
     if (!entry) return;
@@ -124,11 +124,11 @@ function placePick(entry, latlng) {
     } else {
         const icon = L.divIcon({ html: text('📍'), className: 'map-pick-icon', iconSize: [40, 40], iconAnchor: [20, 38] });
         entry.pick = L.marker(latlng, { icon, draggable: true, keyboard: true, zIndexOffset: 1000 }).addTo(entry.map);
-        entry.pick.bindTooltip(text('Punkt startu: przeciągnij, żeby poprawić'), { direction: 'top', offset: [0, -38] });
+        entry.pick.bindTooltip(text(`${entry.pickLabel}: przeciągnij, żeby poprawić`), { direction: 'top', offset: [0, -38] });
         entry.pick.on('dragend', () => pickChanged(entry));
 
         const element = entry.pick.getElement();
-        element.setAttribute('aria-label', 'Punkt startu. Strzałki przesuwają pinezkę.');
+        element.setAttribute('aria-label', `${entry.pickLabel}. Strzałki przesuwają pinezkę.`);
         element.addEventListener('keydown', e => {
             const step = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
             if (!step) return;

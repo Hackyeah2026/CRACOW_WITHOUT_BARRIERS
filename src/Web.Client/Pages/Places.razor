@@ -100,6 +100,13 @@
                     {
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ShowAllAsync">Pokaż wszystkie na mapie</button>
                     }
+                    <p class="small text-muted mt-3 mb-0">
+                        @if (_hazardMarkers.Count > 0)
+                        {
+                            <text><span aria-hidden="true">⚠️</span> Symbole na mapie to utrudnienia potwierdzone przez urząd (@_hazardMarkers.Count). </text>
+                        }
+                        Widzisz przeszkodę, hałas albo tłum? <a href="zglos">Zgłoś na mapie</a>.
+                    </p>
                 </div>
             </div>
 
@@ -179,6 +186,7 @@
 
 @code {
     private const int PageSize = 20;
+    private const string HazardMarkerPrefix = "hazard:";
     private IReadOnlyList<AssessedPlace>? _places;
     private IReadOnlyList<AssessedPlace> _visible = [];
     private MapView? _map;
@@ -187,6 +195,7 @@
     private int _zoom = 14;
     private bool _fitToResults;
     private IReadOnlyList<MapMarker> _markers = [];
+    private IReadOnlyList<MapMarker> _hazardMarkers = [];
     private string? _error;
     private string? _search;
     private string _category = "";
@@ -202,6 +211,11 @@
             _center = new GeoPoint(city.Lat, city.Lon);
             _zoom = city.Zoom;
         }
+
+        // Bez odpowiedzi hosta mapa pokazuje same miejsca.
+        var hazards = await Sender.Send(new GetVerifiedHazardsQuery(State.CityId));
+        if (hazards.IsSuccess)
+            _hazardMarkers = hazards.Value.Select(h => Labels.Marker(h, HazardMarkerPrefix)).ToList();
         await LoadAsync();
     }
 
@@ -237,6 +251,7 @@
         _markers = _places
             .Select(p => new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)})", p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status),
                 Icon: Labels.MapIcon(p.Place.Category)))
+            .Concat(_hazardMarkers)
             .ToList();
         UpdateVisible();
     }
@@ -264,5 +279,10 @@
     private static string? FirstReason(AssessedPlace item) =>
         (item.Assessment.Barriers.FirstOrDefault() ?? item.Assessment.Reasons.FirstOrDefault())?.Message;
 
-    private void OpenDetails(string id) => Navigation.NavigateTo($"miejsca/{id}");
+    private void OpenDetails(string id)
+    {
+        // Utrudnienie nie ma karty: jego opis jest w nazwie pinezki.
+        if (!id.StartsWith(HazardMarkerPrefix))
+            Navigation.NavigateTo($"miejsca/{id}");
+    }
 }

@@ -1,0 +1,123 @@
+@{ var stats = ReportAnalytics.Analyze(Reports, Hazards, DateTime.UtcNow, DateOnly.FromDateTime(DateTime.Now), utc => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime()); }
+
+<p class="small text-body-secondary">
+    Liczone ze wszystkich wczytanych zgłoszeń, także zamkniętych: @Reports.Count zgłoszeń miejsc i @Hazards.Count punktów na mapie
+    (panel wczytuje najwyżej 500 najnowszych z każdej listy).
+</p>
+
+<div class="row g-3 mb-3">
+    <section class="col-6 col-md-3">
+        <div class="card card-body h-100">
+            <h2 class="h6">Zamknięte zgłoszenia miejsc</h2>
+            <p class="display-6 mb-0">@(stats.ClosedShare is { } share ? share.ToString("P0") : "–")</p>
+            <p class="small text-body-secondary mb-0">rozwiązane albo odrzucone</p>
+        </div>
+    </section>
+    <section class="col-6 col-md-3">
+        <div class="card card-body h-100">
+            <h2 class="h6">Czas do decyzji (mediana)</h2>
+            <p class="display-6 mb-0">@Duration(stats.MedianHoursToDecision)</p>
+            <p class="small text-body-secondary mb-0">od zgłoszenia do ostatniej decyzji</p>
+        </div>
+    </section>
+    <section class="col-6 col-md-3">
+        <div class="card card-body h-100">
+            <h2 class="h6">Czekają ponad 7 dni</h2>
+            <p class="display-6 mb-0">@stats.WaitingOverWeek</p>
+            <p class="small text-body-secondary mb-0">zgłoszenia i punkty bez żadnej decyzji</p>
+        </div>
+    </section>
+    <section class="col-6 col-md-3">
+        <div class="card card-body h-100">
+            <h2 class="h6">Potwierdzone punkty</h2>
+            <p class="display-6 mb-0">@stats.HazardsByStatus.First(c => c.Key == HazardStatus.Verified).Value</p>
+            <p class="small text-body-secondary mb-0">widoczne na mapie i w planach</p>
+        </div>
+    </section>
+</div>
+
+<section class="card card-body mb-3" aria-labelledby="stats-daily">
+    <h2 id="stats-daily" class="h6">Nowe zgłoszenia w ostatnich @ReportAnalytics.DailyWindow dniach</h2>
+    @{ var maxDay = Math.Max(1, stats.Daily.Max(d => Math.Max(d.Reports, d.Hazards))); }
+    <div class="table-responsive">
+        <table class="table table-sm stat-table mb-0">
+            <thead>
+                <tr><th scope="col">Dzień</th><th scope="col" class="text-end">Miejsca</th><th scope="col" class="text-end">Punkty na mapie</th><th scope="col"><span class="visually-hidden">Wykres</span></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var day in stats.Daily)
+                {
+                    <tr>
+                        <th scope="row" class="fw-normal">@day.Day.ToString("dd.MM")</th>
+                        <td class="text-end">@day.Reports</td>
+                        <td class="text-end">@day.Hazards</td>
+                        <td class="stat-bar-cell" aria-hidden="true">
+                            <div class="stat-bar mb-1" style="width: @Percent(day.Reports, maxDay)"></div>
+                            <div class="stat-bar stat-bar-alt" style="width: @Percent(day.Hazards, maxDay)"></div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="small text-body-secondary mt-2 mb-0">
+        <span class="stat-bar d-inline-block align-middle" style="width: 1.5rem" aria-hidden="true"></span> zgłoszenia miejsc
+        <span class="stat-bar stat-bar-alt d-inline-block align-middle ms-3" style="width: 1.5rem" aria-hidden="true"></span> punkty na mapie
+    </p>
+</section>
+
+<div class="row g-3">
+    @Breakdown("Zgłoszenia miejsc według statusu", stats.ReportsByStatus.Select(c => (Labels.Of(c.Key), c.Value)), false)
+    @Breakdown("Zgłoszenia miejsc według rodzaju", stats.ReportsByKind.Select(c => (Labels.Of(c.Key), c.Value)), false)
+    @Breakdown("Jakich udogodnień brakuje (wszystkie zgłoszenia)", stats.MissingFeatures.Take(8).Select(c => (Labels.Of(c.Key), c.Value)), false)
+    @Breakdown("Których kategorii miejsc dotyczą zgłoszenia", stats.ReportsByCategory.Select(c => (Labels.Of(c.Key), c.Value)), false)
+    @Breakdown("Punkty na mapie według statusu", stats.HazardsByStatus.Select(c => (Labels.Of(c.Key), c.Value)), true)
+    @Breakdown("Punkty na mapie według rodzaju utrudnienia", stats.HazardsByKind.Select(c => (Labels.Of(c.Key), c.Value)), true)
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<Report> Reports { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<Hazard> Hazards { get; set; } = [];
+
+    private static string Percent(int value, int max) => FormattableString.Invariant($"{100.0 * value / max:0.#}%");
+
+    private static string Duration(double? hours) => hours switch
+    {
+        null => "–",
+        < 1 => "< 1 godz.",
+        < 48 => $"{hours:0} godz.",
+        _ => $"{hours / 24:0} dni"
+    };
+
+    private RenderFragment Breakdown(string title, IEnumerable<(string Label, int Value)> items, bool alt) => __builder =>
+    {
+        var rows = items.ToList();
+        var max = Math.Max(1, rows.Count == 0 ? 1 : rows.Max(r => r.Value));
+        <section class="col-md-6">
+            <div class="card card-body h-100">
+                <h2 class="h6">@title</h2>
+                @if (rows.Count == 0)
+                {
+                    <p class="mb-0 text-body-secondary">Brak danych.</p>
+                }
+                else
+                {
+                    <table class="table table-sm stat-table mb-0">
+                        <tbody>
+                            @foreach (var row in rows)
+                            {
+                                <tr>
+                                    <th scope="row" class="fw-normal">@row.Label</th>
+                                    <td class="text-end">@row.Value</td>
+                                    <td class="stat-bar-cell" aria-hidden="true">
+                                        <div class="stat-bar @(alt ? "stat-bar-alt" : "")" style="width: @Percent(row.Value, max)"></div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </section>
+    };
+}

@@ -1850,3 +1850,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     font-size: 2rem;
     line-height: 1;
 }
+
+.header__logo__image .st0 {
+    fill: #ffffff;
+}

@@ -1,0 +1,141 @@
+@page "/miejsca"
+@inject AppState State
+@inject ISender Sender
+@inject NavigationManager Navigation
+
+<PageTitle>Miejsca</PageTitle>
+
+<h1>Miejsca: @Labels.Of(State.Mode)</h1>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="btn-group" role="group" aria-label="Tryb">
+        @foreach (var mode in Enum.GetValues<AppMode>())
+        {
+            <button type="button" class="btn @(State.Mode == mode ? "btn-primary" : "btn-outline-primary")"
+                    aria-pressed="@(State.Mode == mode ? "true" : "false")" @onclick="() => SetModeAsync(mode)">
+                @Labels.Of(mode)
+            </button>
+        }
+    </div>
+    <span>Profil: <ProfileSummaryInline /></span>
+    <a href="profil">zmień</a>
+</div>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-6">
+        <label class="form-label" for="search">Szukaj po nazwie</label>
+        <input id="search" class="form-control" type="search" @bind="_search" @bind:after="LoadAsync" />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label" for="category">Kategoria</label>
+        <select id="category" class="form-select" @bind="_category" @bind:after="LoadAsync">
+            <option value="">Wszystkie</option>
+            @foreach (var category in ModeCategories.For(State.Mode).Concat(ModeCategories.Support))
+            {
+                <option value="@category">@Labels.Of(category)</option>
+            }
+        </select>
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+else if (_places is null)
+{
+    <p role="status">Wczytuję miejsca…</p>
+}
+else
+{
+    <p role="status" aria-live="polite">
+        Znaleziono @_places.Count miejsc:
+        @Count(AssessmentStatus.Accessible) dostępnych, @Count(AssessmentStatus.Limited) z ograniczeniami,
+        @Count(AssessmentStatus.Inaccessible) niedostępnych, @Count(AssessmentStatus.Unknown) bez danych.
+    </p>
+
+    <div class="row g-3">
+        <div class="col-lg-6 order-lg-2">
+            <MapView Markers="_markers" OnMarkerSelected="OpenDetails" />
+        </div>
+        <div class="col-lg-6 order-lg-1">
+            <h2 class="h5">@(State.Profile.IsEmpty ? "Lista miejsc" : "Najlepiej dopasowane do Ciebie")</h2>
+            <ul class="list-unstyled place-list">
+                @foreach (var item in _places.Take(_shown))
+                {
+                    <li class="place-item">
+                        <div>
+                            <a class="place-name" href="miejsca/@item.Place.Id">@item.Place.Name</a>
+                            <div class="small text-body-secondary">
+                                @Labels.Of(item.Place.Category)@(item.Place.Address is null ? "" : $" · {item.Place.Address}")
+                            </div>
+                            <AssessmentBadge Status="item.Assessment.Status" />
+                            @if (FirstReason(item) is { } reason)
+                            {
+                                <span class="small ms-1">@reason</span>
+                            }
+                        </div>
+                        <button type="button" class="btn @(State.IsInPlan(item.Place.Id) ? "btn-success" : "btn-outline-primary")"
+                                aria-pressed="@(State.IsInPlan(item.Place.Id) ? "true" : "false")"
+                                aria-label="@(State.IsInPlan(item.Place.Id) ? "Usuń z planu" : "Dodaj do planu"): @item.Place.Name"
+                                @onclick="() => State.TogglePlaceAsync(item.Place.Id)">
+                            @(State.IsInPlan(item.Place.Id) ? "✓ W planie" : "+ Do planu")
+                        </button>
+                    </li>
+                }
+            </ul>
+            @if (_places.Count > _shown)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => _shown += PageSize">Pokaż więcej</button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private const int PageSize = 30;
+    private IReadOnlyList<AssessedPlace>? _places;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private string? _error;
+    private string? _search;
+    private string _category = "";
+    private int _shown = PageSize;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        await LoadAsync();
+    }
+
+    private async Task SetModeAsync(AppMode mode)
+    {
+        _category = "";
+        await State.SetModeAsync(mode);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        PlaceCategory? category = Enum.TryParse<PlaceCategory>(_category, out var parsed) ? parsed : null;
+        var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
+        if (result.IsFailure)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _error = null;
+        _shown = PageSize;
+        _places = result.Value;
+        _markers = _places
+            .Select(p => new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)})", p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status)))
+            .ToList();
+    }
+
+    private int Count(AssessmentStatus status) => _places!.Count(p => p.Assessment.Status == status);
+
+    private static string? FirstReason(AssessedPlace item) =>
+        (item.Assessment.Barriers.FirstOrDefault() ?? item.Assessment.Reasons.FirstOrDefault())?.Message;
+
+    private void OpenDetails(string id) => Navigation.NavigateTo($"miejsca/{id}");
+}

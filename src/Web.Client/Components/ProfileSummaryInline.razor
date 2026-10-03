@@ -1,0 +1,21 @@
+@implements IDisposable
+@inject AppState State
+
+<strong>@Text</strong>
+
+@code {
+    protected override void OnInitialized() => State.Changed += StateHasChanged;
+
+    public void Dispose() => State.Changed -= StateHasChanged;
+
+    private string Text
+    {
+        get
+        {
+            if (State.Profile.IsEmpty)
+                return "nieustawiony";
+            var names = NeedsProfilePresets.All.Where(p => State.Profile.Presets.Contains(p.Id)).Select(p => p.Name).ToList();
+            return names.Count > 0 ? string.Join(", ", names) : "własny";
+        }
+    }
+}

@@ -1,0 +1,101 @@
+@page "/miejsca/{Id}"
+@inject AppState State
+@inject ISender Sender
+
+<PageTitle>@(_item?.Place.Name ?? "Miejsce")</PageTitle>
+
+@if (_error is not null)
+{
+    <h1>Miejsce</h1>
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+else if (_item is null)
+{
+    <p role="status">Wczytuję…</p>
+}
+else
+{
+    var place = _item.Place;
+    <h1>@place.Name</h1>
+    <p class="text-body-secondary">@Labels.Of(place.Category)@(place.Address is null ? "" : $" · {place.Address}")</p>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <AssessmentBadge Status="_item.Assessment.Status" />
+        <span>dla profilu: <ProfileSummaryInline /></span>
+        <button type="button" class="btn @(State.IsInPlan(place.Id) ? "btn-success" : "btn-primary")"
+                aria-pressed="@(State.IsInPlan(place.Id) ? "true" : "false")" @onclick="() => State.TogglePlaceAsync(place.Id)">
+            @(State.IsInPlan(place.Id) ? "✓ W planie (usuń)" : "+ Dodaj do planu")
+        </button>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <section class="card card-body">
+                <h2 class="h5">Dlaczego taka ocena</h2>
+                <ReasonList Assessment="_item.Assessment" />
+            </section>
+
+            @if (place.Description is not null)
+            {
+                <section class="card card-body mt-3">
+                    <h2 class="h5">Opis</h2>
+                    <p class="mb-0">@place.Description</p>
+                </section>
+            }
+
+            <section class="card card-body mt-3">
+                <h2 class="h5">Wszystkie znane cechy</h2>
+                @if (place.Features.Count == 0)
+                {
+                    <p class="mb-0">Nie mamy żadnych danych o dostępności tego miejsca. Brak danych nie oznacza, że miejsce jest dostępne.</p>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th scope="col">Cecha</th><th scope="col">Wartość</th><th scope="col">Źródło</th><th scope="col">Data</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var feature in place.Features)
+                            {
+                                <tr>
+                                    <th scope="row" class="fw-normal">@Labels.Of(feature.Key)</th>
+                                    <td>@Labels.Value(feature)</td>
+                                    <td>@feature.Source</td>
+                                    <td>@feature.CheckedOn?.ToString("dd.MM.yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </section>
+        </div>
+        <div class="col-lg-6">
+            <MapView Label="@($"Położenie: {place.Name}")" Center="place.Location" Zoom="17" Markers="_markers" />
+        </div>
+    </div>
+
+    <p class="mt-3"><a href="miejsca">← Wróć do listy miejsc</a></p>
+}
+
+@code {
+    private AssessedPlace? _item;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private string? _error;
+
+    [Parameter] public string Id { get; set; } = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await State.EnsureLoadedAsync();
+        var result = await Sender.Send(new GetPlaceDetailsQuery(State.CityId, Id, State.Profile));
+        if (result.IsFailure)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _item = result.Value;
+        _markers = [new MapMarker(_item.Place.Id, _item.Place.Name, _item.Place.Lat, _item.Place.Lon, Labels.Color(_item.Assessment.Status))];
+    }
+}

@@ -1,23 +1,43 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject AppState State
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<a class="visually-hidden-focusable skip-link" href="#tresc">Przejdź do treści</a>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+<header class="app-header">
+    <nav class="navbar navbar-expand navbar-dark container-fluid" aria-label="Główna nawigacja">
+        <a class="navbar-brand fw-bold" href="">Kraków bez barier</a>
+        <ul class="navbar-nav flex-wrap">
+            <li class="nav-item"><NavLink class="nav-link" href="profil">Profil</NavLink></li>
+            <li class="nav-item"><NavLink class="nav-link" href="miejsca">Miejsca</NavLink></li>
+            <li class="nav-item">
+                <NavLink class="nav-link" href="plan">Plan <span class="badge text-bg-light">@State.PlanPlaceIds.Count</span></NavLink>
+            </li>
+        </ul>
+    </nav>
+</header>
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+<main id="tresc" class="container py-3">
+    @Body
+</main>
+
+<footer class="container py-3 small text-body-secondary">
+    Dane o miejscach: © autorzy OpenStreetMap (licencja ODbL). Cechy oznaczone jako „dane demonstracyjne” nie są zweryfikowane.
+    Profil potrzeb jest zapisany tylko na tym urządzeniu.
+</footer>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
+    Wystąpił nieoczekiwany błąd.
+    <a href="." class="reload">Odśwież</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        State.Changed += StateHasChanged;
+        await State.EnsureLoadedAsync();
+    }
+
+    public void Dispose() => State.Changed -= StateHasChanged;
+}

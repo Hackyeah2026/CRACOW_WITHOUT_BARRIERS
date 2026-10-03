@@ -1,0 +1,29 @@
+@implements IDisposable
+@inject AppState State
+
+@if (State.Profile.IsEmpty)
+{
+    <p class="mb-0">Profil nie jest ustawiony. Bez niego nie pokażemy oceny dopasowanej do Ciebie.</p>
+}
+else
+{
+    <p class="mb-0">
+        @if (Names.Count > 0)
+        {
+            <strong>@string.Join(", ", Names)</strong>
+        }
+        else
+        {
+            <strong>Profil własny</strong>
+        }
+    </p>
+}
+
+@code {
+    protected override void OnInitialized() => State.Changed += StateHasChanged;
+
+    public void Dispose() => State.Changed -= StateHasChanged;
+
+    private List<string> Names => NeedsProfilePresets.All
+        .Where(p => State.Profile.Presets.Contains(p.Id)).Select(p => p.Name).ToList();
+}

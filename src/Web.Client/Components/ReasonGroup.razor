@@ -1,0 +1,22 @@
+@if (Items.Count > 0)
+{
+    <h3 class="h6 mt-3">@Title</h3>
+    <ul class="list-unstyled mb-0">
+        @foreach (var reason in Items)
+        {
+            <li class="mb-1">
+                <span aria-hidden="true">@Symbol</span> @reason.Message
+                @if (reason.IsDemoData)
+                {
+                    <span class="badge text-bg-secondary ms-1">dane demonstracyjne</span>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Symbol { get; set; } = "";
+    [Parameter, EditorRequired] public List<AssessmentReason> Items { get; set; } = [];
+}

@@ -1,0 +1,11 @@
+[
+  {
+    "id": "krakow",
+    "name": "Kraków",
+    "lat": 50.0614,
+    "lon": 19.9366,
+    "zoom": 14,
+    "coverage": "Full",
+    "sources": [ "© autorzy OpenStreetMap (ODbL)", "Dane demonstracyjne zespołu (oznaczone przy cechach)" ]
+  }
+]

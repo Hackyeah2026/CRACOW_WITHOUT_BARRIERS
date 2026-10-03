@@ -1,0 +1,7 @@
+<span class="status-badge @Labels.Css(Status)">
+    <span aria-hidden="true">@Labels.Symbol(Status)</span> @Labels.Of(Status)
+</span>
+
+@code {
+    [Parameter, EditorRequired] public AssessmentStatus Status { get; set; }
+}

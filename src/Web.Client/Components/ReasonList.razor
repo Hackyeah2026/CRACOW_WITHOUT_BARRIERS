@@ -1,0 +1,14 @@
+@if (Assessment.Reasons.Count == 0)
+{
+    <p class="text-body-secondary mb-0">Ustaw profil potrzeb, żeby zobaczyć ocenę dopasowaną do Ciebie.</p>
+}
+else
+{
+    <ReasonGroup Title="Bariery" Symbol="✕" Items="Assessment.Barriers.ToList()" />
+    <ReasonGroup Title="Udogodnienia" Symbol="✓" Items="Assessment.Amenities.ToList()" />
+    <ReasonGroup Title="Czego nie wiemy" Symbol="?" Items="Assessment.Missing.ToList()" />
+}
+
+@code {
+    [Parameter, EditorRequired] public Assessment Assessment { get; set; } = default!;
+}

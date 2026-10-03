@@ -1,0 +1,62 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div id="@_id" class="map" role="application" aria-label="@Label"></div>
+
+@code {
+    private readonly string _id = $"map-{Guid.NewGuid():N}";
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<MapView>? _self;
+    private IReadOnlyList<MapMarker>? _shownMarkers;
+    private IReadOnlyList<GeoPoint>? _shownRoute;
+
+    [Parameter] public string Label { get; set; } = "Mapa miejsc";
+    [Parameter] public GeoPoint Center { get; set; } = new(50.0614, 19.9366);
+    [Parameter] public int Zoom { get; set; } = 14;
+    [Parameter] public IReadOnlyList<MapMarker> Markers { get; set; } = [];
+    [Parameter] public IReadOnlyList<GeoPoint> Route { get; set; } = [];
+    [Parameter] public bool FitToMarkers { get; set; }
+    [Parameter] public EventCallback<string> OnMarkerSelected { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/map.js");
+            await _module.InvokeVoidAsync("init", _id, Center.Lat, Center.Lon, Zoom, _self);
+        }
+
+        if (_module is null)
+            return;
+
+        if (!ReferenceEquals(_shownMarkers, Markers))
+        {
+            _shownMarkers = Markers;
+            await _module.InvokeVoidAsync("setMarkers", _id, Markers, FitToMarkers);
+        }
+
+        if (!ReferenceEquals(_shownRoute, Route))
+        {
+            _shownRoute = Route;
+            await _module.InvokeVoidAsync("setRoute", _id, Route);
+        }
+    }
+
+    [JSInvokable]
+    public Task MarkerClicked(string id) => OnMarkerSelected.InvokeAsync(id);
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null)
+            {
+                await _module.InvokeVoidAsync("dispose", _id);
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}

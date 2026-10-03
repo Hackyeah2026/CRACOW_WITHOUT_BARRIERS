@@ -1,7 +1,38 @@
-﻿@page "/"
+@page "/"
+@inject AppState State
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Kraków bez barier</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Kraków bez barier</h1>
+<p class="lead">Sprawdź, czy miejsce jest dostępne dla Ciebie, i ułóż trasę, którą da się pokonać.</p>
 
-Welcome to your new app.
+<h2 class="h4 mt-4">Co chcesz zrobić?</h2>
+<div class="row g-3">
+    <div class="col-md-6">
+        <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
+            <span class="mode-title">Zwiedzam</span>
+            <span>Atrakcje, muzea i kultura. Podpowiedzi i plan dnia.</span>
+        </button>
+    </div>
+    <div class="col-md-6">
+        <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Errand)">
+            <span class="mode-title">Załatwiam sprawę</span>
+            <span>Urzędy, przychodnie, biblioteki i przystanki.</span>
+        </button>
+    </div>
+</div>
+
+<h2 class="h4 mt-4">Twój profil</h2>
+<ProfileSummary />
+<a class="btn btn-outline-primary btn-lg mt-2" href="profil">@(State.Profile.IsEmpty ? "Ustaw profil potrzeb" : "Zmień profil")</a>
+
+@code {
+    protected override Task OnInitializedAsync() => State.EnsureLoadedAsync();
+
+    private async Task ChooseAsync(AppMode mode)
+    {
+        await State.SetModeAsync(mode);
+        Navigation.NavigateTo(State.Profile.IsEmpty ? "profil" : "miejsca");
+    }
+}

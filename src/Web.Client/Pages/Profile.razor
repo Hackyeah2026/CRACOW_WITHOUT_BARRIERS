@@ -1,0 +1,99 @@
+@page "/profil"
+@inject AppState State
+@inject NavigationManager Navigation
+
+<PageTitle>Profil potrzeb</PageTitle>
+
+<h1>Profil potrzeb</h1>
+<p>Pytamy o to, czego potrzebujesz, a nie o diagnozę. Możesz wybrać kilka profili naraz, a potem zmienić każdy parametr.</p>
+
+<fieldset class="mb-4">
+    <legend class="h4">1. Wybierz gotowy profil</legend>
+    <div class="row g-2">
+        @foreach (var preset in NeedsProfilePresets.All)
+        {
+            var id = $"preset-{preset.Id}";
+            <div class="col-md-6">
+                <div class="form-check preset-card">
+                    <input class="form-check-input" type="checkbox" id="@id"
+                           checked="@_draft.Presets.Contains(preset.Id)" @onchange="e => TogglePreset(preset.Id, (bool)e.Value!)" />
+                    <label class="form-check-label" for="@id">
+                        <strong>@preset.Name</strong> <span class="text-body-secondary">(@preset.Area)</span><br />
+                        @preset.Description
+                    </label>
+                </div>
+            </div>
+        }
+    </div>
+</fieldset>
+
+<fieldset class="mb-4">
+    <legend class="h4">2. Dostosuj parametry</legend>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <h3 class="h6">Ruch</h3>
+            <Toggle Id="step-free" Label="Wejście bez stopni jest konieczne" Value="_draft.StepFreeRequired" OnChange="v => _draft = _draft with { StepFreeRequired = v }" />
+            <Toggle Id="stairs" Label="Unikam schodów" Value="_draft.AvoidStairs" OnChange="v => _draft = _draft with { AvoidStairs = v }" />
+            <Toggle Id="cobble" Label="Unikam bruku" Value="_draft.AvoidCobblestone" OnChange="v => _draft = _draft with { AvoidCobblestone = v }" />
+            <Toggle Id="toilet" Label="Potrzebuję toalety dostosowanej" Value="_draft.NeedsAccessibleToilet" OnChange="v => _draft = _draft with { NeedsAccessibleToilet = v }" />
+        </div>
+        <div class="col-md-6">
+            <h3 class="h6">Sensoryka</h3>
+            <label class="form-label" for="noise">Hałas, który toleruję</label>
+            <select id="noise" class="form-select mb-2" value="@(_draft.MaxNoiseLevel?.ToString() ?? "")"
+                    @onchange="e => _draft = _draft with { MaxNoiseLevel = ParseLevel(e.Value) }">
+                <option value="">Bez znaczenia</option>
+                <option value="1">Tylko cicho</option>
+                <option value="2">Najwyżej umiarkowany</option>
+            </select>
+            <label class="form-label" for="crowd">Tłum, który toleruję</label>
+            <select id="crowd" class="form-select mb-2" value="@(_draft.MaxCrowdLevel?.ToString() ?? "")"
+                    @onchange="e => _draft = _draft with { MaxCrowdLevel = ParseLevel(e.Value) }">
+                <option value="">Bez znaczenia</option>
+                <option value="1">Tylko mało ludzi</option>
+                <option value="2">Najwyżej umiarkowany</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <h3 class="h6">Kondycja</h3>
+            <Toggle Id="seating" Label="Potrzebuję miejsc do siedzenia" Value="_draft.NeedsSeating" OnChange="v => _draft = _draft with { NeedsSeating = v }" />
+            <label class="form-label" for="distance">Najdłuższy odcinek bez odpoczynku (metry, puste = bez limitu)</label>
+            <input id="distance" class="form-control" type="number" min="50" step="50" inputmode="numeric"
+                   value="@_draft.MaxDistanceWithoutRestM"
+                   @onchange="e => _draft = _draft with { MaxDistanceWithoutRestM = int.TryParse(e.Value?.ToString(), out var m) && m > 0 ? m : null }" />
+        </div>
+    </div>
+</fieldset>
+
+<div class="d-flex flex-wrap gap-2">
+    <button type="button" class="btn btn-primary btn-lg" @onclick="SaveAsync">Zapisz i pokaż miejsca</button>
+    <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="() => _draft = NeedsProfile.Empty">Wyczyść</button>
+</div>
+<p class="small text-body-secondary mt-2">Profil zostaje na tym urządzeniu. Nie wysyłamy go na serwer.</p>
+
+@code {
+    private NeedsProfile _draft = NeedsProfile.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        _draft = State.Profile;
+    }
+
+    private void TogglePreset(string id, bool selected)
+    {
+        var ids = _draft.Presets.Where(p => p != id).ToList();
+        if (selected)
+            ids.Add(id);
+        // Gotowy profil ustawia parametry od nowa; dostrajanie robi się po wyborze profili.
+        _draft = NeedsProfilePresets.Build(ids);
+    }
+
+    private static int? ParseLevel(object? value) => int.TryParse(value?.ToString(), out var level) ? level : null;
+
+    private async Task SaveAsync()
+    {
+        await State.SetProfileAsync(_draft);
+        Navigation.NavigateTo("miejsca");
+    }
+}

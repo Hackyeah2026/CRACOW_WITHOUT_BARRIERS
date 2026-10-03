@@ -1,0 +1,164 @@
+@page "/plan"
+@inject AppState State
+@inject ISender Sender
+
+<PageTitle>Plan</PageTitle>
+
+<h1>Plan: @Labels.Of(State.Mode)</h1>
+<p>Profil: <ProfileSummaryInline /> · <a href="profil">zmień</a></p>
+
+@if (_selected is null)
+{
+    <p role="status">Wczytuję…</p>
+}
+else if (_selected.Count == 0)
+{
+    <p>Plan jest pusty. <a href="miejsca">Wybierz miejsca</a>, które chcesz odwiedzić.</p>
+}
+else
+{
+    <h2 class="h5">Wybrane miejsca (@_selected.Count)</h2>
+    <p class="small text-body-secondary">Pierwsze miejsce na liście jest punktem startu. Kolejność pozostałych ułożymy tak, żeby droga była najkrótsza.</p>
+    <ul class="list-unstyled place-list">
+        @foreach (var item in _selected)
+        {
+            <li class="place-item">
+                <div>
+                    <a class="place-name" href="miejsca/@item.Place.Id">@item.Place.Name</a>
+                    <div><AssessmentBadge Status="item.Assessment.Status" /></div>
+                </div>
+                <button type="button" class="btn btn-outline-danger" aria-label="Usuń z planu: @item.Place.Name" @onclick="() => RemoveAsync(item.Place.Id)">Usuń</button>
+            </li>
+        }
+    </ul>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button type="button" class="btn btn-primary btn-lg" disabled="@(_selected.Count < 2)" @onclick="BuildAsync">Ułóż plan</button>
+        <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="ClearAsync">Wyczyść plan</button>
+    </div>
+    @if (_selected.Count < 2)
+    {
+        <p>Dodaj co najmniej dwa miejsca, żeby ułożyć plan.</p>
+    }
+}
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+
+@if (_plan is not null)
+{
+    <section aria-labelledby="plan-heading">
+        <h2 id="plan-heading" class="h4" tabindex="-1">Twój plan</h2>
+        <p role="status">
+            @_plan.Stops.Count przystanków, około @Labels.Distance(_plan.TotalDistanceM) drogi,
+            około @Math.Ceiling(_plan.TotalDurationMin) min w ruchu (bez czasu na miejscu).
+        </p>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <ol class="list-unstyled">
+                    @for (var i = 0; i < _plan.Stops.Count; i++)
+                    {
+                        var stop = _plan.Stops[i];
+                        <li class="card card-body mb-2">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <span class="stop-number" aria-hidden="true">@stop.Order</span>
+                                <a class="place-name" href="miejsca/@stop.Place.Id"><span class="visually-hidden">Przystanek @stop.Order: </span>@stop.Place.Name</a>
+                                <AssessmentBadge Status="stop.Assessment.Status" />
+                            </div>
+                            @foreach (var barrier in stop.Assessment.Barriers)
+                            {
+                                <div class="small mt-1"><span aria-hidden="true">✕</span> @barrier.Message</div>
+                            }
+                            @if (stop.Assessment.Status == AssessmentStatus.Unknown)
+                            {
+                                <div class="small mt-1"><span aria-hidden="true">?</span> Nie mamy danych, żeby ocenić to miejsce dla Twojego profilu.</div>
+                            }
+                        </li>
+                        @if (i < _plan.Legs.Count)
+                        {
+                            var leg = _plan.Legs[i];
+                            <li class="leg">
+                                ↓ około @Labels.Distance(leg.DistanceM), około @Math.Ceiling(leg.DurationMin) min
+                                @foreach (var warning in leg.Warnings.Where(w => !w.StartsWith("Dystans szacowany")))
+                                {
+                                    <div class="text-warning-emphasis"><span aria-hidden="true">!</span> @warning</div>
+                                }
+                            </li>
+                        }
+                    }
+                </ol>
+                @if (_plan.Legs.Any(l => l.IsEstimated))
+                {
+                    <div class="alert alert-info" role="note">
+                        Dystanse są szacowane w linii prostej. Przebieg ulicami i bariery po drodze (krawężniki, bruk, nachylenie) nie są jeszcze sprawdzane.
+                    </div>
+                }
+            </div>
+            <div class="col-lg-6">
+                <MapView Label="Mapa planu" Markers="_markers" Route="_route" FitToMarkers="true" />
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    private List<AssessedPlace>? _selected;
+    private TripPlan? _plan;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private IReadOnlyList<GeoPoint> _route = [];
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        await LoadSelectedAsync();
+    }
+
+    private async Task LoadSelectedAsync()
+    {
+        var selected = new List<AssessedPlace>();
+        foreach (var id in State.PlanPlaceIds)
+        {
+            var result = await Sender.Send(new GetPlaceDetailsQuery(State.CityId, id, State.Profile));
+            if (result.IsSuccess)
+                selected.Add(result.Value);
+        }
+        _selected = selected;
+    }
+
+    private async Task RemoveAsync(string id)
+    {
+        await State.TogglePlaceAsync(id);
+        _plan = null;
+        await LoadSelectedAsync();
+    }
+
+    private async Task ClearAsync()
+    {
+        await State.ClearPlanAsync();
+        _plan = null;
+        _error = null;
+        await LoadSelectedAsync();
+    }
+
+    private async Task BuildAsync()
+    {
+        var result = await Sender.Send(new BuildTripPlanCommand(State.CityId, State.PlanPlaceIds, State.Profile, State.Mode));
+        if (result.IsFailure)
+        {
+            _error = result.Error;
+            _plan = null;
+            return;
+        }
+
+        _error = null;
+        _plan = result.Value;
+        _markers = _plan.Stops
+            .Select(s => new MapMarker(s.Place.Id, s.Place.Name, s.Place.Lat, s.Place.Lon, Labels.Color(s.Assessment.Status), s.Order.ToString()))
+            .ToList();
+        _route = _plan.Legs.SelectMany(l => l.Geometry).ToList();
+    }
+}

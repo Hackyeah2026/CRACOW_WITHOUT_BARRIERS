@@ -43,7 +43,7 @@ h1:focus {
 }
 
     .blazor-error-boundary::after {
-        content: "An error has occurred."
+        content: "Wystąpił błąd."
     }
 
 .darker-border-checkbox.form-check-input {
@@ -58,3 +58,48 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* Kraków bez barier */
+.app-header { background: #0b3d6b; }
+.app-header .nav-link { color: #fff; padding: 0.75rem 1rem; }
+.app-header .nav-link.active { text-decoration: underline; text-underline-offset: 0.3em; }
+.skip-link { position: absolute; top: 0; left: 0; z-index: 2000; background: #fff; padding: 0.75rem 1rem; }
+
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+.btn { min-height: 44px; }
+
+.mode-card {
+    display: flex; flex-direction: column; gap: 0.25rem; width: 100%; min-height: 8rem; padding: 1.25rem;
+    text-align: left; background: #fff; border: 2px solid #0b3d6b; border-radius: 0.75rem; color: #1b1b1b;
+}
+.mode-card:hover { background: #e7f1fb; }
+.mode-title { font-size: 1.5rem; font-weight: 700; color: #0b3d6b; }
+
+.preset-card { padding: 0.75rem 0.75rem 0.75rem 2.25rem; border: 1px solid #adb5bd; border-radius: 0.5rem; height: 100%; }
+.form-check-input { width: 1.4em; height: 1.4em; margin-top: 0.1em; border-color: #495057; }
+.form-check-label { padding-left: 0.4em; }
+
+.status-badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 1rem; font-weight: 600; border: 1px solid transparent; }
+.status-ok { background: #d1e7dd; color: #0a3622; border-color: #0a3622; }
+.status-limited { background: #fff3cd; color: #523e02; border-color: #523e02; }
+.status-no { background: #f8d7da; color: #58151c; border-color: #58151c; }
+.status-unknown { background: #e9ecef; color: #343a40; border-color: #343a40; }
+
+.place-item { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid #dee2e6; }
+.place-item .btn { white-space: nowrap; }
+.place-name { font-weight: 600; font-size: 1.05rem; }
+
+.map { height: 28rem; border: 1px solid #adb5bd; border-radius: 0.5rem; }
+@media (max-width: 991px) { .map { height: 20rem; } }
+
+.stop-number { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 50%; background: #0b3d6b; color: #fff; font-weight: 700; }
+.leg { padding: 0.25rem 0 0.75rem 2.75rem; }
+
+#blazor-error-ui {
+    color-scheme: light only; background: lightyellow; bottom: 0; box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box; display: none; left: 0; padding: 0.6rem 1.25rem 0.7rem 1.25rem; position: fixed; width: 100%; z-index: 1000;
+}
+#blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 0.75rem; top: 0.5rem; }

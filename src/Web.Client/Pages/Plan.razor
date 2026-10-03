@@ -219,6 +219,14 @@ else
                                         }
                                     </div>
                                 }
+                                @if (leg.RestStops is { Count: > 0 } rests)
+                                {
+                                    <div class="hazard-note">
+                                        <span aria-hidden="true">🪑</span>
+                                        @(rests.Count == 1 ? "Ławka na przerwę" : "Ławki na przerwę") przy trasie:
+                                        @string.Join(", ", rests.Select(r => $"po około {Labels.Distance(r.DistanceFromStartM)}")) marszu od początku odcinka.
+                                    </div>
+                                }
                                 @if (leg.Transit is not null)
                                 {
                                     <TransitPanel Advice="leg.Transit" />
@@ -245,6 +253,10 @@ else
                     {
                         <li><span aria-hidden="true">⚠️</span> utrudnienie potwierdzone przez urząd</li>
                     }
+                    @if (_plan.Legs.Any(l => l.RestStops is { Count: > 0 }))
+                    {
+                        <li><span aria-hidden="true">🪑</span> ławka na przerwę w marszu</li>
+                    }
                     @if (_route.Any(r => r.IsTransit))
                     {
                         <li><span class="map-legend-line map-legend-transit" aria-hidden="true"></span> propozycja przejazdu komunikacją miejską</li>
@@ -259,6 +271,7 @@ else
     private const string StartColor = "#198754";
     private const string MiddleColor = "#0d6efd";
     private const string EndColor = "#dc3545";
+    private const string RestColor = "#6c757d";
 
     private List<AssessedPlace>? _selected;
     private TripPlan? _plan;
@@ -411,6 +424,9 @@ else
                     StopRole(i, count) is { } role ? $"{s.Place.Name} ({role.ToLowerInvariant()})" : s.Place.Name,
                     s.Place.Lat, s.Place.Lon, StopColor(i, count), s.Order.ToString()))
                 .Concat(_hazards.Select(h => Labels.Marker(h.Hazard) with { Id = "" }))
+                .Concat(_plan.Legs.SelectMany(l => l.RestStops ?? []).DistinctBy(r => r.PlaceId).Select(r => new MapMarker(
+                    "", $"Ławka na przerwę (po około {Labels.Distance(r.DistanceFromStartM)} marszu)", r.Lat, r.Lon, RestColor,
+                    Icon: Labels.MapIcon(PlaceCategory.Bench))))
                 .ToList();
             _route = RouteSegments(_plan);
         }

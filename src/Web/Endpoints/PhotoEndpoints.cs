@@ -1,5 +1,7 @@
 using Application.Abstractions;
 using Domain.Photos;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Web.Endpoints;
 
@@ -8,8 +10,9 @@ public static class PhotoEndpoints
     public const string AnalyzeLimit = "photo-analyze";
 
     /// <summary>
-    /// Ocena zdjęcia do zgłoszenia przez model AI (wymaga konta, bo każde wywołanie kosztuje).
-    /// Zdjęcie nie jest zapisywane: trafia tylko do modelu, a odpowiedź wraca do przeglądarki.
+    /// Ocena zdjęcia do zgłoszenia przez model AI (wymaga konta, bo każde wywołanie kosztuje): wersja do analizy
+    /// trafia tylko do modelu. Zmniejszona kopia jest zapisywana dopiero razem ze zgłoszeniem; potem widzi ją
+    /// urząd i konto, które ją wysłało.
     /// </summary>
     public static IEndpointRouteBuilder MapPhotoEndpoints(this IEndpointRouteBuilder app)
     {
@@ -41,6 +44,35 @@ public static class PhotoEndpoints
         // SameSite=Strict, tak jak w pozostałych endpointach zgłoszeń.
         .DisableAntiforgery();
 
+        app.MapGet("/api/photos/{id}", async (string id, IPhotoStore photos, HttpContext http, CancellationToken ct) =>
+        {
+            // Dwie niezależne sesje: urzędnik widzi każde zdjęcie, konto mieszkańca tylko własne.
+            var official = await http.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            var user = await http.AuthenticateAsync(AccountEndpoints.UserScheme);
+            var isOfficial = official.Succeeded && official.Principal.IsInRole(ReportEndpoints.OfficialPolicy);
+            if (!isOfficial && !user.Succeeded)
+                return Results.Unauthorized();
+
+            var photo = ReportEndpoints.IsReportId(id) ? await photos.FindAsync(id, ct) : null;
+            if (photo is null || !(isOfficial || photo.OwnerLogin == AccountEndpoints.LoginOf(user.Principal!)))
+                return Results.NotFound();
+
+            http.Response.Headers.CacheControl = "private, max-age=86400";
+            http.Response.Headers.XContentTypeOptions = "nosniff";
+            return Results.File(photo.Content, photo.ContentType);
+        }).AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter);
+
         return app;
+    }
+
+    /// <summary>Zapisuje zdjęcie ze zgłoszenia i zwraca odnośnik do wpisania w zgłoszenie; null, gdy zdjęcia nie było.</summary>
+    internal static async Task<ReportPhoto?> StoreAsync(PhotoAttachment? attachment, string login, IPhotoStore photos, DateTime now, CancellationToken ct)
+    {
+        if (attachment is null)
+            return null;
+
+        var stored = StoredPhoto.Create(attachment, login, now);
+        await photos.SaveAsync(stored, ct);
+        return stored.ToReportPhoto(attachment.Analysis);
     }
 }

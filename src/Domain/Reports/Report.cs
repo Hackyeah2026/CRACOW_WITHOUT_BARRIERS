@@ -1,3 +1,4 @@
+using Domain.Photos;
 using Domain.Places;
 
 namespace Domain.Reports;
@@ -18,6 +19,9 @@ public sealed record ReportDraft(
     public const int MaxDescriptionLength = 1000;
     public const int MaxFeatures = 10;
 
+    /// <summary>Zmniejszone zdjęcie z formularza; host zapisuje je w bazie i dopina do zgłoszenia.</summary>
+    public PhotoAttachment? Photo { get; init; }
+
     /// <summary>Błędy do pokazania użytkownikowi; pusta lista oznacza poprawne zgłoszenie.</summary>
     public IReadOnlyList<string> Validate()
     {
@@ -34,6 +38,8 @@ public sealed record ReportDraft(
             errors.Add("Opisz krótko, co jest nie tak.");
         if (Description.Length > MaxDescriptionLength)
             errors.Add($"Opis może mieć najwyżej {MaxDescriptionLength} znaków.");
+        if (Photo is not null)
+            errors.AddRange(Photo.Validate());
         return errors;
     }
 
@@ -59,6 +65,9 @@ public sealed record Report(
     /// <summary>Login konta, z którego wysłano zgłoszenie; null w zgłoszeniach sprzed wprowadzenia kont. Widzi go tylko urząd.</summary>
     public string? ReportedBy { get; init; }
 
+    /// <summary>Zdjęcie dołączone przez zgłaszającego; sam plik jest w kolekcji zdjęć.</summary>
+    public ReportPhoto? Photo { get; init; }
+
     public static Report Create(ReportDraft draft, DateTime now) => new(
         Guid.NewGuid().ToString("N"), draft.CityId, draft.PlaceId, draft.PlaceName.Trim(), draft.Category, draft.Lat, draft.Lon,
         draft.Kind, draft.Features, draft.Description.Trim(), ReportStatus.New, now, now, null, null);
@@ -66,13 +75,17 @@ public sealed record Report(
     public ReportReceipt ToReceipt() => new(Id, PlaceId, PlaceName, CreatedAt);
 
     /// <summary>Widok dla zgłaszającego: bez loginu urzędnika.</summary>
-    public ReportStatusView ToStatusView() => new(Id, PlaceId, PlaceName, Kind, Features, Status, CreatedAt, UpdatedAt, OfficialNote);
+    public ReportStatusView ToStatusView() =>
+        new(Id, PlaceId, PlaceName, Kind, Features, Status, CreatedAt, UpdatedAt, OfficialNote) { Photo = Photo };
 }
 
 /// <summary>Co zgłaszający widzi o swoim zgłoszeniu.</summary>
 public sealed record ReportStatusView(
     string Id, string PlaceId, string PlaceName, ReportKind Kind, IReadOnlyList<FeatureKey> Features,
-    ReportStatus Status, DateTime CreatedAt, DateTime UpdatedAt, string? OfficialNote);
+    ReportStatus Status, DateTime CreatedAt, DateTime UpdatedAt, string? OfficialNote)
+{
+    public ReportPhoto? Photo { get; init; }
+}
 
 /// <summary>Potwierdzenie przyjęcia zgłoszenia.</summary>
 public sealed record ReportReceipt(string Id, string PlaceId, string PlaceName, DateTime CreatedAt);

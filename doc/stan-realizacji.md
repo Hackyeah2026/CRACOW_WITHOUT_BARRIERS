@@ -30,7 +30,7 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 | 4 | Karta miejsca | zrobione | bariery, udogodnienia, braki danych, źródło i data każdej cechy |
 | 5 | Podpowiedzi | częściowo | lista jest sortowana rankingiem pod profil; nie ma osobnego widoku ani punktu startu użytkownika |
 | 6 | Planer trasy | zrobione w podstawowym zakresie | kolejność przystanków, trasa po ulicach dobrana do profilu, ostrzeżenia o stromych odcinkach; bez listy pojedynczych barier (krawężniki, bruk) |
-| 7 | Przerwy na trasie | częściowo | ostrzeżenie o zbyt długim odcinku i propozycja przejazdu komunikacją; przerwy (ławki, toalety) nie są wstawiane |
+| 7 | Przerwy na trasie | zrobione (ławki) | odcinek dłuższy niż limit marszu z profilu dostaje ławki przy trasie (do 30 m, `RestStopRules.AlongRoute`) jako alternatywę dla przejazdu komunikacją: lista z odległością od początku odcinka i symbole na mapie planu; gdy ławek nie ma na całej trasie, plan podaje najdłuższy fragment bez przerwy; toalety nie są wstawiane |
 | – | **Komunikacja miejska (poza pierwotnym planem)** | zrobione | patrz niżej |
 | 8 | Opis planu przez AI | brak | |
 | 9 | Publiczne API z OpenAPI | brak | jest tylko wewnętrzny `POST /api/route` |
@@ -58,7 +58,7 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 ### Baza danych (MongoDB)
 
-Stan: **połączenie działa, pięć kolekcji: `reports` (zgłoszenia miejsc), `hazards` (punkty z utrudnieniami), `users` (konta mieszkańców), `businesses` (wnioski i konta firmowe) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
+Stan: **połączenie działa, sześć kolekcji: `reports` (zgłoszenia miejsc), `hazards` (punkty z utrudnieniami), `photos` (zdjęcia dołączone do zgłoszeń), `users` (konta mieszkańców), `businesses` (wnioski i konta firmowe) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
 
 - **Gdzie działa baza:** klaster w MongoDB Atlas (cloud.mongodb.com). Łączy się z nim wyłącznie host (`Web`); przeglądarka nigdy nie dostaje adresu połączenia.
 - **Osobny projekt `Infrastructure.Mongo`**, podpięty tylko do hosta. Sterownik (`MongoDB.Driver` 3.12.0, licencja Apache-2.0) nie trafia do `Infrastructure`, bo ten projekt jest też częścią aplikacji w przeglądarce.
@@ -142,6 +142,14 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 
 **Endpointy:** `GET /api/businesses?cityId=` (publiczny), `GET /api/business/mine`, `POST /api/business/application`, `PUT /api/business/features`, `GET /api/business/certificate` (konto; dwa ostatnie tylko po zatwierdzeniu, inaczej 409), `GET /api/official/businesses?cityId=`, `PATCH /api/official/businesses/{login}` (urzędnik).
 
+### Zdjęcia w zgłoszeniach
+
+- **Zdjęcie dodane w formularzu jest częścią zgłoszenia** (miejsca i punktu na mapie), razem z oceną AI z chwili wysłania: prawdopodobieństwem przeszkody, rodzajem i opisem. Gdy analiza się nie uda, zdjęcie trafia do zgłoszenia bez oceny.
+- **Zmniejszanie przed zapisem** robi przeglądarka (`js/photo.js`): do analizy idzie wersja do 1600 px, do bazy osobna kopia JPEG do 1024 px na dłuższym boku. Gdy plik jest większy niż 300 KB, kolejne próby zmniejszają bok i jakość. Zdjęcie testowe 4000×3000 px (10 MB) zajęło w bazie 156 KB. Host nie ufa przeglądarce: zgłoszenie ze zdjęciem ponad 300 KB albo w innym formacie niż JPEG dostaje 400.
+- **Gdzie leży:** plik w osobnej kolekcji `photos`, a w zgłoszeniu tylko odnośnik (`photo`: identyfikator, rozmiar, ocena AI). Dzięki temu lista zgłoszeń w panelu nie pobiera plików.
+- **Kto widzi:** urzędnik (każde zdjęcie) i konto, które je wysłało (`GET /api/photos/{id}`; bez sesji 401, cudze zdjęcie 404). Zdjęcia nie ma w publicznym widoku potwierdzonego punktu, bo mogą być na nim ludzie i tablice rejestracyjne.
+- **Ograniczenia:** ocenę AI odsyła przeglądarka zgłaszającego, więc host tylko doprowadza ją do dozwolonych zakresów i nie może sprawdzić, czy pochodzi z modelu; urzędnik widzi ją jako podpowiedź. Zdjęć nie da się jeszcze usunąć z bazy z poziomu aplikacji.
+
 ### Punkty z utrudnieniami na mapie
 
 **Mieszkaniec (zalogowany), zakładka "Zgłoś na mapie" (`/zglos`):**
@@ -209,7 +217,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
 | `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 124 testy: konta firmowe (walidacja wniosku i NIP, decyzje urzędnika, deklaracje, widoki bez danych firmy, łączenie z katalogiem, certyfikat z kodem QR), mapowanie tagów OpenStreetMap na kategorie i cechy, profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
+| `Tests` | 139 testów: zdjęcia w zgłoszeniach (limit i format, odnośnik w zgłoszeniu, widoki, zapis w BSON), konta firmowe (walidacja wniosku i NIP, decyzje urzędnika, deklaracje, widoki bez danych firmy, łączenie z katalogiem, certyfikat z kodem QR), mapowanie tagów OpenStreetMap na kategorie i cechy, profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 

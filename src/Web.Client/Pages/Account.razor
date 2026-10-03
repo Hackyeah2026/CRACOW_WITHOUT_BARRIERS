@@ -90,6 +90,7 @@ else if (State.User is { } user)
                             </div>
                             <p class="small text-body-secondary mb-2">Wysłane @Labels.When(report.CreatedAt)</p>
                             <p class="mb-1"><strong>@Labels.Of(report.Kind)</strong>@(report.Features.Count > 0 ? $": {Labels.Features(report.Features)}" : "")</p>
+                            <ReportPhotoView Photo="report.Photo" Subject="@report.PlaceName" />
                             @if (report.OfficialNote is not null)
                             {
                                 <div class="border-start border-3 ps-3 mt-2">
@@ -120,6 +121,7 @@ else if (State.User is { } user)
                             {
                                 <p class="mb-1 report-description">@hazard.Description</p>
                             }
+                            <ReportPhotoView Photo="hazard.Photo" Subject="@Labels.Of(hazard.Kind)" />
                             @if (hazard.Status == HazardStatus.Verified)
                             {
                                 <p class="mb-1">Punkt jest widoczny na mapie i ostrzega w planach tras.</p>

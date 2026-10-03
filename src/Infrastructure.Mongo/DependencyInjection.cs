@@ -42,6 +42,7 @@ public static class DependencyInjection
         .AddSingleton(officials)
         .AddSingleton<IReportRepository, MongoReportRepository>()
         .AddSingleton<IHazardRepository, MongoHazardRepository>()
+        .AddSingleton<IPhotoStore, MongoPhotoStore>()
         .AddSingleton<IOfficialDirectory, MongoOfficialDirectory>()
         .AddSingleton<IUserDirectory, MongoUserDirectory>()
         .AddSingleton<IBusinessRepository, MongoBusinessRepository>()

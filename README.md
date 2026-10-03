@@ -208,7 +208,8 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 | `POST /api/route` | trasa po ulicach; przyjmuje tylko punkty i 3 parametry (wózek, schody, krawężnik) | publiczny |
 | `GET /api/health/db` | stan połączenia z MongoDB | publiczny |
 | `POST /api/reports` | nowe zgłoszenie (limit 10 na 10 min z jednego IP) | publiczny, anonimowy |
-| `POST /api/photos/analyze` | ocena zdjęcia przez OpenAI (multipart, pole `photo`, JPEG/PNG/WebP do 4 MB, limit 20 na 10 min z jednego IP); zdjęcie nie jest zapisywane | mieszkaniec |
+| `POST /api/photos/analyze` | ocena zdjęcia przez OpenAI (multipart, pole `photo`, JPEG/PNG/WebP do 4 MB, limit 20 na 10 min z jednego IP); ta wersja zdjęcia nie jest zapisywana | mieszkaniec |
+| `GET /api/photos/{id}` | zdjęcie dołączone do zgłoszenia (JPEG do 300 KB, zapisywane razem ze zgłoszeniem) | urzędnik albo konto, które je wysłało |
 | `POST /api/reports/status` | status zgłoszeń po identyfikatorach | publiczny |
 | `POST /api/official/login` / `logout` | sesja urzędnika (ciasteczko HttpOnly, SameSite=Strict) | publiczny, limit 5 prób na minutę |
 | `GET /api/official/me` | zalogowany urzędnik | urzędnik |
@@ -235,7 +236,7 @@ Profil potrzeb to dane o zdrowiu, dlatego:
 - **ocena miejsc liczy się w przeglądarce**;
 - do routingu idą tylko punkty trasy i trzy parametry (wózek, unikanie schodów, maksymalny krawężnik), a nie cały profil;
 - zgłoszenie zawiera tylko miejsce, wybrane udogodnienia i opis, bez profilu i danych osobowych;
-- zdjęcie dołączone do zgłoszenia przeglądarka zmniejsza i zapisuje jako JPEG (bez EXIF, więc bez położenia GPS); host przekazuje je tylko do oceny w OpenAI i go nie zapisuje;
+- zdjęcie dołączone do zgłoszenia przeglądarka zmniejsza i zapisuje jako JPEG (bez EXIF, więc bez położenia GPS); host przekazuje je do oceny w OpenAI, a zmniejszoną kopię (do 1024 px i 300 KB) zapisuje w bazie jako część zgłoszenia; widzi ją urzędnik i zgłaszający;
 - klucze API i adres bazy są tylko na hoście.
 
 ## Ograniczenia

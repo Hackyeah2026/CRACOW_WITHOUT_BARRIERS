@@ -23,13 +23,18 @@ public static class HazardEndpoints
         hazards.MapGet("/", async (string cityId, IHazardRepository repository, CancellationToken ct) =>
             Results.Ok((await repository.ListAsync(cityId, HazardStatus.Verified, MaxVerified, ct)).Select(h => h.ToVerified())));
 
-        hazards.MapPost("/", async (HazardDraft draft, ClaimsPrincipal user, IHazardRepository repository, CancellationToken ct) =>
+        hazards.MapPost("/", async (HazardDraft draft, ClaimsPrincipal user, IHazardRepository repository, IPhotoStore photos, CancellationToken ct) =>
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
                 return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
 
-            var hazard = Hazard.Create(draft, DateTime.UtcNow) with { ReportedBy = AccountEndpoints.LoginOf(user) };
+            var (now, login) = (DateTime.UtcNow, AccountEndpoints.LoginOf(user));
+            var hazard = Hazard.Create(draft, now) with
+            {
+                ReportedBy = login,
+                Photo = await PhotoEndpoints.StoreAsync(draft.Photo, login, photos, now, ct)
+            };
             await repository.AddAsync(hazard, ct);
             return Results.Created($"/api/hazards/{hazard.Id}", hazard.ToReceipt());
         }).RequireAuthorization(AccountEndpoints.UserPolicy).RequireRateLimiting(ReportEndpoints.SubmitLimit);

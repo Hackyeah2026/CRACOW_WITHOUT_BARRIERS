@@ -8,13 +8,19 @@ namespace Domain.Trips;
 /// <param name="IsUserLocation">Start spoza katalogu: lokalizacja użytkownika albo punkt wskazany na mapie.</param>
 public sealed record TripStop(int Order, Place Place, Assessment Assessment, bool IsUserLocation = false);
 
+/// <summary>Ławka przy trasie odcinka, proponowana na przerwę w marszu.</summary>
+/// <param name="DistanceFromStartM">Ile marszu od początku odcinka do ławki.</param>
+public sealed record RestStop(string PlaceId, double Lat, double Lon, double DistanceFromStartM);
+
 /// <param name="IsEstimated">Odcinek policzony w linii prostej, bez silnika routingu.</param>
 /// <param name="Transit">Wynik szukania połączenia komunikacją dla dłuższego odcinka; null, gdy odcinek jest krótki.</param>
 /// <param name="Hazards">Utrudnienia potwierdzone przez urząd, leżące przy trasie odcinka; null w planach zapisanych przed ich wprowadzeniem.</param>
+/// <param name="RestStops">Ławki na przerwę, gdy odcinek jest dłuższy niż limit marszu z profilu; null w planach zapisanych przed ich wprowadzeniem.</param>
 public sealed record TripLeg(
     string FromPlaceId, string ToPlaceId, double DistanceM, double DurationMin,
     IReadOnlyList<GeoPoint> Geometry, bool IsEstimated, IReadOnlyList<string> Warnings,
-    TransitAdvice? Transit, IReadOnlyList<HazardOnRoute>? Hazards = null);
+    TransitAdvice? Transit, IReadOnlyList<HazardOnRoute>? Hazards = null,
+    IReadOnlyList<RestStop>? RestStops = null);
 
 public sealed record TripPlan(
     string Id, AppMode Mode, DateTimeOffset CreatedAt,

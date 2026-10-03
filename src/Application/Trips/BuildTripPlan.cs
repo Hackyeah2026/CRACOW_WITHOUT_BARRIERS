@@ -82,6 +82,8 @@ internal sealed class BuildTripPlanCommandHandler(
         var verified = await hazards.GetVerifiedAsync(command.CityId, ct);
         IReadOnlyList<VerifiedHazard> knownHazards = verified.IsSuccess ? verified.Value : [];
 
+        // Plik ławek jest duży, więc pobieramy go dopiero, gdy któryś odcinek przekracza limit marszu.
+        IReadOnlyList<Place>? benches = null;
         var legs = new List<TripLeg>();
         for (var i = 0; i < ordered.Count - 1; i++)
         {
@@ -90,9 +92,16 @@ internal sealed class BuildTripPlanCommandHandler(
                 return Result.Failure<TripPlan>(route.Error!);
 
             var advice = TransitFor(planner, command, route.Value, ordered[i].Location, ordered[i + 1].Location);
+            IReadOnlyList<RestStop> rests = [];
+            if (NeedsRest(route.Value, command.Profile, out var maxWithoutRest))
+            {
+                benches ??= await catalog.GetAsync(command.CityId, [PlaceCategory.Bench], ct);
+                rests = RestStopRules.AlongRoute(benches, route.Value.Geometry, route.Value.DistanceM, maxWithoutRest);
+            }
+
             legs.Add(new TripLeg(ordered[i].Id, ordered[i + 1].Id, route.Value.DistanceM, route.Value.DurationMin,
-                route.Value.Geometry, route.Value.IsEstimated, LegWarnings(route.Value, command.Profile, advice?.Status == TransitStatus.Found), advice,
-                HazardRules.AlongRoute(knownHazards, route.Value.Geometry, command.Profile)));
+                route.Value.Geometry, route.Value.IsEstimated, LegWarnings(route.Value, command.Profile, advice?.Status == TransitStatus.Found, rests), advice,
+                HazardRules.AlongRoute(knownHazards, route.Value.Geometry, command.Profile), rests));
         }
 
         return Result.Success(new TripPlan(Guid.NewGuid().ToString("N"), command.Mode, DateTimeOffset.UtcNow, stops, legs));
@@ -109,13 +118,31 @@ internal sealed class BuildTripPlanCommandHandler(
             profile.MaxDistanceWithoutRestM ?? TransitRules.DefaultMaxWalkToStopM, profile.WalkingSpeedKmh, leg.DistanceM);
     }
 
-    private static List<string> LegWarnings(RouteLeg leg, NeedsProfile profile, bool hasTransit)
+    /// <summary>
+    /// Ławek szukamy, gdy odcinek jest dłuższy niż limit marszu z profilu. Trasa szacowana w linii prostej
+    /// nie mówi, którędy się idzie, więc ławek przy niej nie wskazujemy.
+    /// </summary>
+    private static bool NeedsRest(RouteLeg leg, NeedsProfile profile, out int maxWithoutRestM)
+    {
+        maxWithoutRestM = profile.MaxDistanceWithoutRestM ?? 0;
+        return maxWithoutRestM > 0 && !leg.IsEstimated && leg.DistanceM > maxWithoutRestM;
+    }
+
+    private static List<string> LegWarnings(RouteLeg leg, NeedsProfile profile, bool hasTransit, IReadOnlyList<RestStop> rests)
     {
         var warnings = new List<string>(leg.Warnings);
         if (profile.MaxDistanceWithoutRestM is { } max && leg.DistanceM > max)
-            warnings.Add(hasTransit
-                ? $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską."
-                : $"Odcinek dłuższy niż {max} m bez odpoczynku. Zaplanuj przerwę po drodze.");
+        {
+            warnings.Add((hasTransit, rests.Count > 0) switch
+            {
+                (true, true) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską albo iść pieszo i odpocząć na ławce po drodze.",
+                (true, false) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską.",
+                (false, true) => $"Odcinek dłuższy niż {max} m. Po drodze są ławki, na których możesz odpocząć.",
+                _ => $"Odcinek dłuższy niż {max} m bez odpoczynku. Zaplanuj przerwę po drodze."
+            });
+            if (rests.Count > 0 && RestStopRules.LongestStretchM(rests, leg.DistanceM) is var stretch && stretch > max)
+                warnings.Add($"Ławek nie ma na całej trasie: najdłuższy fragment bez przerwy ma około {Math.Round(stretch / 10) * 10} m.");
+        }
         if (leg.IsEstimated)
             warnings.Add("Dystans szacowany w linii prostej. Bariery na tym odcinku nie są sprawdzone.");
         return warnings;

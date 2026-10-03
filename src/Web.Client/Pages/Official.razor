@@ -175,6 +175,7 @@ else
                             {
                                 <p class="mb-1 report-description">@report.Description</p>
                             }
+                            <ReportPhotoView Photo="report.Photo" Subject="@report.PlaceName" />
                             @if (report.OfficialNote is not null)
                             {
                                 <p class="small mb-1 border-start border-3 ps-2">

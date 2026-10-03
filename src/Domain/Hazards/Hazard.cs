@@ -1,4 +1,5 @@
 using Domain.Needs;
+using Domain.Photos;
 using Domain.Places;
 
 namespace Domain.Hazards;
@@ -20,6 +21,9 @@ public sealed record HazardDraft(string CityId, double Lat, double Lon, HazardKi
 {
     public const int MaxDescriptionLength = 500;
 
+    /// <summary>Zmniejszone zdjęcie z formularza; host zapisuje je w bazie i dopina do punktu.</summary>
+    public PhotoAttachment? Photo { get; init; }
+
     /// <summary>Błędy do pokazania użytkownikowi; pusta lista oznacza poprawne zgłoszenie.</summary>
     public IReadOnlyList<string> Validate()
     {
@@ -34,6 +38,8 @@ public sealed record HazardDraft(string CityId, double Lat, double Lon, HazardKi
             errors.Add("Opisz krótko, na czym polega utrudnienie.");
         if (Description.Length > MaxDescriptionLength)
             errors.Add($"Opis może mieć najwyżej {MaxDescriptionLength} znaków.");
+        if (Photo is not null)
+            errors.AddRange(Photo.Validate());
         return errors;
     }
 }
@@ -50,6 +56,9 @@ public sealed record Hazard(
     /// <summary>Login konta, z którego zgłoszono punkt; null w punktach sprzed wprowadzenia kont. Widzi go tylko urząd.</summary>
     public string? ReportedBy { get; init; }
 
+    /// <summary>Zdjęcie dołączone przez zgłaszającego; widzi je urząd i zgłaszający, nie ma go w widoku publicznym.</summary>
+    public ReportPhoto? Photo { get; init; }
+
     public GeoPoint Location => new(Lat, Lon);
 
     public static Hazard Create(HazardDraft draft, DateTime now) => new(
@@ -59,7 +68,8 @@ public sealed record Hazard(
     public HazardReceipt ToReceipt() => new(Id, Kind, Lat, Lon, CreatedAt);
 
     /// <summary>Widok dla zgłaszającego: bez loginu urzędnika.</summary>
-    public HazardStatusView ToStatusView() => new(Id, Kind, Lat, Lon, Description, Status, CreatedAt, UpdatedAt, OfficialNote);
+    public HazardStatusView ToStatusView() =>
+        new(Id, Kind, Lat, Lon, Description, Status, CreatedAt, UpdatedAt, OfficialNote) { Photo = Photo };
 
     /// <summary>Widok publiczny potwierdzonego punktu: bez zgłaszającego i bez urzędnika.</summary>
     public VerifiedHazard ToVerified() => new(Id, Kind, Lat, Lon, Description, DateOnly.FromDateTime(UpdatedAt));
@@ -74,7 +84,10 @@ public sealed record VerifiedHazard(string Id, HazardKind Kind, double Lat, doub
 /// <summary>Co zgłaszający widzi o swoim punkcie.</summary>
 public sealed record HazardStatusView(
     string Id, HazardKind Kind, double Lat, double Lon, string Description,
-    HazardStatus Status, DateTime CreatedAt, DateTime UpdatedAt, string? OfficialNote);
+    HazardStatus Status, DateTime CreatedAt, DateTime UpdatedAt, string? OfficialNote)
+{
+    public ReportPhoto? Photo { get; init; }
+}
 
 /// <summary>Potwierdzenie przyjęcia punktu.</summary>
 public sealed record HazardReceipt(string Id, HazardKind Kind, double Lat, double Lon, DateTime CreatedAt);
@@ -131,7 +144,7 @@ public static class HazardRules
     /// <summary>Odległość punktu od łamanej w metrach.</summary>
     public static double DistanceToRouteM(GeoPoint point, IReadOnlyList<GeoPoint> route) => Locate(point, route).DistanceM;
 
-    private static (double DistanceM, int Segment, double Along) Locate(GeoPoint point, IReadOnlyList<GeoPoint> route)
+    internal static (double DistanceM, int Segment, double Along) Locate(GeoPoint point, IReadOnlyList<GeoPoint> route)
     {
         if (route.Count == 1)
             return (point.DistanceTo(route[0]), 0, 0);

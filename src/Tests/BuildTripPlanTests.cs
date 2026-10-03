@@ -18,6 +18,13 @@ public class BuildTripPlanTests
         Place("a", 50.070, 19.930), Place("b", 50.045, 19.932), Place("c", 50.069, 19.934), Place("d", 50.046, 19.936)
     ];
 
+    // Ławka w połowie drogi a → c (ok. 300 m) i druga daleko od tras.
+    private static readonly Place[] Benches =
+    [
+        new("bench-ac", "krakow", "Ławka", PlaceCategory.Bench, 50.0695, 19.932, null, null, []),
+        new("bench-far", "krakow", "Ławka", PlaceCategory.Bench, 50.0600, 19.950, null, null, [])
+    ];
+
     private static readonly GeoPoint NearD = new(50.0461, 19.9361);
 
     private static Place Place(string id, double lat, double lon) =>
@@ -133,6 +140,34 @@ public class BuildTripPlanTests
         Assert.Empty(result.Value.Legs[0].Hazards!);
     }
 
+    [Fact]
+    public async Task Leg_longer_than_the_walking_limit_gets_a_bench_to_rest_on()
+    {
+        var result = await BuildAsync(["a", "c"], profile: new NeedsProfile { MaxDistanceWithoutRestM = 200 });
+
+        var leg = result.Value.Legs[0];
+        var rest = Assert.Single(leg.RestStops!);
+        Assert.Equal("bench-ac", rest.PlaceId);
+        Assert.InRange(rest.DistanceFromStartM, 130, 180);
+        Assert.Contains(leg.Warnings, w => w.Contains("ławki"));
+    }
+
+    [Fact]
+    public async Task Leg_within_the_walking_limit_gets_no_benches()
+    {
+        var result = await BuildAsync(["a", "c"], profile: new NeedsProfile { MaxDistanceWithoutRestM = 500 });
+
+        Assert.Empty(result.Value.Legs[0].RestStops!);
+    }
+
+    [Fact]
+    public async Task Without_a_walking_limit_no_benches_are_suggested()
+    {
+        var result = await BuildAsync(["a", "c"]);
+
+        Assert.Empty(result.Value.Legs[0].RestStops!);
+    }
+
     /// <summary>Bez listy punktów udaje host, który nie odpowiada.</summary>
     private sealed class FakeHazards(IReadOnlyList<VerifiedHazard>? verified) : IHazardsClient
     {
@@ -154,7 +189,7 @@ public class BuildTripPlanTests
             Task.FromResult<IReadOnlyList<PlaceCategoryCount>>([new(PlaceCategory.Museum, Places.Length)]);
 
         public Task<IReadOnlyList<Place>> GetAsync(string cityId, IReadOnlyCollection<PlaceCategory> categories, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<Place>>(Places.Where(p => categories.Contains(p.Category)).ToList());
+            Task.FromResult<IReadOnlyList<Place>>(Places.Concat(Benches).Where(p => categories.Contains(p.Category)).ToList());
 
         public Task<Place?> FindAsync(string cityId, string placeId, CancellationToken ct) =>
             Task.FromResult(Places.FirstOrDefault(p => p.Id == placeId));

@@ -1,26 +1,25 @@
 @inject ISender Sender
+@inject IJSRuntime JS
 
 <fieldset class="photo-analysis mb-3" aria-describedby="@($"{IdPrefix}-help")">
     <legend class="h6">Zdjęcie (opcjonalnie)</legend>
     <p id="@($"{IdPrefix}-help")" class="form-text mt-0">
-        Zrób albo dodaj zdjęcie, a AI oceni, czy widać na nim przeszkodę. Zdjęcie wysyłamy tylko do analizy w OpenAI:
-        nie zapisujemy go i nie trafia do urzędu, a dane o lokalizacji usuwamy z niego jeszcze w przeglądarce.
-        Unikaj fotografowania twarzy i tablic rejestracyjnych.
+        Zrób albo dodaj zdjęcie, a AI oceni, czy widać na nim przeszkodę. Zdjęcie wysyłamy do analizy w OpenAI,
+        a jego zmniejszoną kopię dołączamy do zgłoszenia: zobaczy ją urzędnik i Ty na stronie Konto, nikt inny.
+        Dane o lokalizacji usuwamy ze zdjęcia jeszcze w przeglądarce. Unikaj fotografowania twarzy i tablic rejestracyjnych.
     </p>
 
-    @if (!_busy)
-    {
-        <div class="photo-picker">
-            <InputFile id="@($"{IdPrefix}-camera")" class="visually-hidden" accept="image/*" capture="environment" OnChange="OnSelectedAsync" />
-            <label class="btn btn-outline-primary" for="@($"{IdPrefix}-camera")"><span aria-hidden="true">📷</span> Zrób zdjęcie</label>
-            <InputFile id="@($"{IdPrefix}-file")" class="visually-hidden" accept="image/*" OnChange="OnSelectedAsync" />
-            <label class="btn btn-outline-secondary" for="@($"{IdPrefix}-file")"><span aria-hidden="true">🖼️</span> Wybierz z urządzenia</label>
-            @if (_preview is not null)
-            {
-                <button type="button" class="btn btn-link" @onclick="Clear">Usuń zdjęcie</button>
-            }
-        </div>
-    }
+    @* Pola wyboru pliku muszą zostać w DOM na czas analizy: Blazor czyta plik z elementu input, więc po jego usunięciu odczyt się wywala. *@
+    <div class="photo-picker" hidden="@_busy">
+        <InputFile id="@($"{IdPrefix}-camera")" class="visually-hidden" accept="image/*" capture="environment" OnChange="OnSelectedAsync" />
+        <label class="btn btn-outline-primary" for="@($"{IdPrefix}-camera")"><span aria-hidden="true">📷</span> Zrób zdjęcie</label>
+        <InputFile id="@($"{IdPrefix}-file")" class="visually-hidden" accept="image/*" OnChange="OnSelectedAsync" />
+        <label class="btn btn-outline-secondary" for="@($"{IdPrefix}-file")"><span aria-hidden="true">🖼️</span> Wybierz z urządzenia</label>
+        @if (_preview is not null)
+        {
+            <button type="button" class="btn btn-link" @onclick="Clear">Usuń zdjęcie</button>
+        }
+    </div>
 
     @if (_preview is not null)
     {
@@ -61,6 +60,14 @@
     {
         <div class="alert alert-warning mt-2 mb-0" role="alert">@_error</div>
     }
+    @if (_preview is not null && !_busy)
+    {
+        <p class="form-text mb-0" role="status">
+            @(_attachment is { } attached
+                ? $"Zdjęcie zostanie dołączone do zgłoszenia (zmniejszone do {Math.Max(1, attached.Length / 1024)} KB)."
+                : "Tego zdjęcia nie udało się zmniejszyć, więc nie zostanie dołączone do zgłoszenia.")
+        </p>
+    }
 </fieldset>
 
 @code {
@@ -68,6 +75,7 @@
     private string? _preview;
     private ObstacleAnalysis? _analysis;
     private string? _error;
+    private byte[]? _attachment;
 
     /// <summary>Przedrostek identyfikatorów pól, gdy na stronie jest więcej niż jeden formularz.</summary>
     [Parameter] public string IdPrefix { get; set; } = "photo";
@@ -75,10 +83,18 @@
     /// <summary>Gdy podane, wynik można jednym przyciskiem przenieść do formularza zgłoszenia.</summary>
     [Parameter] public EventCallback<ObstacleAnalysis> OnApply { get; set; }
 
+    /// <summary>
+    /// Zdjęcie do dołączenia do zgłoszenia: zmniejszona kopia z oceną AI (bez oceny, dopóki analiza trwa albo gdy się nie udała);
+    /// null po usunięciu zdjęcia.
+    /// </summary>
+    [Parameter] public EventCallback<PhotoAttachment?> OnPhotoChanged { get; set; }
+
     private async Task OnSelectedAsync(InputFileChangeEventArgs e)
     {
         _error = null;
         _analysis = null;
+        _attachment = null;
+        await OnPhotoChanged.InvokeAsync(null);
         if (!e.File.ContentType.StartsWith("image/", StringComparison.Ordinal))
         {
             _error = "Wybierz plik ze zdjęciem.";
@@ -98,11 +114,16 @@
             _preview = $"data:image/jpeg;base64,{Convert.ToBase64String(photo.Content)}";
             StateHasChanged();
 
+            // Kopia do bazy jest dużo mniejsza niż wersja dla modelu: urzędnik ma zobaczyć przeszkodę, nie szczegóły.
+            _attachment = await ShrinkAsync(photo.Content);
+            await NotifyAsync();
+
             var result = await Sender.Send(new AnalyzePhotoCommand(photo));
             if (result.IsSuccess)
                 _analysis = result.Value;
             else
                 _error = result.Error;
+            await NotifyAsync();
         }
         catch (Exception ex) when (ex is IOException or JSException or InvalidOperationException)
         {
@@ -115,11 +136,29 @@
         }
     }
 
-    private void Clear()
+    private async Task<byte[]?> ShrinkAsync(byte[] content)
+    {
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/photo.js");
+            return await module.InvokeAsync<byte[]?>("shrink", content, PhotoAttachment.MaxDimensionPx, PhotoAttachment.MaxBytes);
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+    }
+
+    private Task NotifyAsync() =>
+        OnPhotoChanged.InvokeAsync(_attachment is null ? null : new PhotoAttachment(_attachment, _analysis));
+
+    private async Task Clear()
     {
         _preview = null;
         _analysis = null;
         _error = null;
+        _attachment = null;
+        await OnPhotoChanged.InvokeAsync(null);
     }
 
     private static string Label(ObstacleVerdict verdict) => verdict switch

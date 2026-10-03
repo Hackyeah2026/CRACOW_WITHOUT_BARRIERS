@@ -48,6 +48,7 @@
                     {
                         <p class="mb-1 report-description">@hazard.Description</p>
                     }
+                    <ReportPhotoView Photo="hazard.Photo" Subject="@Labels.Of(hazard.Kind)" />
                     @if (hazard.HandledBy is not null)
                     {
                         <p class="small mb-1 border-start border-3 ps-2">

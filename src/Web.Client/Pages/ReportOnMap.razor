@@ -95,7 +95,7 @@
                             </div>
                         </fieldset>
 
-                        <PhotoAnalysis IdPrefix="hazard-photo" OnApply="ApplyPhoto" />
+                        <PhotoAnalysis IdPrefix="hazard-photo" OnApply="ApplyPhoto" OnPhotoChanged="photo => _photo = photo" />
 
                         <div class="mb-3">
                             <label class="form-label h6" for="hazard-description">
@@ -188,6 +188,7 @@ else
     private GeoPoint? _point;
     private HazardKind _kind = HazardKind.Stairs;
     private string _description = "";
+    private PhotoAttachment? _photo;
     private IReadOnlyList<string> _errors = [];
     private bool _sending;
     private bool _locating;
@@ -259,7 +260,7 @@ else
         if (_point is not { } point)
             return;
 
-        var draft = new HazardDraft(State.CityId, point.Lat, point.Lon, _kind, _description.Trim());
+        var draft = new HazardDraft(State.CityId, point.Lat, point.Lon, _kind, _description.Trim()) { Photo = _photo };
         _errors = draft.Validate();
         if (_errors.Count > 0)
             return;
@@ -283,6 +284,7 @@ else
         _point = null;
         _kind = HazardKind.Stairs;
         _description = "";
+        _photo = null;
         _errors = [];
     }
 

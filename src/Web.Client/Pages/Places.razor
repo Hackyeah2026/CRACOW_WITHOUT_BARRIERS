@@ -78,18 +78,22 @@
             <div class="places-sidebar">
                 <div class="filter-section">
                     <h3 class="filter-title">Filtry</h3>
-                    <div class="form-group">
+                    <form class="form-group" role="search" @onsubmit="FilterChangedAsync">
                         <label class="form-label" for="search">Szukaj</label>
-                        <input id="search" class="form-control" type="search" placeholder="np. Muzeum, kawiarnia…"
-                               @bind="_search" @bind:after="FilterChangedAsync" />
-                    </div>
+                        <div class="input-group">
+                            <input id="search" class="form-control" type="search" placeholder="np. Wawel, hotel, kawiarnia…"
+                                   @bind="_search" @bind:event="oninput" />
+                            <button type="submit" class="btn btn-primary" disabled="@_loading">Szukaj</button>
+                        </div>
+                        <div class="form-text">Wpisz frazę i naciśnij Enter.</div>
+                    </form>
                     <div class="form-group">
                         <label class="form-label" for="category">Kategoria</label>
                         <select id="category" class="form-select" @bind="_category" @bind:after="FilterChangedAsync">
                             <option value="">Wszystkie kategorie</option>
                             @foreach (var category in ModeCategories.For(State.Mode).Concat(ModeCategories.Support).Where(_counts.ContainsKey))
                             {
-                                <option value="@category">@Labels.Of(category) (@_counts[category])</option>
+                                <option value="@category">@Labels.Of(category)@CountLabel(category)</option>
                             }
                         </select>
                     </div>
@@ -126,8 +130,15 @@
             </div>
 
             <div class="places-content">
-                <div class="places-list">
-                    @if (_visible.Count == 0)
+                <div class="places-list" aria-busy="@(_loading ? "true" : "false")">
+                    @if (_loading)
+                    {
+                        <div class="text-center py-4" role="status">
+                            <div class="spinner-border text-primary mb-2" aria-hidden="true"></div>
+                            <p>Szukam miejsc…</p>
+                        </div>
+                    }
+                    else if (_visible.Count == 0)
                     {
                         <div class="alert alert-info" role="status">
                             @(_places.Count == 0
@@ -135,7 +146,7 @@
                                 : "W widocznym obszarze mapy nie ma miejsc dla tych filtrów. Oddal mapę albo pokaż wszystkie.")
                         </div>
                     }
-                    @foreach (var item in _visible.Take(_shown))
+                    @foreach (var item in _loading ? [] : _visible.Take(_shown))
                     {
                         <div class="place-card">
                             <div class="place-card-header">
@@ -185,7 +196,7 @@
                     }
                 </div>
 
-                @if (_visible.Count > _shown)
+                @if (!_loading && _visible.Count > _shown)
                 {
                     <div class="text-center mt-4">
                         <button type="button" class="btn btn-secondary" @onclick="() => _shown += PageSize">
@@ -218,6 +229,10 @@
     private IReadOnlyList<CertifiedPlace> _certified = [];
     private bool _onlyCertified;
     private Dictionary<PlaceCategory, int> _counts = [];
+    private Dictionary<PlaceCategory, int>? _searchCounts;
+    private bool _loading;
+    private int _request;
+    private int _pending;
     private string? _error;
     private string? _search;
     private string _category = "";
@@ -249,11 +264,33 @@
     }
 
     /// <summary>Pierwszy widok to centrum miasta; po zmianie filtrów mapa dopasowuje się do wyników.</summary>
-    private Task FilterChangedAsync()
+    private async Task FilterChangedAsync()
     {
         _fitToResults = true;
-        return LoadAsync();
+        _loading = true;
+        _pending++;
+        try
+        {
+            // Filtrowanie zajmuje jedyny wątek przeglądarki, więc najpierw oddajemy go na narysowanie wskaźnika.
+            StateHasChanged();
+            await Task.Delay(50);
+            await LoadAsync();
+        }
+        finally
+        {
+            _loading = _pending > 1;
+            _pending--;
+        }
     }
+
+    /// <summary>
+    /// Przy wpisanej frazie licznik kategorii to liczba pasujących miejsc. Ławki i koperty nie są przeszukiwane
+    /// bez wybrania ich kategorii, więc wtedy nie mają licznika.
+    /// </summary>
+    private string CountLabel(PlaceCategory category) =>
+        _searchCounts is null ? $" ({_counts[category]})"
+        : _searchCounts.TryGetValue(category, out var count) ? $" ({count})"
+        : "";
 
     private async Task SetModeAsync(AppMode mode)
     {
@@ -267,9 +304,16 @@
         State.PlacesSearch = _search;
         State.PlacesCategory = _category;
         PlaceCategory? category = Enum.TryParse<PlaceCategory>(_category, out var parsed) ? parsed : null;
+        var request = ++_request;
         var result = _onlyCertified && category is null
             ? await LoadCertifiedAsync()
             : await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
+        var counts = string.IsNullOrWhiteSpace(_search) ? null : await Sender.Send(new GetPlaceSearchCountsQuery(State.CityId, State.Mode, _search));
+        // Odpowiedź na starsze filtry nie może nadpisać wyników nowszych.
+        if (request != _request)
+            return;
+
+        _searchCounts = counts is { IsSuccess: true } ? counts.Value.ToDictionary(c => c.Category, c => c.Count) : null;
         if (result.IsFailure)
         {
             _error = result.Error;
@@ -323,7 +367,9 @@
                 return result;
             places.AddRange(result.Value);
         }
-        return Result.Success<IReadOnlyList<AssessedPlace>>(places.OrderByDescending(p => p.Score).ToList());
+        var search = new PlaceSearch(_search);
+        return Result.Success<IReadOnlyList<AssessedPlace>>(
+            places.OrderByDescending(p => search.MatchesText(p.Place)).ThenByDescending(p => p.Score).ToList());
     }
 
     /// <summary>Lista i statystyki pokazują tylko to, co widać na mapie.</summary>

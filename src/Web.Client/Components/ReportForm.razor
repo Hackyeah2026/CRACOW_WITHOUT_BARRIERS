@@ -56,7 +56,7 @@
                 </div>
             </fieldset>
 
-            <PhotoAnalysis IdPrefix="report-photo" OnApply="ApplyPhoto" />
+            <PhotoAnalysis IdPrefix="report-photo" OnApply="ApplyPhoto" OnPhotoChanged="photo => _photo = photo" />
 
             <div class="mb-3">
                 <label class="form-label h6" for="report-description">
@@ -81,7 +81,7 @@
             }
 
             <p class="form-text">
-                Wysyłamy miejsce, wybrane udogodnienia i opis. Urząd zobaczy login Twojego konta (@State.User.Login). Twój profil potrzeb zostaje na tym urządzeniu.
+                Wysyłamy miejsce, wybrane udogodnienia, opis@(_photo is null ? "" : " i zdjęcie"). Urząd zobaczy login Twojego konta (@State.User.Login). Twój profil potrzeb zostaje na tym urządzeniu.
             </p>
 
             <div class="d-flex gap-2">
@@ -100,6 +100,7 @@
     private string _description = "";
     private IReadOnlyList<string> _errors = [];
     private ReportReceipt? _receipt;
+    private PhotoAttachment? _photo;
 
     [Parameter, EditorRequired] public Place Place { get; set; } = default!;
 
@@ -133,7 +134,7 @@
     private async Task SubmitAsync()
     {
         var draft = new ReportDraft(Place.CityId, Place.Id, Place.Name, Place.Category, Place.Lat, Place.Lon,
-            _kind, _features.ToList(), _description.Trim());
+            _kind, _features.ToList(), _description.Trim()) { Photo = _photo };
         _errors = draft.Validate();
         if (_errors.Count > 0)
             return;
@@ -159,6 +160,7 @@
         _kind = ReportKind.MissingAmenity;
         _features.Clear();
         _description = "";
+        _photo = null;
         _errors = [];
     }
 }

@@ -23,11 +23,18 @@ public sealed record ObstacleAnalysis(double Probability, HazardKind? SuggestedK
         : Probability < UnlikelyBelow ? ObstacleVerdict.Unlikely
         : ObstacleVerdict.Uncertain;
 
+    /// <summary>Ocena doprowadzona do dozwolonych zakresów; potrzebne, gdy wraca do hosta z przeglądarki razem ze zgłoszeniem.</summary>
+    public ObstacleAnalysis Sanitized() => new(
+        double.IsFinite(Probability) ? Math.Clamp(Probability, 0, 1) : 0,
+        SuggestedKind is { } kind && Enum.IsDefined(kind) ? kind : null,
+        (Summary ?? "").Trim() is { Length: > MaxSummaryLength } text ? text[..MaxSummaryLength] : (Summary ?? "").Trim());
+
     public int Percent => (int)Math.Round(Math.Clamp(Probability, 0, 1) * 100);
 }
 
 /// <summary>
-/// Zdjęcie do analizy. Nie jest zapisywane: host przekazuje je modelowi i od razu zapomina.
+/// Zdjęcie do analizy. Ta wersja nie jest zapisywana: host przekazuje ją modelowi i od razu zapomina.
+/// Do zgłoszenia trafia osobna, mniejsza kopia (<see cref="PhotoAttachment"/>).
 /// Przeglądarka zmniejsza je wcześniej do <see cref="MaxDimensionPx"/> i zapisuje jako JPEG, co usuwa też dane EXIF (m.in. GPS).
 /// </summary>
 public sealed record PhotoUpload(byte[] Content, string ContentType)

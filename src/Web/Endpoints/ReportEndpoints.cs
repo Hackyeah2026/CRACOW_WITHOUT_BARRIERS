@@ -23,13 +23,18 @@ public static class ReportEndpoints
     {
         var reports = app.MapGroup("/api/reports").AddEndpointFilter(DatabaseUnavailableFilter);
 
-        reports.MapPost("/", async (ReportDraft draft, ClaimsPrincipal user, IReportRepository repository, CancellationToken ct) =>
+        reports.MapPost("/", async (ReportDraft draft, ClaimsPrincipal user, IReportRepository repository, IPhotoStore photos, CancellationToken ct) =>
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
                 return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
 
-            var report = Report.Create(draft, DateTime.UtcNow) with { ReportedBy = AccountEndpoints.LoginOf(user) };
+            var (now, login) = (DateTime.UtcNow, AccountEndpoints.LoginOf(user));
+            var report = Report.Create(draft, now) with
+            {
+                ReportedBy = login,
+                Photo = await PhotoEndpoints.StoreAsync(draft.Photo, login, photos, now, ct)
+            };
             await repository.AddAsync(report, ct);
             return Results.Created($"/api/reports/{report.Id}", report.ToReceipt());
         }).RequireAuthorization(AccountEndpoints.UserPolicy).RequireRateLimiting(SubmitLimit);

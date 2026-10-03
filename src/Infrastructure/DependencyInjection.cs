@@ -10,7 +10,10 @@ public static class DependencyInjection
 {
     /// <summary>Usługi działające w przeglądarce. Wymaga zarejestrowanego HttpClient z adresem bazowym aplikacji.</summary>
     public static IServiceCollection AddBrowserInfrastructure(this IServiceCollection services) => services
-        .AddScoped<IPlaceCatalog, HttpPlaceCatalog>()
+        .AddScoped<HttpPlaceCatalog>()
+        .AddScoped<IBusinessClient, HostBusinessClient>()
+        // Katalog z plików uzupełniony o certyfikaty i deklaracje zatwierdzonych firm.
+        .AddScoped<IPlaceCatalog>(p => new CertifiedPlaceCatalog(p.GetRequiredService<HttpPlaceCatalog>(), p.GetRequiredService<IBusinessClient>()))
         .AddScoped<ITransitCatalog, HttpTransitCatalog>()
         .AddScoped<ILocalStore, IndexedDbLocalStore>()
         .AddScoped<IRoutingClient, HostRoutingClient>()

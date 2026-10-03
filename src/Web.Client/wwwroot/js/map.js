@@ -80,6 +80,15 @@ export function setMarkers(id, items, fit) {
             pin.textContent = item.label;
             marker = iconMarker(item, pin, 'map-pin-icon', 30);
             entry.labelled.push({ marker, content: text(`${item.label}. ${item.name}`) });
+        } else if (item.certified) {
+            // Miejsce z certyfikatem: gwiazdka w złotej obwódce, kolor wypełnienia nadal mówi o ocenie.
+            const pin = document.createElement('span');
+            pin.className = 'map-certified';
+            pin.style.background = item.color;
+            pin.textContent = '★';
+            marker = iconMarker(item, pin, 'map-certified-icon', 34);
+            marker.setZIndexOffset(500);
+            marker.bindTooltip(text(item.name), { direction: 'top', offset: [0, -16] });
         } else if (item.icon) {
             // Punkt odpoczynku (toaleta, ławka, ciche miejsce): sam symbol, bez kółka.
             marker = iconMarker(item, text(item.icon), 'map-emoji-icon', 28);
@@ -92,7 +101,7 @@ export function setMarkers(id, items, fit) {
         }
         marker.on('click', () => entry.dotnet.invokeMethodAsync('MarkerClicked', item.id));
         marker.addTo(entry.markers);
-        if (item.label || item.icon)
+        if (item.label || item.icon || item.certified)
             marker.getElement()?.setAttribute('aria-label', item.name);
     }
 

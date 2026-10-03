@@ -1,0 +1,349 @@
+@inject AppState State
+@inject ISender Sender
+
+@if (!_loaded)
+{
+    <p role="status">Wczytuję konto firmowe…</p>
+}
+else if (_loadError is not null)
+{
+    <div class="alert alert-warning" role="alert">@_loadError</div>
+}
+else
+{
+    @if (_business is { } business)
+    {
+        <section class="card card-body mb-3" aria-labelledby="business-heading">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div>
+                    <h2 id="business-heading" class="h4 mb-1">@business.BusinessName</h2>
+                    <p class="small text-body-secondary mb-2">
+                        Miejsce: <a href="@($"miejsca/{business.PlaceId}")">@business.PlaceName</a> (@Labels.Of(business.Category))
+                        · NIP @Labels.TaxId(business.TaxId) · wniosek z @Labels.When(business.CreatedAt)
+                    </p>
+                </div>
+                <span class="status-badge @Labels.Css(business.Status)">@Labels.Of(business.Status)</span>
+            </div>
+            @if (business.Status == BusinessStatus.Pending)
+            {
+                <p class="mb-0">
+                    Urzędnik sprawdzi wniosek i w razie potrzeby odezwie się pod: <strong>@business.Contact</strong>.
+                    Po zatwierdzeniu w tym miejscu pojawią się oznaczenia udogodnień i certyfikat do pobrania.
+                </p>
+            }
+            @if (business.OfficialNote is not null)
+            {
+                <div class="border-start border-3 ps-3 mt-2">
+                    <p class="small text-body-secondary mb-1">Odpowiedź urzędu, @Labels.When(business.UpdatedAt)</p>
+                    <p class="mb-0">@business.OfficialNote</p>
+                </div>
+            }
+        </section>
+
+        @if (business.Status == BusinessStatus.Approved)
+        {
+            <section class="card card-body mb-3" aria-labelledby="certificate-heading">
+                <h2 id="certificate-heading" class="h5">Certyfikat</h2>
+                <p>
+                    Numer <strong>@business.CertificateId</strong>@(business.CertifiedAt is { } issued ? $", wydany {Labels.Day(issued)}" : "").
+                    Kod QR prowadzi do karty Twojego miejsca w aplikacji, więc goście zawsze zobaczą aktualne udogodnienia.
+                    Wydrukuj certyfikat i powieś przy wejściu.
+                </p>
+                <img class="certificate-preview mb-3" src="@CertificateUrl(inline: true)"
+                     alt="@($"Podgląd certyfikatu {business.CertificateId} dla firmy {business.BusinessName}, z kodem QR do karty miejsca")" />
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="@CertificateUrl(inline: false)" download="@($"certyfikat-{business.CertificateId}.svg")">Pobierz certyfikat (SVG)</a>
+                    <a class="btn btn-outline-secondary" href="@CertificateUrl(inline: true)" target="_blank" rel="noopener">
+                        Otwórz do druku lub zapisu jako PDF <span class="visually-hidden">(nowa karta)</span>
+                    </a>
+                </div>
+            </section>
+
+            <form class="card card-body mb-3" aria-labelledby="features-heading" @onsubmit="SaveFeaturesAsync" @onsubmit:preventDefault>
+                <h2 id="features-heading" class="h5">Udogodnienia w Twoim miejscu</h2>
+                <p class="text-body-secondary">
+                    Zaznacz to, co wiesz na pewno. Oznaczenia trafiają na kartę miejsca ze źródłem „@CertifiedPlace.FeatureSource”
+                    i wpływają na ocenę dostępności, którą widzą goście. „Nie podano” zostawia dane z mapy bez zmian.
+                </p>
+                <div class="row g-2 mb-3">
+                    @foreach (var key in BusinessFeaturesUpdate.Declarable)
+                    {
+                        var id = $"business-feature-{key}";
+                        <div class="col-md-6">
+                            <label class="form-label mb-1" for="@id">@Labels.Of(key)</label>
+                            <select id="@id" class="form-select" value="@_declared.GetValueOrDefault(key, "")"
+                                    @onchange="e => Declare(key, (string?)e.Value)">
+                                <option value="">Nie podano</option>
+                                <option value="yes">Jest</option>
+                                <option value="no">Nie ma</option>
+                            </select>
+                        </div>
+                    }
+                </div>
+                @if (_featuresError is not null)
+                {
+                    <div class="alert alert-danger" role="alert">@_featuresError</div>
+                }
+                @if (_featuresSaved)
+                {
+                    <div class="alert alert-success" role="status">
+                        Zapisane. Zobacz, jak wygląda <a class="alert-link" href="@($"miejsca/{business.PlaceId}")">karta miejsca</a>.
+                    </div>
+                }
+                <div>
+                    <button type="submit" class="btn btn-primary" disabled="@_busy">@(_busy ? "Zapisuję…" : "Zapisz udogodnienia")</button>
+                    @if (business.FeaturesUpdatedAt is { } updated)
+                    {
+                        <span class="small text-body-secondary ms-2">Ostatnia zmiana: @Labels.When(updated)</span>
+                    }
+                </div>
+            </form>
+        }
+    }
+
+    @if (CanApply)
+    {
+        <form class="card card-body" aria-labelledby="application-heading" @onsubmit="ApplyAsync" @onsubmit:preventDefault novalidate>
+            <h2 id="application-heading" class="h5">@(_business is null ? "Wniosek o konto firmowe" : "Złóż wniosek ponownie")</h2>
+            <p class="text-body-secondary">
+                Dla kawiarni, restauracji, hoteli, sklepów i innych lokali. Po zatwierdzeniu przez urząd sam oznaczasz udogodnienia,
+                pobierasz certyfikat z kodem QR, a Twoje miejsce jest wyróżnione na mapie.
+            </p>
+
+            <fieldset class="mb-3">
+                <legend class="h6">1. Miejsce z katalogu</legend>
+                @if (_selected is { } selected)
+                {
+                    <p class="mb-2">
+                        <strong>@selected.Name</strong> · @Labels.Of(selected.Category)@(selected.Address is null ? "" : $" · {selected.Address}")
+                        <button type="button" class="btn btn-link btn-sm" @onclick="() => _selected = null">Zmień miejsce</button>
+                    </p>
+                }
+                else
+                {
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label mb-1" for="business-category">Rodzaj miejsca</label>
+                            <select id="business-category" class="form-select" @bind="_category" @bind:after="SearchAsync">
+                                @foreach (var category in _categories)
+                                {
+                                    <option value="@category">@Labels.Of(category)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label mb-1" for="business-search">Nazwa miejsca</label>
+                            <input id="business-search" class="form-control" type="search" placeholder="np. nazwa lokalu"
+                                   @bind="_search" @bind:event="oninput" @bind:after="SearchAsync" />
+                        </div>
+                    </div>
+                    @if (_results is not null)
+                    {
+                        <p class="small text-body-secondary mt-2 mb-1" role="status">
+                            @(_results.Count == 0 ? "Nie znaleźliśmy takiego miejsca w tej kategorii." : $"Znalezione: {_resultCount}. Wybierz swoje miejsce.")
+                        </p>
+                        <ul class="list-group">
+                            @foreach (var place in _results)
+                            {
+                                <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <span>@place.Name<span class="text-body-secondary">@(place.Address is null ? "" : $" · {place.Address}")</span></span>
+                                    @if (place.Certificate is null)
+                                    {
+                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => Select(place)">
+                                            Wybierz <span class="visually-hidden">: @place.Name</span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="certified-badge"><span aria-hidden="true">★</span> ma już konto firmowe</span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="form-text mb-0">Wpisz co najmniej 2 znaki nazwy. Nie ma Twojego lokalu? Katalog pochodzi z OpenStreetMap: dodaj tam miejsce, a trafi do aplikacji przy następnym imporcie.</p>
+                    }
+                }
+            </fieldset>
+
+            <fieldset class="mb-3">
+                <legend class="h6">2. Dane firmy</legend>
+                <div class="mb-3">
+                    <label class="form-label" for="business-name">Nazwa firmy</label>
+                    <input id="business-name" class="form-control" autocomplete="organization" maxlength="@BusinessApplicationDraft.MaxBusinessNameLength"
+                           aria-describedby="business-name-help" @bind="_businessName" />
+                    <div id="business-name-help" class="form-text">Pojawi się na certyfikacie i na karcie miejsca.</div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label" for="business-tax-id">NIP</label>
+                        <input id="business-tax-id" class="form-control" inputmode="numeric" maxlength="15" aria-describedby="business-private-help" @bind="_taxId" />
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label" for="business-contact">E-mail albo telefon dla urzędu</label>
+                        <input id="business-contact" class="form-control" maxlength="@BusinessApplicationDraft.MaxContactLength"
+                               aria-describedby="business-private-help" @bind="_contact" />
+                    </div>
+                </div>
+                <div id="business-private-help" class="form-text mb-3">NIP i kontakt widzi tylko urzędnik rozpatrujący wniosek. Nie są publikowane.</div>
+                <div>
+                    <label class="form-label" for="business-note">Uwagi dla urzędu (opcjonalnie)</label>
+                    <textarea id="business-note" class="form-control" rows="2" maxlength="@BusinessApplicationDraft.MaxNoteLength" @bind="_note"></textarea>
+                </div>
+            </fieldset>
+
+            @if (_applyError is not null)
+            {
+                <div class="alert alert-danger" role="alert">@_applyError</div>
+            }
+            <div>
+                <button type="submit" class="btn btn-primary" disabled="@_busy">@(_busy ? "Wysyłam…" : "Wyślij wniosek")</button>
+            </div>
+        </form>
+    }
+}
+
+@code {
+    private const int MaxResults = 8;
+
+    private bool _loaded;
+    private bool _busy;
+    private string? _loadError;
+    private BusinessAccountView? _business;
+
+    private IReadOnlyList<PlaceCategory> _categories = [];
+    private PlaceCategory _category = PlaceCategory.Food;
+    private string? _search;
+    private IReadOnlyList<Place>? _results;
+    private int _resultCount;
+    private Place? _selected;
+    private string _businessName = "";
+    private string _taxId = "";
+    private string _contact = "";
+    private string _note = "";
+    private string? _applyError;
+
+    private Dictionary<FeatureKey, string> _declared = [];
+    private string? _featuresError;
+    private bool _featuresSaved;
+
+    /// <summary>Miejsce podpowiedziane z karty miejsca ("Prowadzisz to miejsce?").</summary>
+    [Parameter] public string? PlaceId { get; set; }
+
+    /// <summary>Wniosek można złożyć, gdy żaden nie czeka i konto nie jest zatwierdzone.</summary>
+    private bool CanApply => _business is null or { Status: BusinessStatus.Rejected or BusinessStatus.Revoked };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        var mine = await Sender.Send(new GetMyBusinessQuery());
+        if (mine.IsFailure)
+        {
+            (_loadError, _loaded) = (mine.Error, true);
+            return;
+        }
+
+        Show(mine.Value.Business);
+        var categories = await Sender.Send(new GetPlaceCategoriesQuery(State.CityId));
+        if (categories.IsSuccess)
+            _categories = categories.Value.Select(c => c.Category).Where(BusinessApplicationDraft.IsEligible).OrderBy(Labels.Of).ToList();
+        if (_categories.Count > 0 && !_categories.Contains(_category))
+            _category = _categories[0];
+
+        if (CanApply && !string.IsNullOrWhiteSpace(PlaceId)
+            && await Sender.Send(new GetPlaceDetailsQuery(State.CityId, PlaceId, State.Profile)) is { IsSuccess: true } found
+            && found.Value.Place.Certificate is null && BusinessApplicationDraft.IsEligible(found.Value.Place.Category))
+            Select(found.Value.Place);
+
+        _loaded = true;
+    }
+
+    private void Show(BusinessAccountView? business)
+    {
+        _business = business;
+        _declared = business?.Features.ToDictionary(f => f.Key, f => f.Available ? "yes" : "no") ?? [];
+        if (business is not null && CanApply)
+            (_businessName, _taxId, _contact, _note) = (business.BusinessName, Labels.TaxId(business.TaxId), business.Contact, business.Note);
+    }
+
+    private async Task SearchAsync()
+    {
+        if (_search is not { Length: >= 2 } || string.IsNullOrWhiteSpace(_search))
+        {
+            _results = null;
+            return;
+        }
+
+        var searched = _search;
+        var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, NeedsProfile.Empty, _category, searched));
+        // Odpowiedź na starsze zapytanie nie może nadpisać wyników nowszego.
+        if (searched != _search || result.IsFailure)
+            return;
+
+        _resultCount = result.Value.Count;
+        _results = result.Value.Select(p => p.Place).OrderBy(p => p.Name, StringComparer.CurrentCulture).Take(MaxResults).ToList();
+    }
+
+    private void Select(Place place)
+    {
+        _selected = place;
+        if (string.IsNullOrWhiteSpace(_businessName))
+            _businessName = place.Name;
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (_selected is not { } place)
+        {
+            _applyError = "Wybierz miejsce z katalogu, w którym działa firma.";
+            return;
+        }
+
+        _busy = true;
+        _applyError = null;
+        var result = await Sender.Send(new SubmitBusinessApplicationCommand(new BusinessApplicationDraft(
+            place.CityId, place.Id, place.Name, place.Category, place.Lat, place.Lon, _businessName, _taxId, _contact, _note)));
+        _busy = false;
+
+        if (result.IsFailure)
+            _applyError = result.Error;
+        else
+            Show(result.Value);
+    }
+
+    private void Declare(FeatureKey key, string? value)
+    {
+        _featuresSaved = false;
+        if (string.IsNullOrEmpty(value))
+            _declared.Remove(key);
+        else
+            _declared[key] = value;
+    }
+
+    private async Task SaveFeaturesAsync()
+    {
+        _busy = true;
+        (_featuresError, _featuresSaved) = (null, false);
+        var features = BusinessFeaturesUpdate.Declarable
+            .Where(_declared.ContainsKey)
+            .Select(key => new BusinessFeature(key, _declared[key] == "yes"))
+            .ToList();
+        var result = await Sender.Send(new SaveBusinessFeaturesCommand(new BusinessFeaturesUpdate(features)));
+        _busy = false;
+
+        if (result.IsFailure)
+        {
+            _featuresError = result.Error;
+            return;
+        }
+
+        Show(result.Value);
+        _featuresSaved = true;
+    }
+
+    /// <summary>Numer certyfikatu w adresie tylko po to, żeby przeglądarka nie pokazała starego podglądu po ponownym zatwierdzeniu.</summary>
+    private string CertificateUrl(bool inline) =>
+        $"api/business/certificate?{(inline ? "inline=true&" : "")}v={Uri.EscapeDataString(_business?.CertificateId ?? "")}";
+}

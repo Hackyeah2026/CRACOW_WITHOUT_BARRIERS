@@ -1,4 +1,5 @@
 @page "/miejsca"
+@using Application.Abstractions
 @inject AppState State
 @inject ISender Sender
 @inject NavigationManager Navigation
@@ -92,6 +93,13 @@
                             }
                         </select>
                     </div>
+                    @if (_certified.Count > 0)
+                    {
+                        <div class="form-check mt-3">
+                            <input id="only-certified" class="form-check-input" type="checkbox" @bind="_onlyCertified" @bind:after="FilterChangedAsync" />
+                            <label class="form-check-label" for="only-certified">Tylko z certyfikatem (@_certified.Count)</label>
+                        </div>
+                    }
                     <p class="small text-muted mt-3" role="status">
                         W widocznym obszarze mapy: <strong>@_visible.Count</strong> z @_places.Count miejsc.
                         Przesuń lub powiększ mapę, żeby zmienić obszar.
@@ -99,6 +107,13 @@
                     @if (_visible.Count < _places.Count)
                     {
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ShowAllAsync">Pokaż wszystkie na mapie</button>
+                    }
+                    @if (_certified.Count > 0)
+                    {
+                        <p class="small text-muted mt-3 mb-0">
+                            <span aria-hidden="true">★</span> Pinezka z gwiazdką w złotej obwódce to miejsce z certyfikatem:
+                            firma zatwierdzona przez urząd sama podaje swoje udogodnienia.
+                        </p>
                     }
                     <p class="small text-muted mt-3 mb-0">
                         @if (_hazardMarkers.Count > 0)
@@ -128,6 +143,10 @@
                                     <a class="place-card-title" href="miejsca/@item.Place.Id">@item.Place.Name</a>
                                     <div class="place-card-meta">
                                         <span class="place-category">@Labels.Of(item.Place.Category)</span>
+                                        @if (item.Place.Certificate is not null)
+                                        {
+                                            <span class="certified-badge"><span aria-hidden="true">★</span> Certyfikat</span>
+                                        }
                                         @if (item.Place.Address is not null)
                                         {
                                             <span class="place-address">@item.Place.Address</span>
@@ -196,6 +215,8 @@
     private bool _fitToResults;
     private IReadOnlyList<MapMarker> _markers = [];
     private IReadOnlyList<MapMarker> _hazardMarkers = [];
+    private IReadOnlyList<CertifiedPlace> _certified = [];
+    private bool _onlyCertified;
     private Dictionary<PlaceCategory, int> _counts = [];
     private string? _error;
     private string? _search;
@@ -221,6 +242,9 @@
         var hazards = await Sender.Send(new GetVerifiedHazardsQuery(State.CityId));
         if (hazards.IsSuccess)
             _hazardMarkers = hazards.Value.Select(h => Labels.Marker(h, HazardMarkerPrefix)).ToList();
+        var certified = await Sender.Send(new GetCertifiedPlacesQuery(State.CityId));
+        if (certified.IsSuccess)
+            _certified = certified.Value;
         await LoadAsync();
     }
 
@@ -243,7 +267,9 @@
         State.PlacesSearch = _search;
         State.PlacesCategory = _category;
         PlaceCategory? category = Enum.TryParse<PlaceCategory>(_category, out var parsed) ? parsed : null;
-        var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
+        var result = _onlyCertified && category is null
+            ? await LoadCertifiedAsync()
+            : await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
         if (result.IsFailure)
         {
             _error = result.Error;
@@ -252,15 +278,52 @@
 
         _error = null;
         _shown = PageSize;
-        _places = result.Value;
+        _places = _onlyCertified ? result.Value.Where(p => p.Place.Certificate is not null).ToList() : result.Value;
         // Tysiące symboli (np. wszystkie ławki) zatrzymałyby mapę, więc duże zbiory rysujemy kółkami.
         var icons = _places.Count <= Labels.MaxIconMarkers;
         _markers = _places
-            .Select(p => new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)})", p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status),
-                Icon: icons ? Labels.MapIcon(p.Place.Category) : null))
+            .Select(p => p.Place.Certificate is null
+                ? new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)})", p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status),
+                    Icon: icons ? Labels.MapIcon(p.Place.Category) : null)
+                : new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)}, {Labels.CertifiedSuffix})", p.Place.Lat, p.Place.Lon,
+                    Labels.Color(p.Assessment.Status), Certified: true))
+            .Concat(CertifiedOutsideResults(_places))
             .Concat(_hazardMarkers)
             .ToList();
         UpdateVisible();
+    }
+
+    /// <summary>
+    /// Miejsca z certyfikatem spoza kategorii bieżącego trybu (np. hotel w trybie "Zwiedzam") są na mapie zawsze,
+    /// o ile użytkownik nie zawęził wyników kategorią albo wyszukiwaniem. Bez oceny, bo nie ma ich na liście.
+    /// </summary>
+    private IEnumerable<MapMarker> CertifiedOutsideResults(IReadOnlyList<AssessedPlace> places)
+    {
+        if (_category != "" || !string.IsNullOrWhiteSpace(_search))
+            return [];
+
+        var listed = places.Select(p => p.Place.Id).ToHashSet();
+        return _certified
+            .Where(c => !listed.Contains(c.PlaceId))
+            .Select(c => new MapMarker(c.PlaceId, $"{c.PlaceName} ({Labels.Of(c.Category)}, {Labels.CertifiedSuffix})", c.Lat, c.Lon,
+                Labels.Color(AssessmentStatus.Unknown), Certified: true));
+    }
+
+    /// <summary>
+    /// Filtr "tylko z certyfikatem" bez wybranej kategorii obejmuje wszystkie kategorie, w których są takie miejsca,
+    /// także spoza bieżącego trybu: hotel z certyfikatem ma być na liście również w trybie "Zwiedzam".
+    /// </summary>
+    private async Task<Result<IReadOnlyList<AssessedPlace>>> LoadCertifiedAsync()
+    {
+        var places = new List<AssessedPlace>();
+        foreach (var category in _certified.Select(c => c.Category).Distinct())
+        {
+            var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
+            if (result.IsFailure)
+                return result;
+            places.AddRange(result.Value);
+        }
+        return Result.Success<IReadOnlyList<AssessedPlace>>(places.OrderByDescending(p => p.Score).ToList());
     }
 
     /// <summary>Lista i statystyki pokazują tylko to, co widać na mapie.</summary>

@@ -207,6 +207,10 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 | `GET /api/official/me` | zalogowany urzędnik | urzędnik |
 | `GET /api/official/reports?cityId=&status=&placeId=` | lista zgłoszeń | urzędnik |
 | `PATCH /api/official/reports/{id}` | zmiana statusu i odpowiedź dla zgłaszającego | urzędnik |
+| `GET /api/businesses?cityId=` | miejsca z certyfikatem konta firmowego i deklaracje firm | publiczny |
+| `GET /api/business/mine`, `POST /api/business/application` | wniosek o konto firmowe i jego stan | konto |
+| `PUT /api/business/features`, `GET /api/business/certificate` | oznaczenia udogodnień i certyfikat SVG z kodem QR | konto firmowe zatwierdzone przez urząd |
+| `GET /api/official/businesses?cityId=`, `PATCH /api/official/businesses/{login}` | wnioski o konta firmowe i decyzja | urzędnik |
 
 ## Testy
 

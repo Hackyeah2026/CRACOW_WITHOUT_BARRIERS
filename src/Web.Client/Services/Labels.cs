@@ -1,4 +1,5 @@
 using Domain.Assessments;
+using Domain.Businesses;
 using Domain.Hazards;
 using Domain.Needs;
 using Domain.Places;
@@ -219,6 +220,28 @@ public static class Labels
         _ => "#adb5bd"
     };
 
+    public static string Of(BusinessStatus status) => status switch
+    {
+        BusinessStatus.Pending => "Czeka na decyzję urzędu",
+        BusinessStatus.Approved => "Zatwierdzone",
+        BusinessStatus.Rejected => "Odrzucone",
+        BusinessStatus.Revoked => "Zatwierdzenie cofnięte",
+        _ => status.ToString()
+    };
+
+    public static string Css(BusinessStatus status) => status switch
+    {
+        BusinessStatus.Approved => "status-accessible",
+        BusinessStatus.Rejected or BusinessStatus.Revoked => "status-inaccessible",
+        _ => "status-unknown"
+    };
+
+    /// <summary>Dopisek do nazwy pinezki i miejsca z certyfikatem; wyróżnienie nie może polegać na samym wyglądzie.</summary>
+    public const string CertifiedSuffix = "certyfikat Kraków bez barier";
+
+    /// <summary>NIP w zapisie z kreskami.</summary>
+    public static string TaxId(string digits) => digits.Length == 10 ? $"{digits[..3]}-{digits[3..6]}-{digits[6..8]}-{digits[8..]}" : digits;
+
     public static MapMarker Marker(VerifiedHazard hazard, string idPrefix = "") =>
         new(idPrefix + hazard.Id, Verified(hazard), hazard.Lat, hazard.Lon, Color(HazardStatus.Verified), Icon: Icon(hazard.Kind));
 
@@ -252,6 +275,9 @@ public static class Labels
     public static string Reporter(string? login) => login ?? "brak (zgłoszenie sprzed wprowadzenia kont)";
 
     public static string Features(IReadOnlyList<FeatureKey> features) => string.Join(", ", features.Select(Of));
+
+    /// <summary>Sama data w czasie lokalnym przeglądarki.</summary>
+    public static string Day(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("dd.MM.yyyy");
 
     /// <summary>Data i godzina w czasie lokalnym przeglądarki.</summary>
     public static string When(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("dd.MM.yyyy HH:mm");

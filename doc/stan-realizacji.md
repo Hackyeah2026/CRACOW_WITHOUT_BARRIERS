@@ -16,6 +16,8 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 **Co doszło 3.10.2026 ok. 22:30:** katalog miejsc rozszerzony z 4 171 do 28 971 miejsc i podzielony na pliki per kategoria, pobierane dopiero wtedy, gdy widok ich potrzebuje. Szczegóły w sekcji "Katalog miejsc: zakres i podział na kategorie".
 
+**Co doszło 3.10.2026 ok. 23:30:** konta firmowe: wniosek dla miejsca z katalogu, zatwierdzenie przez urzędnika, własne oznaczenia udogodnień, certyfikat z kodem QR do pobrania i wyróżnienie na mapie. Szczegóły w sekcji "Konta firmowe i certyfikat", plan w [plan-konto-firmowe.md](plan-konto-firmowe.md).
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -56,7 +58,7 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 ### Baza danych (MongoDB)
 
-Stan: **połączenie działa, cztery kolekcje: `reports` (zgłoszenia miejsc), `hazards` (punkty z utrudnieniami), `users` (konta mieszkańców) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
+Stan: **połączenie działa, pięć kolekcji: `reports` (zgłoszenia miejsc), `hazards` (punkty z utrudnieniami), `users` (konta mieszkańców), `businesses` (wnioski i konta firmowe) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
 
 - **Gdzie działa baza:** klaster w MongoDB Atlas (cloud.mongodb.com). Łączy się z nim wyłącznie host (`Web`); przeglądarka nigdy nie dostaje adresu połączenia.
 - **Osobny projekt `Infrastructure.Mongo`**, podpięty tylko do hosta. Sterownik (`MongoDB.Driver` 3.12.0, licencja Apache-2.0) nie trafia do `Infrastructure`, bo ten projekt jest też częścią aplikacji w przeglądarce.
@@ -115,6 +117,30 @@ dotnet user-secrets set "Officials:Seed:0:Unit" "Pełnomocnik ds. osób z niepe�
 Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password` itd. Zmiana hasła w konfiguracji zmienia je w bazie przy następnym starcie.
 
 **Endpointy:** `POST /api/reports` i `GET /api/reports/mine` (wymagają konta mieszkańca), `POST /api/official/login`, `POST /api/official/logout`, `GET /api/official/me`, `GET /api/official/reports?cityId=&status=&placeId=`, `PATCH /api/official/reports/{id}`.
+
+### Konta firmowe i certyfikat
+
+**Właściciel firmy (zakładka "Konto firmowe" na stronie Konto, `/konto/firma`; link w stopce i na karcie miejsca):**
+
+- Konto firmowe to zwykłe konto (login i hasło) z wnioskiem zatwierdzonym przez urząd. Jedno konto prowadzi jedną firmę w jednym miejscu z katalogu; punkty w terenie (przystanek, ławka, park, koperta, toaleta) nie wchodzą w grę.
+- **Wniosek:** miejsce wybrane z katalogu (rodzaj + nazwa, albo podpowiedziane z karty miejsca), nazwa firmy, NIP (sprawdzana cyfra kontrolna), kontakt dla urzędu, uwagi. NIP i kontakt widzi tylko urzędnik i właściciel. Po odrzuceniu albo cofnięciu zatwierdzenia wniosek można złożyć ponownie.
+- **Po zatwierdzeniu:** lista 15 udogodnień z wyborem "nie podano / jest / nie ma" i certyfikat: podgląd, pobranie pliku SVG, otwarcie w nowej karcie do druku albo zapisu jako PDF.
+
+**Urzędnik (`/urzednik`, zakładka "Konta firmowe" z licznikiem wniosków czekających na decyzję):**
+
+- Widzi nazwę firmy, miejsce, NIP, kontakt, login konta, uwagi i deklaracje. Decyzje: zatwierdzenie, odrzucenie wniosku i cofnięcie zatwierdzenia; dwie ostatnie wymagają uzasadnienia, które widzi firma.
+- Jedno miejsce ma najwyżej jedno zatwierdzone konto firmowe: pilnuje tego unikalny indeks częściowy w bazie, więc drugi wniosek kończy się odpowiedzią 409 także przy równoległych decyzjach.
+
+**Co dzieje się po zatwierdzeniu:**
+
+- **Oznaczenia** trafiają na kartę miejsca ze źródłem "Deklaracja firmy (konto firmowe)" i datą zmiany, i wchodzą do oceny dostępności na liście, karcie i w planie. Deklaracja zastępuje cechę z mapy o tym samym kluczu; deklaracja dostępności dla wózków zastępuje też wpis "ograniczona dostępność" z OpenStreetMap. Łączenie robi dekorator katalogu w przeglądarce (`CertifiedPlaceCatalog`); gdy host nie odpowiada, katalog działa jak dotąd.
+- **Certyfikat** (`CertificateSvg`): A4 poziomo, nazwa firmy, numer `KBB-rok-XXXXXXXX` nadany przy pierwszym zatwierdzeniu, data, kod QR (QRCoder 1.8.0, licencja MIT) z adresem `/miejsca/{id}?miasto={miasto}`. Host generuje go na żądanie, niczego nie przechowuje. Karta miejsca pokazuje firmę, numer i datę certyfikatu, więc skan kodu jest też sprawdzeniem, czy certyfikat jest aktualny.
+- **Wyróżnienie:** większa pinezka z gwiazdką w złotej obwódce (wypełnienie nadal w kolorze oceny), dopisek "certyfikat Kraków bez barier" w nazwie pinezki, znaczek "Certyfikat" na liście, filtr "Tylko z certyfikatem". Miejsca z certyfikatem spoza kategorii bieżącego trybu (np. hotel w trybie "Zwiedzam") są na mapie także bez wybrania kategorii.
+- **Cofnięcie zatwierdzenia** od razu zdejmuje wyróżnienie i deklaracje z katalogu i blokuje pobieranie certyfikatu. Ponowne zatwierdzenie przywraca ten sam numer.
+
+**Adres w kodzie QR** to adres, pod którym host dostał żądanie. Za pośrednikiem (reverse proxy) trzeba ustawić `Certificates:PublicBaseUrl` (zmienna `Certificates__PublicBaseUrl`), inaczej kod poprowadzi na adres wewnętrzny.
+
+**Endpointy:** `GET /api/businesses?cityId=` (publiczny), `GET /api/business/mine`, `POST /api/business/application`, `PUT /api/business/features`, `GET /api/business/certificate` (konto; dwa ostatnie tylko po zatwierdzeniu, inaczej 409), `GET /api/official/businesses?cityId=`, `PATCH /api/official/businesses/{login}` (urzędnik).
 
 ### Punkty z utrudnieniami na mapie
 
@@ -183,7 +209,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
 | `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 91 testów: mapowanie tagów OpenStreetMap na kategorie i cechy, profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
+| `Tests` | 124 testy: konta firmowe (walidacja wniosku i NIP, decyzje urzędnika, deklaracje, widoki bez danych firmy, łączenie z katalogiem, certyfikat z kodem QR), mapowanie tagów OpenStreetMap na kategorie i cechy, profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 
@@ -217,8 +243,11 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 
 - **Konto, profil i strona główna** (baza testowa): strona główna bez konta i pulpit po zalogowaniu; konfiguracja tymczasowa "Senior" przejęta przez konto przy logowaniu; podsumowanie profilu na `/profil` i edytor na `/konto/profil`; zakładka zgłoszeń pod `/konto` i `/zgloszenia`.
 
+- **Konta firmowe na bazie testowej:** wniosek z formularza (wyszukanie lokalu, błędny NIP zatrzymany, status "czeka"); bez konta 401, sesja mieszkańca nie zatwierdza wniosków (401); przed zatwierdzeniem oznaczenia i certyfikat → 409; zatwierdzenie z panelu urzędnika; drugi wniosek i druga decyzja dla tego samego miejsca → 409; odrzucenie bez uzasadnienia → 400; zapis oznaczeń i ich widok na karcie miejsca ze zmianą oceny; podgląd certyfikatu, a kod QR odczytany z niego przez przeglądarkę (BarcodeDetector) daje adres karty miejsca; pinezki z gwiazdką, znaczek na liście i filtr "Tylko z certyfikatem"; cofnięcie zatwierdzenia zdejmuje miejsce z listy publicznej i blokuje certyfikat, ponowne zatwierdzenie zostawia numer.
+
 ### Nie sprawdzone
 
+- Konto firmowe: kliknięcie "Pobierz certyfikat" w przeglądarce (endpoint sprawdzony osobno: plik SVG jako załącznik), wydruk i zapis jako PDF, skan kodu QR telefonem z kartki, adres w kodzie QR za pośrednikiem (`Certificates:PublicBaseUrl`), widok na telefonie i z czytnikiem ekranu.
 - Zgłoszenia na bazie `krakow-bez-barier` (testy szły na osobnej bazie testowej) i na serwerze.
 - Panel urzędnika i formularz zgłoszenia na telefonie i z czytnikiem ekranu.
 - Wersja opublikowana (`dotnet publish`) i wdrożenie na serwer.

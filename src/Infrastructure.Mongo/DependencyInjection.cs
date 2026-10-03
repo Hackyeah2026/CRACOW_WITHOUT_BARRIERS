@@ -1,5 +1,6 @@
 using Application.Abstractions;
 using Infrastructure.Mongo.Accounts;
+using Infrastructure.Mongo.Businesses;
 using Infrastructure.Mongo.Reports;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
@@ -36,12 +37,13 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>Zgłoszenia mieszkańców, punkty z utrudnieniami, konta mieszkańców i urzędników. Wymaga <see cref="AddMongo"/>.</summary>
+    /// <summary>Zgłoszenia mieszkańców, punkty z utrudnieniami, konta mieszkańców, firm i urzędników. Wymaga <see cref="AddMongo"/>.</summary>
     public static IServiceCollection AddMongoReports(this IServiceCollection services, OfficialsOptions officials) => services
         .AddSingleton(officials)
         .AddSingleton<IReportRepository, MongoReportRepository>()
         .AddSingleton<IHazardRepository, MongoHazardRepository>()
         .AddSingleton<IOfficialDirectory, MongoOfficialDirectory>()
         .AddSingleton<IUserDirectory, MongoUserDirectory>()
+        .AddSingleton<IBusinessRepository, MongoBusinessRepository>()
         .AddHostedService<ReportsStartup>();
 }

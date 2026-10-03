@@ -73,6 +73,10 @@ else
     {
         <OfficialHazards Hazards="_hazards" OnChanged="LoadAsync" />
     }
+    else if (_tab == PanelTab.Businesses)
+    {
+        <OfficialBusinesses Businesses="_businesses" OnChanged="LoadAsync" />
+    }
     else if (_tab == PanelTab.Stats)
     {
         <OfficialStats Reports="_reports" Hazards="_hazards" />
@@ -231,13 +235,15 @@ else
     private string _password = "";
     private string? _loginError;
     private string? _error;
-    private enum PanelTab { Reports, Hazards, Stats }
+    private enum PanelTab { Reports, Hazards, Businesses, Stats }
 
     private static readonly (PanelTab Tab, string Name)[] Tabs =
-        [(PanelTab.Reports, "Zgłoszenia miejsc"), (PanelTab.Hazards, "Punkty na mapie"), (PanelTab.Stats, "Statystyki")];
+        [(PanelTab.Reports, "Zgłoszenia miejsc"), (PanelTab.Hazards, "Punkty na mapie"), (PanelTab.Businesses, "Konta firmowe"),
+            (PanelTab.Stats, "Statystyki")];
 
     private PanelTab _tab;
     private IReadOnlyList<Hazard> _hazards = [];
+    private IReadOnlyList<BusinessAccount> _businesses = [];
     private IReadOnlyList<Report>? _reports;
     private IReadOnlyList<MapMarker> _markers = [];
     private string _statusFilter = "open";
@@ -279,6 +285,7 @@ else
         _official = null;
         _reports = null;
         _hazards = [];
+        _businesses = [];
         _editing = null;
     }
 
@@ -302,6 +309,12 @@ else
         else
             _error = hazards.Error;
 
+        var businesses = await Sender.Send(new GetBusinessesQuery(State.CityId));
+        if (businesses.IsSuccess)
+            _businesses = businesses.Value;
+        else
+            _error = businesses.Error;
+
         _reports = result.Value;
         _markers = _reports
             .Where(r => ReportStatistics.IsOpen(r.Status))
@@ -315,6 +328,7 @@ else
     {
         PanelTab.Reports => _reports?.Count(r => r.Status == ReportStatus.New) ?? 0,
         PanelTab.Hazards => _hazards.Count(h => h.Status == HazardStatus.Pending),
+        PanelTab.Businesses => _businesses.Count(b => b.Status == BusinessStatus.Pending),
         _ => 0
     };
 

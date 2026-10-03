@@ -14,6 +14,7 @@ public sealed class MongoCollections(MongoOptions options, IServiceProvider serv
     public const string Officials = "officials";
     public const string Hazards = "hazards";
     public const string Users = "users";
+    public const string Businesses = "businesses";
 
     public bool IsConfigured => options.IsConfigured;
 

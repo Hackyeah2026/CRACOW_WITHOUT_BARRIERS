@@ -22,6 +22,23 @@ else
 
     <CoverageNotice />
 
+    @if (place.Certificate is { } certificate)
+    {
+        <section class="card card-body mb-3" aria-labelledby="place-certificate">
+            <h2 id="place-certificate" class="h5">
+                <span class="certified-badge"><span aria-hidden="true">★</span> Certyfikat Kraków bez barier</span>
+            </h2>
+            <p class="mb-1">
+                To miejsce prowadzi firma <strong>@certificate.BusinessName</strong>, zatwierdzona przez urząd.
+                Certyfikat nr <strong>@certificate.CertificateId</strong>, wydany @Labels.Day(certificate.IssuedAt).
+            </p>
+            <p class="small text-body-secondary mb-0">
+                Cechy ze źródłem „@CertifiedPlace.FeatureSource” podaje i aktualizuje sama firma.
+                Coś się nie zgadza? Użyj przycisku „Zgłoś” niżej.
+            </p>
+        </section>
+    }
+
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <AssessmentBadge Status="_item.Assessment.Status" />
         <span>dla profilu: <ProfileSummaryInline /></span>
@@ -74,6 +91,14 @@ else
             </section>
 
             <ReportForm Place="place" />
+
+            @if (place.Certificate is null && BusinessApplicationDraft.IsEligible(place.Category))
+            {
+                <p class="small text-body-secondary mt-3 mb-0">
+                    Prowadzisz to miejsce? <a href="@($"konto/firma?miejsce={Uri.EscapeDataString(place.Id)}")">Załóż konto firmowe</a>,
+                    żeby samodzielnie oznaczać udogodnienia i dostać certyfikat z kodem QR.
+                </p>
+            }
         </div>
         <div class="col-lg-6">
             <MapView Label="@($"Położenie: {place.Name}")" Center="place.Location" Zoom="17" Markers="_markers" />
@@ -90,10 +115,14 @@ else
 
     [Parameter] public string Id { get; set; } = "";
 
+    /// <summary>Miasto z adresu (kod QR na certyfikacie): skanujący może mieć w aplikacji wybrane inne.</summary>
+    [SupplyParameterFromQuery(Name = "miasto")] public string? CityFromLink { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
         await State.EnsureLoadedAsync();
-        var result = await Sender.Send(new GetPlaceDetailsQuery(State.CityId, Id, State.Profile));
+        var cityId = State.Cities.Any(c => c.Id == CityFromLink) ? CityFromLink! : State.CityId;
+        var result = await Sender.Send(new GetPlaceDetailsQuery(cityId, Id, State.Profile));
         if (result.IsFailure)
         {
             _error = result.Error;
@@ -102,7 +131,7 @@ else
 
         _item = result.Value;
         _markers = [new MapMarker(_item.Place.Id, _item.Place.Name, _item.Place.Lat, _item.Place.Lon, Labels.Color(_item.Assessment.Status),
-            Icon: Labels.MapIcon(_item.Place.Category))];
+            Icon: Labels.MapIcon(_item.Place.Category), Certified: _item.Place.Certificate is not null)];
     }
 
     /// <summary>Po dodaniu wracamy do listy, żeby wybierać dalej; po usunięciu zostajemy na karcie miejsca.</summary>

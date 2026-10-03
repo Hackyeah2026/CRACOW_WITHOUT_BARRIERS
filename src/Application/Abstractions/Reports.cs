@@ -1,3 +1,4 @@
+using Domain.Businesses;
 using Domain.Hazards;
 using Domain.Reports;
 
@@ -73,4 +74,8 @@ public interface IOfficialClient
     /// <summary>Wszystkie punkty z utrudnieniami w mieście, także niezweryfikowane.</summary>
     Task<Result<IReadOnlyList<Hazard>>> GetHazardsAsync(string? cityId, CancellationToken ct);
     Task<Result<Hazard>> ReviewHazardAsync(string id, HazardReview review, CancellationToken ct);
+
+    /// <summary>Wnioski o konta firmowe i konta zatwierdzone w mieście.</summary>
+    Task<Result<IReadOnlyList<BusinessAccount>>> GetBusinessesAsync(string? cityId, CancellationToken ct);
+    Task<Result<BusinessAccount>> ReviewBusinessAsync(string login, BusinessReview review, CancellationToken ct);
 }

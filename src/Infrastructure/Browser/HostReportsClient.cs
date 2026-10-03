@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Application.Abstractions;
 using Domain;
+using Domain.Businesses;
 using Domain.Hazards;
 using Domain.Reports;
 
@@ -74,6 +75,14 @@ internal sealed class HostOfficialClient(HttpClient http) : IOfficialClient
     public Task<Result<Hazard>> ReviewHazardAsync(string id, HazardReview review, CancellationToken ct) =>
         HostApi.SendAsync<Hazard>(
             () => http.PatchAsJsonAsync($"api/official/hazards/{Uri.EscapeDataString(id)}", review, DomainJson.Options, ct), ct);
+
+    public Task<Result<IReadOnlyList<BusinessAccount>>> GetBusinessesAsync(string? cityId, CancellationToken ct) =>
+        HostApi.SendAsync<IReadOnlyList<BusinessAccount>>(() => http.GetAsync(
+            cityId is null ? "api/official/businesses" : $"api/official/businesses?cityId={Uri.EscapeDataString(cityId)}", ct), ct);
+
+    public Task<Result<BusinessAccount>> ReviewBusinessAsync(string login, BusinessReview review, CancellationToken ct) =>
+        HostApi.SendAsync<BusinessAccount>(
+            () => http.PatchAsJsonAsync($"api/official/businesses/{Uri.EscapeDataString(login)}", review, DomainJson.Options, ct), ct);
 }
 
 /// <summary>Zamienia odpowiedzi hosta na <see cref="Result"/> z komunikatem zrozumiałym dla użytkownika.</summary>

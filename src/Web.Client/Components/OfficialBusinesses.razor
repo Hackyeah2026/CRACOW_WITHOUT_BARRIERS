@@ -1,0 +1,159 @@
+@inject ISender Sender
+
+<div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+    <div>
+        <label class="form-label mb-1" for="business-status-filter">Status</label>
+        <select id="business-status-filter" class="form-select" @bind="_statusFilter">
+            <option value="">Wszystkie</option>
+            @foreach (var status in Enum.GetValues<BusinessStatus>())
+            {
+                <option value="@status">@Labels.Of(status)</option>
+            }
+        </select>
+    </div>
+</div>
+
+@{ var visible = Businesses.Where(b => _statusFilter == "" || b.Status.ToString() == _statusFilter).ToList(); }
+<p class="small text-body-secondary" role="status">
+    Pokazano @visible.Count z @Businesses.Count kont firmowych. Zatwierdzona firma sama oznacza udogodnienia swojego miejsca,
+    dostaje certyfikat z kodem QR i wyróżnienie na mapie.
+</p>
+
+@if (visible.Count == 0)
+{
+    <div class="alert alert-info">Brak kont firmowych o tym statusie.</div>
+}
+
+<ul class="list-unstyled">
+    @foreach (var business in visible)
+    {
+        <li class="card card-body mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div>
+                    <h2 class="h5 mb-0">@business.BusinessName</h2>
+                    <p class="small text-body-secondary mb-1">
+                        miejsce: <a href="@($"miejsca/{business.PlaceId}")">@business.PlaceName</a> (@Labels.Of(business.Category))
+                        · wniosek z @Labels.When(business.CreatedAt) · konto: @business.Id
+                    </p>
+                </div>
+                <span class="status-badge @Labels.Css(business.Status)">@Labels.Of(business.Status)</span>
+            </div>
+            <dl class="row small mb-1">
+                <dt class="col-sm-3">NIP</dt>
+                <dd class="col-sm-9 mb-0">@Labels.TaxId(business.TaxId)</dd>
+                <dt class="col-sm-3">Kontakt</dt>
+                <dd class="col-sm-9 mb-0">@business.Contact</dd>
+                @if (business.CertificateId is not null)
+                {
+                    <dt class="col-sm-3">Certyfikat</dt>
+                    <dd class="col-sm-9 mb-0">@business.CertificateId@(business.CertifiedAt is { } issued ? $", wydany {Labels.Day(issued)}" : "")</dd>
+                }
+                @if (business.Features.Count > 0)
+                {
+                    <dt class="col-sm-3">Deklaracje firmy</dt>
+                    <dd class="col-sm-9 mb-0">
+                        @string.Join(", ", business.Features.Select(f => $"{Labels.Of(f.Key)}: {(f.Available ? "jest" : "nie ma")}"))
+                    </dd>
+                }
+            </dl>
+            @if (!string.IsNullOrEmpty(business.Note))
+            {
+                <p class="mb-1 report-description">@business.Note</p>
+            }
+            @if (business.HandledBy is not null)
+            {
+                <p class="small mb-1 border-start border-3 ps-2">
+                    Decyzja (@business.HandledBy, @Labels.When(business.UpdatedAt))@(business.OfficialNote is null ? "" : $": {business.OfficialNote}")
+                </p>
+            }
+
+            @if (_deciding?.Login == business.Id)
+            {
+                <form class="mt-2" @onsubmit="() => SaveAsync(_deciding.Login, _deciding.Status, _deciding.Note)" @onsubmit:preventDefault>
+                    <div class="mb-2">
+                        <label class="form-label" for="business-decision-note">
+                            @(_deciding.Status == BusinessStatus.Revoked ? "Dlaczego cofasz zatwierdzenie" : "Dlaczego odrzucasz wniosek") (firma zobaczy to uzasadnienie)
+                        </label>
+                        <textarea id="business-decision-note" class="form-control" rows="3" maxlength="@BusinessAccount.MaxNoteLength" @bind="_deciding.Note"></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger" disabled="@_busy">
+                            @(_busy ? "Zapisuję…" : _deciding.Status == BusinessStatus.Revoked ? "Cofnij zatwierdzenie" : "Odrzuć wniosek")
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => _deciding = null">Anuluj</button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    @if (business.Status != BusinessStatus.Approved)
+                    {
+                        <button type="button" class="btn btn-primary btn-sm" disabled="@_busy" @onclick="() => SaveAsync(business.Id, BusinessStatus.Approved, null)">
+                            ✓ Zatwierdź <span class="visually-hidden">konto firmowe: @business.BusinessName</span>
+                        </button>
+                    }
+                    @if (business.Status == BusinessStatus.Pending)
+                    {
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => Decide(business, BusinessStatus.Rejected)">
+                            Odrzuć <span class="visually-hidden">wniosek: @business.BusinessName</span>
+                        </button>
+                    }
+                    @if (business.Status == BusinessStatus.Approved)
+                    {
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => Decide(business, BusinessStatus.Revoked)">
+                            Cofnij zatwierdzenie <span class="visually-hidden">konta firmowego: @business.BusinessName</span>
+                        </button>
+                    }
+                </div>
+            }
+            @if (_saveError is not null && _failedLogin == business.Id)
+            {
+                <div class="alert alert-danger mt-2 mb-0" role="alert">@_saveError</div>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    private string _statusFilter = nameof(BusinessStatus.Pending);
+    private Decision? _deciding;
+    private bool _busy;
+    private string? _saveError;
+    private string? _failedLogin;
+
+    [Parameter, EditorRequired] public IReadOnlyList<BusinessAccount> Businesses { get; set; } = [];
+
+    /// <summary>Po zapisaniu decyzji: panel wczytuje dane na nowo.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private void Decide(BusinessAccount business, BusinessStatus status)
+    {
+        _saveError = null;
+        _deciding = new Decision { Login = business.Id, Status = status };
+    }
+
+    private async Task SaveAsync(string login, BusinessStatus status, string? note)
+    {
+        _busy = true;
+        _saveError = null;
+        var result = await Sender.Send(new ReviewBusinessCommand(login, new BusinessReview(status, note)));
+        _busy = false;
+
+        if (result.IsFailure)
+        {
+            (_saveError, _failedLogin) = (result.Error, login);
+            return;
+        }
+
+        _deciding = null;
+        await OnChanged.InvokeAsync();
+    }
+
+    private sealed class Decision
+    {
+        public string Login { get; init; } = "";
+        public BusinessStatus Status { get; init; }
+        public string Note { get; set; } = "";
+    }
+}

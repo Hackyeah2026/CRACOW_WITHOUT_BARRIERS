@@ -34,6 +34,9 @@ public sealed record Place(
 {
     public GeoPoint Location => new(Lat, Lon);
 
+    /// <summary>Certyfikat zatwierdzonego konta firmowego; null w plikach katalogu, dopisuje go host.</summary>
+    public PlaceCertificate? Certificate { get; init; }
+
     /// <summary>Punkt w terenie, a nie obiekt z wnętrzem: nie oczekujemy tam np. toalety.</summary>
     public bool IsOutdoorPoint => Category is PlaceCategory.Stop or PlaceCategory.Bench or PlaceCategory.DisabledParking or PlaceCategory.Park;
 
@@ -43,6 +46,9 @@ public sealed record Place(
 
     public double? ValueOf(FeatureKey key) => Feature(key)?.Value;
 }
+
+/// <summary>Certyfikat miejsca prowadzonego przez firmę zatwierdzoną przez urząd.</summary>
+public sealed record PlaceCertificate(string BusinessName, string CertificateId, DateTime IssuedAt);
 
 /// <summary>Spis plików katalogu miasta: jeden plik na kategorię (data/{miasto}/places/{kategoria}.json).</summary>
 public sealed record PlaceIndex(DateOnly GeneratedOn, IReadOnlyList<PlaceCategoryCount> Categories);

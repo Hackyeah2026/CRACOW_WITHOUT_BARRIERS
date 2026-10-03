@@ -25,7 +25,7 @@ else if (State.User is { } user)
 
     <ul class="nav nav-tabs mb-3" aria-label="Sekcje konta">
         <li class="nav-item">
-            <a class="nav-link @(ShowsProfile ? "" : "active")" aria-current="@(ShowsProfile ? null : "page")" href="konto">
+            <a class="nav-link @(ShowsReports ? "active" : "")" aria-current="@(ShowsReports ? "page" : null)" href="konto">
                 Moje zgłoszenia
                 @if (_loadedFor is not null)
                 {
@@ -36,9 +36,16 @@ else if (State.User is { } user)
         <li class="nav-item">
             <a class="nav-link @(ShowsProfile ? "active" : "")" aria-current="@(ShowsProfile ? "page" : null)" href="konto/profil">Profil potrzeb</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link @(ShowsBusiness ? "active" : "")" aria-current="@(ShowsBusiness ? "page" : null)" href="konto/firma">Konto firmowe</a>
+        </li>
     </ul>
 
-    @if (ShowsProfile)
+    @if (ShowsBusiness)
+    {
+        <BusinessPanel PlaceId="@BusinessPlaceId" />
+    }
+    else if (ShowsProfile)
     {
         <p class="text-body-secondary">
             Profil konta: według niego oceniamy miejsca i układamy trasy, gdy jesteś zalogowany.
@@ -138,6 +145,13 @@ else
         Z kontem wysyłasz zgłoszenia do urzędu, śledzisz odpowiedzi i masz zapisany profil potrzeb.
         Wystarczy login i hasło: nie pytamy o e-mail ani imię. Miejsca i plan trasy działają też bez logowania.
     </p>
+    @if (ShowsBusiness)
+    {
+        <div class="alert alert-info" role="note">
+            <strong>Konto firmowe</strong> zaczyna się od zwykłego konta. Zaloguj się albo załóż konto, a potem złóż wniosek dla swojego lokalu:
+            po zatwierdzeniu przez urząd oznaczysz udogodnienia i pobierzesz certyfikat z kodem QR.
+        </div>
+    }
 
     <div class="mode-selector mb-3" role="group" aria-label="Logowanie albo rejestracja">
         <button type="button" class="btn @(_registering ? "btn-outline-secondary" : "btn-primary")"
@@ -191,6 +205,7 @@ else
 
 @code {
     private const string ProfileSection = "profil";
+    private const string BusinessSection = "firma";
 
     private bool _loaded;
     private bool _registering;
@@ -214,7 +229,12 @@ else
     /// <summary>Otwiera od razu formularz rejestracji (odnośniki "Załóż konto").</summary>
     [SupplyParameterFromQuery(Name = "nowe")] public bool StartRegistering { get; set; }
 
+    /// <summary>Miejsce wybrane na karcie miejsca ("Prowadzisz to miejsce?"), podpowiadane we wniosku o konto firmowe.</summary>
+    [SupplyParameterFromQuery(Name = "miejsce")] public string? BusinessPlaceId { get; set; }
+
     private bool ShowsProfile => string.Equals(Section, ProfileSection, StringComparison.OrdinalIgnoreCase);
+    private bool ShowsBusiness => string.Equals(Section, BusinessSection, StringComparison.OrdinalIgnoreCase);
+    private bool ShowsReports => !ShowsProfile && !ShowsBusiness;
 
     protected override async Task OnInitializedAsync()
     {

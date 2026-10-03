@@ -104,6 +104,7 @@ app.MapHealthEndpoints();
 app.MapReportEndpoints();
 app.MapHazardEndpoints();
 app.MapAccountEndpoints();
+app.MapBusinessEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

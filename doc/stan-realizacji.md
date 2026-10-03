@@ -1,8 +1,10 @@
 # Stan realizacji: Kraków bez barier
 
-Stan na **3.10.2026, ok. 13:00**. Punkt odniesienia: [plan-prac.md](plan-prac.md) i [plan-implementacji.md](plan-implementacji.md).
+Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-prac.md](plan-prac.md) i [plan-implementacji.md](plan-implementacji.md).
 
-**W skrócie:** działa lokalnie pełna ścieżka profil → miejsca → karta miejsca → plan, na prawdziwych danych z OpenStreetMap. Brakuje routingu po ulicach, danych miejskich (ZTP, MSIP), opisu AI, publicznego API i wdrożenia na serwer. Kod MVP nie jest jeszcze zacommitowany.
+**W skrócie:** działa lokalnie pełna ścieżka profil → miejsca → karta miejsca → plan, na danych z OpenStreetMap, z trasami po ulicach (OpenRouteService) i przejazdami komunikacją miejską według rozkładu ZTP. Brakuje wdrożenia na serwer, publicznego API, opisu AI i danych z MSIP. Największe ryzyka: nietestowana wersja opublikowana, niestabilne połączenie z OpenRouteService i wymyślone dane demonstracyjne.
+
+**Co doszło od poprzedniej wersji tego dokumentu (13:00):** routing po ulicach, komunikacja miejska z rozkładem i przesiadkami, nowy wygląd interfejsu (Łukasz).
 
 ## 1. Co zostało zrealizowane
 
@@ -14,44 +16,77 @@ Stan na **3.10.2026, ok. 13:00**. Punkt odniesienia: [plan-prac.md](plan-prac.md
 | 2 | Kreator profilu | zrobione | 7 gotowych profili (można łączyć) i dostrajanie parametrów |
 | 3 | Katalog miejsc: mapa i lista | zrobione | ocena pod profil, wyszukiwarka, filtr kategorii |
 | 4 | Karta miejsca | zrobione | bariery, udogodnienia, braki danych, źródło i data każdej cechy |
-| 5 | Podpowiedzi | częściowo | lista jest sortowana rankingiem pod profil; nie ma osobnego widoku podpowiedzi ani punktu startu użytkownika |
-| 6 | Planer trasy | częściowo | kolejność przystanków i dystanse są; przebieg ulicami i bariery na odcinkach nie |
-| 7 | Przerwy na trasie | częściowo | tylko ostrzeżenie o zbyt długim odcinku; przerwy nie są wstawiane |
+| 5 | Podpowiedzi | częściowo | lista jest sortowana rankingiem pod profil; nie ma osobnego widoku ani punktu startu użytkownika |
+| 6 | Planer trasy | zrobione w podstawowym zakresie | kolejność przystanków, trasa po ulicach dobrana do profilu, ostrzeżenia o stromych odcinkach; bez listy pojedynczych barier (krawężniki, bruk) |
+| 7 | Przerwy na trasie | częściowo | ostrzeżenie o zbyt długim odcinku i propozycja przejazdu komunikacją; przerwy (ławki, toalety) nie są wstawiane |
+| – | **Komunikacja miejska (poza pierwotnym planem)** | zrobione | patrz niżej |
 | 8 | Opis planu przez AI | brak | |
-| 9 | Publiczne API z OpenAPI | brak | |
+| 9 | Publiczne API z OpenAPI | brak | jest tylko wewnętrzny `POST /api/route` |
 | 10 | Zgłoszenie bariery | brak | |
 | 11 | Harmonogram godzinowy | brak | |
 | 12 | Tryb offline (PWA) | brak | |
+
+### Trasy po ulicach (OpenRouteService)
+
+- Przeglądarka pyta host (`POST /api/route`), host pyta OpenRouteService. Klucz API zostaje na hoście.
+- Do hosta idą tylko trzy parametry z profilu: czy wózek, czy unikać schodów, maksymalna wysokość krawężnika. Reszta profilu nie opuszcza urządzenia.
+- Wózek → profil `wheelchair` z limitem krawężnika; pozostali → `foot-walking`, przy "unikam schodów" z pominięciem schodów.
+- Ostrzeżenia o stromych odcinkach (7% i więcej; dla wózka także 4-6%).
+- Trzy poziomy awaryjne: zapytanie z ograniczeniami → bez ograniczeń (z ostrzeżeniem) → linia prosta. Plan układa się zawsze.
+- Odpowiedzi są zapamiętywane w IndexedDB, więc ten sam odcinek nie zużywa limitu drugi raz.
+
+### Komunikacja miejska
+
+- **Kiedy:** dla każdego odcinka dłuższego niż limit z profilu, a gdy profil limitu nie ma, dla odcinków powyżej 1 km (dojście do przystanku do 600 m).
+- **Co pokazuje:** o której wyjść, linia i kierunek, przystanek i godzina odjazdu, przystanek i godzina przyjazdu, trzy najbliższe odjazdy, dojścia pieszo.
+- **Przesiadki:** najwyżej jedna, z 2 minutami zapasu i przejściem do 200 m między przystankami.
+- **Brak połączenia** jest oznaczony czerwoną ramką z powodem: brak przystanku w zasięgu, brak połączenia w ciągu 2 godzin albo rozkład nie obejmuje danego dnia.
+- **Data danych** jest pod każdą podpowiedzią: źródło, zakres ważności rozkładu, dzień pobrania.
+- Wyszukiwanie działa w przeglądarce, na pliku z rozkładem; host nie bierze w nim udziału.
 
 ### Warstwy
 
 | Projekt | Co zawiera |
 |---|---|
-| `Domain` | model miejsc i cech, profil potrzeb z gotowymi profilami, silnik oceny (reguły: ruch, sensoryka, kondycja), model planu |
-| `Application` | `Result`, `ICommand` / `IQuery` nad MediatR, zapytania o miejsca i kartę miejsca, zapis i odczyt profilu, komenda układania planu, optymalizacja kolejności (najbliższy sąsiad + 2-opt), ranking podpowiedzi |
-| `Infrastructure` | katalog miejsc z plików statycznych, magazyn IndexedDB, zaślepka routingu (linia prosta) |
-| `Web.Client` | strony: start, profil, miejsca, karta miejsca, plan; komponent mapy Leaflet; stan sesji |
-| `Web` | host serwujący aplikację; bez własnych endpointów |
-| `Tools` | import z OpenStreetMap (Overpass) do `places.json`, nakładanie ręcznych uzupełnień |
-| `Tests` | 11 testów: silnik oceny dla trzech person, łączenie profili, optymalizacja kolejności |
+| `Domain` | model miejsc i cech, profil potrzeb z gotowymi profilami, silnik oceny (ruch, sensoryka, kondycja), model planu, sieć komunikacji i wyszukiwarka połączeń |
+| `Application` | `Result`, `ICommand` / `IQuery` nad MediatR, zapytania o miejsca i kartę miejsca, zapis i odczyt profilu, układanie planu (kolejność, odcinki, komunikacja), ranking podpowiedzi |
+| `Infrastructure` | katalog miejsc i sieć komunikacji z plików statycznych, magazyn IndexedDB, klient routingu z cache i wariantem awaryjnym, klient OpenRouteService po stronie hosta |
+| `Web.Client` | strony: start, profil, miejsca, karta miejsca, plan; mapa Leaflet; panel komunikacji; stan sesji |
+| `Web` | host: serwuje aplikację, pośredniczy w routingu |
+| `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
+| `Tests` | 25 testów: silnik oceny, łączenie profili, kolejność przystanków, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń |
 
 ### Dane
 
-- **858 miejsc z OpenStreetMap** dla centrum Krakowa (Stare Miasto, Kazimierz, Wawel i okolice): przystanki 216, zdrowie 145, jedzenie 132, muzea 99, urzędy 70, atrakcje 61, toalety 57, kultura 52, biblioteki 26.
-- Każda cecha ma źródło i datę (dla OSM: data ostatniej edycji obiektu).
-- 10 miejsc ma ręczne uzupełnienia w `src/Tools/overrides/krakow.json`.
+| Plik | Zawartość | Źródło |
+|---|---|---|
+| `data/krakow/places.json` (250 KB) | 858 miejsc w centrum Krakowa: przystanki 216, zdrowie 145, jedzenie 132, muzea 99, urzędy 70, atrakcje 61, toalety 57, kultura 52, biblioteki 26 | OpenStreetMap, pobrane 3.10.2026 |
+| `data/krakow/transit.json` (1,3 MB, ok. 330 KB po kompresji) | 218 linii, 589 przebiegów, 94 953 kursy, 3474 przystanki, cały Kraków | GTFS ZTP Kraków, rozkład ważny 2.10.2026-31.01.2027, pobrany 3.10.2026 |
+| `src/Tools/overrides/krakow.json` | ręczne uzupełnienia cech dla 10 miejsc | zespół, dane demonstracyjne |
 
 ### Sprawdzone
 
-- Build bez ostrzeżeń, 11 testów przechodzi.
-- Ścieżka w przeglądarce dla dwóch profili (wózek elektryczny, spektrum autyzmu): profil zapisuje się i przeżywa odświeżenie strony, zmiana profilu zmienia oceny na liście, mapie i w planie.
-- Przykład wyróżnika: Sukiennice są dla wózka elektrycznego "z ograniczeniami" (bruk), a dla spektrum autyzmu "niedostępne" (hałas i tłum).
+- Build bez ostrzeżeń, 25 testów przechodzi.
+- W przeglądarce: profile "wózek elektryczny", "spektrum autyzmu" i "senior"; zapis profilu i jego odczyt po odświeżeniu; zmiana profilu zmienia oceny na liście, mapie i w planie.
+- Routing na żywo dla profilu pieszego z omijaniem schodów (odcinek 1,4 km zamiast szacowanych 910 m).
+- Wariant awaryjny routingu: bez klucza i przy niedostępnym serwerze plan układa się z linią prostą.
+- Komunikacja na prawdziwym rozkładzie (sobota 3.10, ok. 14:00):
+
+| Odcinek | Wynik |
+|---|---|
+| Urząd Miasta → Przychodnia Medycyna Polska (senior, limit 500 m) | autobus 184, Rondo Mogilskie 14:11 → Hala Targowa 14:20 |
+| Sukiennice → Fabryka Schindlera | tramwaj 1 do Ronda Mogilskiego, przesiadka na 7 do Zabłocia |
+| Wawel → Muzeum Narodowe (9:00) | tramwaj 8, Wawel 9:13 → Muzeum Narodowe 9:21 |
+| Przychodnia Medycyna Polska → Wojewódzka Biblioteka (limit 500 m) | brak połączenia, oznaczone na czerwono |
 
 ### Nie sprawdzone
 
 - Wersja opublikowana (`dotnet publish`) i wdrożenie na serwer.
-- Profil "senior" i tryb "Załatwiam sprawę" w przeglądarce (są pokryte tylko testami silnika).
-- Urządzenia mobilne, czytnik ekranu, obsługa samą klawiaturą.
+- Routing na żywo dla profilu wózkowego z limitem krawężnika.
+- Komunikacja dla profilu bez limitu odcinka (próg 1 km) w przeglądarce; logika jest pokryta testami tylko pośrednio.
+- Tryb "Załatwiam sprawę" jako cała ścieżka.
+- Urządzenia mobilne, czytnik ekranu, obsługa samą klawiaturą (także po zmianie wyglądu interfejsu).
+- Uruchamianie z Ridera: zgłoszony biały ekran i błędy w konsoli JS, przyczyna nieustalona (patrz sekcja 2).
 
 ## 2. Problemy
 
@@ -62,73 +97,89 @@ Stan na **3.10.2026, ok. 13:00**. Punkt odniesienia: [plan-prac.md](plan-prac.md
 | Cechy sensoryczne i część pozostałych dla 10 miejsc są **wymyślone na potrzeby demo**, nie zmierzone | w aplikacji są oznaczone jako "dane demonstracyjne", ale nie wolno ich przedstawiać jako faktów | zastąpić danymi z deklaracji dostępności i z wizji lokalnej albo zostawić oznaczenie i powiedzieć to wprost w prezentacji |
 | OSM nie ma danych o hałasie i tłumie | dla profili sensorycznych 337 z 344 miejsc ma status "brak danych" | mapa hałasu MSIP albo ręczne uzupełnienie miejsc ze ścieżki demo |
 | Większość miejsc w OSM nie ma tagu `wheelchair` | dla wózka 183 z 401 miejsc w trybie "Zwiedzam" ma "brak danych" | to uczciwy wynik; uzupełnić miejsca demo |
-| GTFS ZTP nie zawiera danych o dostępności przystanków | kolumny `wheelchair_boarding` i `wheelchair_accessible` są puste lub zerowe | cechy przystanków brać z warstw ZTP i z OSM |
+| **GTFS nie zawiera danych o dostępności pojazdów i przystanków** | aplikacja proponuje przejazd, ale nie wie, czy pojazd jest niskopodłogowy i czy przystanek jest dostępny; mówi to przy każdej podpowiedzi | dla osoby na wózku to istotna luka: szukać danych o taborze w ZTP albo MPK, cechy przystanków z OSM |
+| MSIP nie ma danych o komunikacji | źródło nie zostało podpięte | z MSIP zostają do wzięcia budynki publiczne i mapa hałasu |
+| Adresy warstw ZTP w ArcGIS Hub (wiaty, koperty) nieznane | nie podpięte | ustalić ręcznie na stronie huba |
 | Adres MSIP z notatek zwraca 404 | – | działający katalog: `https://msip.um.krakow.pl/arcgis/rest/services` |
-| Listy zbiorów ZTP nie udało się pobrać automatycznie | adresy warstw (wiaty, koperty) nieznane | ustalić ręcznie na stronie huba |
-| Główny serwer Overpass nie odpowiadał | import trwał dłużej | import próbuje kolejno trzech instancji; wynik jest plikiem w repozytorium, więc demo od tego nie zależy |
-| Przystanki są deduplikowane po nazwie | jeden punkt na nazwę zamiast osobnych słupków | wystarcza na MVP; do poprawy przy imporcie z GTFS |
+| Główny serwer Overpass nie odpowiadał | import miejsc trwał dłużej | import próbuje kolejno trzech instancji; wynik jest plikiem w repozytorium |
+| Przystanki w `places.json` są deduplikowane po nazwie | jeden punkt na nazwę zamiast osobnych słupków | przystanki do planowania pochodzą już z GTFS; listę w katalogu można z nich odtworzyć |
 
 ### Technika
 
 | Problem | Skutek | Co z tym zrobić |
 |---|---|---|
-| Trasa to linia prosta z poprawką ×1,3 | dystans i czas są szacunkowe, a trasa nie omija barier; interfejs mówi to wprost | podłączyć OpenRouteService przez `IRoutingClient` |
-| Kafelki mapy pochodzą z publicznego serwera OpenStreetMap | serwer ma zasady użycia i nie jest przeznaczony pod duży ruch; brak sieci = brak mapy | na demo wystarczy; przy większym ruchu inny dostawca kafelków |
+| **OpenRouteService odpowiada niestabilnie** | w testach część zapytań kończyła się timeoutem po 15 s lub błędem DNS; plan się układa, ale wolniej i z linią prostą | przed demo ułożyć plany ze ścieżki demo, żeby trasy były w cache; rozważyć krótszy timeout |
+| Parametry OpenRouteService wpisane z pamięci dokumentacji | jeśli nazwa ograniczenia jest błędna, zadziała wariant bez ograniczeń z ostrzeżeniem | sprawdzić profil wózkowy na żywo |
+| "Unikam bruku" nie trafia do routingu | trasa może prowadzić po bruku | ustalić dozwolone wartości nawierzchni w OpenRouteService |
+| Godziny komunikacji są rozkładowe | bez opóźnień i odwołań | ZTP udostępnia dane na żywo (GTFS-RT); do podpięcia przez host |
+| Odjazdy dla każdego odcinka są liczone od chwili ułożenia planu | dla dalszych odcinków planu godziny są orientacyjne | liczyć od przewidywanego czasu dotarcia do danego miejsca |
+| Wyszukiwarka wybiera najwcześniejszy przyjazd | bywa, że proponuje dłuższe dojście, choć istnieje wygodniejsze połączenie | dla profili z limitem ważyć dojście wyżej niż czas |
+| Kursy nocne rozpoczęte przed północą nie są widoczne po północy | brak połączeń tuż po północy | uwzględnić poprzedni dzień rozkładowy |
+| Dojście do przystanku jest szacowane w linii prostej (×1,3) | rzeczywista droga może być dłuższa i mieć bariery | policzyć dojścia routingiem |
+| `transit.json` ma 1,3 MB i jest czytany w całości | ułożenie planu trwało ok. 2 s; na słabszym telefonie dłużej | wystarcza na demo; docelowo podział na obszary albo wyszukiwanie na hoście |
+| Kafelki mapy z publicznego serwera OpenStreetMap | serwer nie jest przeznaczony pod duży ruch; brak sieci = brak mapy | na demo wystarczy |
 | MediatR wyszukuje handlery przez refleksję | przy publikacji WebAssembly z przycinaniem kodu handlery mogą zostać usunięte | sprawdzić wersję opublikowaną przed wdrożeniem |
-| `places.json` waży ok. 250 KB i jest wczytywany w całości | przy całym Krakowie plik urośnie kilkukrotnie | kompresja po stronie serwera, ewentualnie podział na kategorie |
-| Lista miejsc pokazuje po 30 pozycji, mapa wszystkie | przy kilku tysiącach punktów mapa zwolni | grupowanie pinezek |
+| Biały ekran przy uruchomieniu z Ridera | nie odtworzone: te same pliki uruchomione poleceniem `dotnet run` działają | potrzebna treść błędów z konsoli; podejrzenia: pamięć podręczna przeglądarki po przebudowie, konfiguracja `Web.Client` zamiast `Web`, certyfikat dla profilu `https` |
+| Przebudowa projektu przy działającej aplikacji | host działa na starym kodzie, a pliki klienta są już nowe | po każdej przebudowie restart aplikacji |
 
 ### Organizacja
 
-- Kod MVP i oba nowe dokumenty nie są zacommitowane.
-- Brak README.
 - Deploy na Mikrusa nie zaczęty, a plan zakładał go w pierwszej godzinie.
+- Brak README.
+- Klucz OpenRouteService każdy ustawia u siebie (`dotnet user-secrets set "OpenRouteService:ApiKey" ... --project src/Web`); na serwerze zmienna `OpenRouteService__ApiKey`. Bez klucza trasy są liczone w linii prostej.
+- Kamień milowy 17:00 z planu prac (mapa z prawdziwymi danymi, wdrożona na serwerze) jest spełniony funkcjonalnie, ale nie w części "wdrożona".
 
 ## 3. Odstępstwa od planu
 
 | Plan | Jak jest | Dlaczego |
 |---|---|---|
-| Cecha `StepFreeEntrance` jako podstawa oceny wejścia | doszły `WheelchairAccess` i `WheelchairLimited` | tag `wheelchair` z OSM (tak / nie / ograniczone) opisuje całe miejsce, nie samo wejście; mapowanie na "wejście bez stopni" byłoby nadinterpretacją |
+| Cecha `StepFreeEntrance` jako podstawa oceny wejścia | doszły `WheelchairAccess` i `WheelchairLimited` | tag `wheelchair` z OSM opisuje całe miejsce, nie samo wejście; mapowanie na "wejście bez stopni" byłoby nadinterpretacją |
 | `AssessmentReason(Key, Kind, Message)` | doszły pola `Impact`, `Source`, `IsDemoData` | status końcowy wynika z wpływu powodów; źródło i oznaczenie demo są potrzebne w interfejsie |
-| Brak wymaganej cechy zawsze daje "brak danych" | braki dzielą się na blokujące (wejście, hałas, tłum) i informacyjne (toaleta, miejsca do siedzenia) | inaczej prawie każde miejsce miałoby "brak danych" i ocena byłaby bezużyteczna |
-| Zapytania biorą profil z magazynu | profil jest parametrem zapytania | logika zostaje czysta i testowalna, a to samo zapytanie obsłuży publiczne API |
+| Brak wymaganej cechy zawsze daje "brak danych" | braki dzielą się na blokujące (wejście, hałas, tłum) i informacyjne (toaleta, miejsca do siedzenia) | inaczej prawie każde miejsce miałoby "brak danych" |
+| Zapytania biorą profil z magazynu | profil jest parametrem zapytania | logika zostaje czysta i testowalna |
 | Osobne `GetSuggestionsQuery` | ranking jest częścią `GetPlacesQuery` | jedna lista zamiast dwóch widoków |
-| `BreakInserter` wstawia przerwy | tylko ostrzeżenie przy odcinku dłuższym niż limit z profilu | zakres MVP |
+| Komunikacja miejska dopiero w roadmapie | zrobiona: rozkład, przesiadki, najbliższe odjazdy | decyzja w trakcie prac; pokrywa kryterium "ocena tras" dla osób z limitem dystansu |
+| GTFS jako źródło przystanków do katalogu | GTFS jako osobna sieć komunikacji (`transit.json`), niezależna od katalogu miejsc | rozkład to inny rodzaj danych niż miejsca; plik wczytuje się tylko przy układaniu planu |
+| Dane o komunikacji z ZTP i MSIP | tylko GTFS z ZTP | MSIP nie ma danych o komunikacji; adresy warstw ZTP nieustalone |
+| Do routingu idą "parametry trasy" | idą trzy parametry: wózek, schody, krawężnik | zgodne z zasadą prywatności, doprecyzowane |
+| Macierz czasów z routingu do układania kolejności | kolejność z odległości w linii prostej | planer nie zależy od limitu i dostępności API |
+| `BreakInserter` wstawia przerwy | ostrzeżenie i propozycja przejazdu komunikacją | przerwy (ławki, toalety) nadal do zrobienia |
 | Toalety w liście i podpowiedziach | dostępne tylko przez filtr kategorii | zajmowały górę rankingu |
-| Import: OSM + GTFS + ZTP + MSIP z łączeniem rekordów | tylko OSM i ręczne uzupełnienia | zakres MVP; adresy warstw miejskich nieustalone |
-| Zasięg: Kraków | centrum (prostokąt ok. 3 × 3 km) | mniejszy plik i szybszy import; zasięg jest jednym wpisem w `CityImports` |
+| Zasięg miejsc: Kraków | centrum (prostokąt ok. 3 × 3 km); komunikacja obejmuje cały Kraków | mniejszy plik i szybszy import; zasięg jest jednym wpisem w `CityImports` |
 | Solution w formacie `.sln` | `.slnx` | domyślny format SDK .NET 10; starsze wersje IDE mogą go nie otwierać |
 | Leaflet | wersja 1.9.4 wgrana do repozytorium | bez CDN; licencja BSD-2 |
-| `Web.styles.css` z szablonu | usunięty | nie ma już stylów izolowanych; wszystko jest w `app.css` |
 
 ## 4. Co trzeba rozważyć
 
 ### Decyzje, które wpływają na resztę prac
 
-1. **Dane demonstracyjne.** Czy pokazujemy je jury z oznaczeniem, czy zastępujemy prawdziwymi dla 20-25 miejsc ze ścieżki demo. Zgodnie z planem nie przedstawiamy ich jako zweryfikowanych.
-2. **Routing.** OpenRouteService wymaga klucza i ma limity. Jeśli weryfikacja wypadnie źle, zostaje linia prosta, a kryterium "ocena tras wg indywidualnych potrzeb" trzeba pokryć inaczej, np. barierami z OSM w pobliżu odcinka.
-3. **Ile danych miejskich.** GTFS i MSIP dają położenie obiektów, nie ich dostępność. Warto wziąć to, co wnosi nową informację (wiaty, koperty, mapa hałasu), a pominąć resztę.
-4. **Zasięg importu.** Centrum czy cały Kraków. Większy zasięg oznacza większy plik i więcej miejsc bez danych.
-5. **Drugie miasto.** Model ma już `CityId` i `Coverage`, ale interfejs nie ma wyboru miasta. Do zrobienia dopiero po pełnej ścieżce demo.
+1. **Dane demonstracyjne.** Czy pokazujemy je jury z oznaczeniem, czy zastępujemy prawdziwymi dla 20-25 miejsc ze ścieżki demo.
+2. **Dostępność komunikacji dla osób na wózku.** Bez danych o taborze i przystankach podpowiedź przejazdu jest dla Marty niepełna. Albo znajdujemy takie dane, albo w prezentacji pokazujemy komunikację na personie Pani Zofii, a dla wózka mówimy wprost, czego brakuje.
+3. **Niezawodność routingu na demo.** OpenRouteService bywa niedostępny. Trasy ze ścieżki demo powinny być w cache albo zapisane jako wariant awaryjny.
+4. **Dane na żywo z ZTP (GTFS-RT).** Dają opóźnienia i byłyby mocnym punktem w kryterium "WOW", ale wymagają pośrednictwa hosta i parsowania formatu protobuf.
+5. **Ile danych miejskich jeszcze podpinamy.** Z MSIP realnie do wzięcia są budynki publiczne i mapa hałasu; z huba ZTP wiaty i koperty, jeśli ustalimy adresy warstw.
+6. **Zasięg importu miejsc.** Centrum czy cały Kraków. Komunikacja obejmuje już całe miasto, więc różnica jest widoczna.
+7. **Drugie miasto.** Model ma `CityId` i `Coverage`, import jest parametryzowany, ale interfejs nie ma wyboru miasta.
 
 ### Ryzyka przed demo
 
-- **Wersja opublikowana może zachowywać się inaczej** niż uruchamiana lokalnie (przycinanie kodu, ścieżki plików statycznych). Deploy pustej wersji na Mikrusa warto zrobić teraz, nie nad ranem.
-- **Mikrus:** nieznana ilość pamięci, port, subdomena z HTTPS i dostępność środowiska .NET 10. Bez HTTPS IndexedDB działa, ale geolokalizacja i tryb offline nie.
-- **Pani Zofia** (senior, "Załatwiam sprawę") jest najmniej sprawdzoną personą, a ma własny fragment filmu.
-- **Dostępność samej aplikacji** nie była testowana czytnikiem ekranu. Mapa ma odpowiednik w postaci listy, ale to założenie, nie wynik testu.
-- **Licencje:** przypis OSM (ODbL) jest w stopce i na mapie; warunków wykorzystania danych ZTP i MSIP nie sprawdziliśmy. Prawa do nagrodzonego rozwiązania przechodzą na fundatora, więc każda zależność musi być na otwartej licencji (MediatR przypięty do 12.4.1, Apache-2.0).
+- **Wersja opublikowana może zachowywać się inaczej** niż uruchamiana lokalnie (przycinanie kodu, ścieżki plików statycznych, kompresja dużych plików danych). Deploy na Mikrusa warto zrobić teraz, nie nad ranem.
+- **Mikrus:** nieznana ilość pamięci, port, subdomena z HTTPS i dostępność środowiska .NET 10.
+- **Rozkład jest ważny od 2.10.2026.** Demo 4.10 mieści się w zakresie, ale nagranie filmu o innej porze niż testy da inne godziny odjazdów; scenariusz filmu nie powinien zależeć od konkretnej godziny.
+- **Dostępność samej aplikacji** nie była testowana czytnikiem ekranu, a interfejs został przebudowany.
+- **Licencje:** przypis OSM (ODbL) jest w stopce i na mapie; źródło rozkładu ZTP jest podane przy podpowiedziach, ale warunków wykorzystania danych ZTP i regulaminu OpenRouteService nie sprawdziliśmy. Prawa do nagrodzonego rozwiązania przechodzą na fundatora, więc każda zależność musi być na otwartej licencji (MediatR przypięty do 12.4.1, Apache-2.0).
 
 ## 5. Następne kroki
 
 | Kolejność | Zadanie | Po co |
 |---|---|---|
-| 1 | Commit i push MVP | reszta zespołu pracuje na tym samym kodzie |
-| 2 | Publikacja i deploy na Mikrusa | wykrycie problemów wersji opublikowanej, publiczny adres do zgłoszenia |
-| 3 | Weryfikacja i podłączenie OpenRouteService | trasa po ulicach, parametry pod profil |
+| 1 | Publikacja i deploy na Mikrusa | wykrycie problemów wersji opublikowanej, publiczny adres do zgłoszenia |
+| 2 | Wyjaśnienie białego ekranu w Riderze | cały zespół musi móc uruchamiać aplikację |
+| 3 | Test profilu wózkowego w routingu, przekazanie "unikam bruku" | Marta jest pierwszą personą w filmie |
 | 4 | Prawdziwe dane dla miejsc demo | wiarygodność przed jury |
-| 5 | Scenariusz Pani Zofii w przeglądarce, poprawki trybu "Załatwiam sprawę" | trzecia persona z filmu |
+| 5 | Scenariusz Pani Zofii w trybie "Załatwiam sprawę" z przejazdem komunikacją | trzecia persona z filmu |
 | 6 | Publiczne API + OpenAPI na hoście | kryterium "Projekt" |
-| 7 | Wstawianie przerw, opis planu przez OpenAI | punkty 7 i 8 zakresu |
-| 8 | Import ZTP i MSIP, mapa hałasu | dane miejskie, mniej "brak danych" dla profili sensorycznych |
-| 9 | README, przegląd dostępności interfejsu | materiały do zgłoszenia |
+| 7 | Odjazdy liczone od czasu dotarcia do miejsca, przerwy na trasie | spójny plan dnia |
+| 8 | Opis planu przez OpenAI | punkt 8 zakresu |
+| 9 | Mapa hałasu MSIP, warstwy ZTP | mniej "brak danych" dla profili sensorycznych, cechy przystanków |
+| 10 | README, przegląd dostępności interfejsu | materiały do zgłoszenia |

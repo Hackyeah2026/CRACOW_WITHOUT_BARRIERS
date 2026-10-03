@@ -3,19 +3,19 @@
   "categories": [
     {
       "category": "Attraction",
-      "count": 364
+      "count": 359
     },
     {
       "category": "Museum",
-      "count": 123
+      "count": 125
     },
     {
       "category": "Office",
-      "count": 166
+      "count": 170
     },
     {
       "category": "Clinic",
-      "count": 746
+      "count": 766
     },
     {
       "category": "Library",
@@ -23,7 +23,7 @@
     },
     {
       "category": "Culture",
-      "count": 127
+      "count": 128
     },
     {
       "category": "Stop",
@@ -35,43 +35,43 @@
     },
     {
       "category": "Bench",
-      "count": 12437
+      "count": 13504
     },
     {
       "category": "Food",
-      "count": 2400
+      "count": 2459
     },
     {
       "category": "DisabledParking",
-      "count": 1871
+      "count": 2147
     },
     {
       "category": "Pharmacy",
-      "count": 273
+      "count": 275
     },
     {
       "category": "Worship",
-      "count": 229
+      "count": 231
     },
     {
       "category": "Park",
-      "count": 163
+      "count": 167
     },
     {
       "category": "Shop",
-      "count": 6435
+      "count": 6439
     },
     {
       "category": "Hotel",
-      "count": 383
+      "count": 393
     },
     {
       "category": "Service",
-      "count": 314
+      "count": 310
     },
     {
       "category": "Education",
-      "count": 449
+      "count": 448
     }
   ]
 }

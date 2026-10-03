@@ -210,6 +210,9 @@ public static class Labels
     public static MapMarker Marker(VerifiedHazard hazard, string idPrefix = "") =>
         new(idPrefix + hazard.Id, Verified(hazard), hazard.Lat, hazard.Lon, Color(HazardStatus.Verified), Icon: Icon(hazard.Kind));
 
+    /// <summary>Login zgłaszającego w panelu urzędnika; zgłoszenia sprzed wprowadzenia kont go nie mają.</summary>
+    public static string Reporter(string? login) => login ?? "brak (zgłoszenie sprzed wprowadzenia kont)";
+
     public static string Features(IReadOnlyList<FeatureKey> features) => string.Join(", ", features.Select(Of));
 
     /// <summary>Data i godzina w czasie lokalnym przeglądarki.</summary>

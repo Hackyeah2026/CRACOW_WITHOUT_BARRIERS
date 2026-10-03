@@ -16,9 +16,9 @@ internal sealed class MongoReportRepository(MongoCollections collections) : IRep
             return true;
         });
 
-    public Task<IReadOnlyList<Report>> GetByIdsAsync(IReadOnlyCollection<string> ids, CancellationToken ct) =>
+    public Task<IReadOnlyList<Report>> ListByReporterAsync(string login, int limit, CancellationToken ct) =>
         MongoCollections.RunAsync<IReadOnlyList<Report>>(async () =>
-            await Reports.Find(Builders<Report>.Filter.In(r => r.Id, ids)).ToListAsync(ct));
+            await Reports.Find(r => r.ReportedBy == login).SortByDescending(r => r.CreatedAt).Limit(limit).ToListAsync(ct));
 
     public Task<IReadOnlyList<Report>> ListAsync(ReportFilter filter, int limit, CancellationToken ct) =>
         MongoCollections.RunAsync<IReadOnlyList<Report>>(async () =>
@@ -54,14 +54,15 @@ internal sealed class MongoReportRepository(MongoCollections collections) : IRep
                 new FindOneAndUpdateOptions<Report> { ReturnDocument = ReturnDocument.After }, ct);
         });
 
-    /// <summary>Indeksy pod listę w panelu urzędnika (miasto + status, od najnowszych) i pod zgłoszenia jednego miejsca.</summary>
+    /// <summary>Indeksy pod listę w panelu urzędnika (miasto + status, od najnowszych), zgłoszenia jednego miejsca i jednego konta.</summary>
     public static Task EnsureIndexesAsync(IMongoCollection<Report> reports, CancellationToken ct)
     {
         var keys = Builders<Report>.IndexKeys;
         return reports.Indexes.CreateManyAsync(
         [
             new CreateIndexModel<Report>(keys.Ascending(r => r.CityId).Ascending(r => r.Status).Descending(r => r.CreatedAt)),
-            new CreateIndexModel<Report>(keys.Ascending(r => r.PlaceId))
+            new CreateIndexModel<Report>(keys.Ascending(r => r.PlaceId)),
+            new CreateIndexModel<Report>(keys.Ascending(r => r.ReportedBy).Descending(r => r.CreatedAt))
         ], ct);
     }
 }

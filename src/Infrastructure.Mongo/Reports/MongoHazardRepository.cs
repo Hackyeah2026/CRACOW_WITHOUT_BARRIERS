@@ -16,9 +16,9 @@ internal sealed class MongoHazardRepository(MongoCollections collections) : IHaz
             return true;
         });
 
-    public Task<IReadOnlyList<Hazard>> GetByIdsAsync(IReadOnlyCollection<string> ids, CancellationToken ct) =>
+    public Task<IReadOnlyList<Hazard>> ListByReporterAsync(string login, int limit, CancellationToken ct) =>
         MongoCollections.RunAsync<IReadOnlyList<Hazard>>(async () =>
-            await Hazards.Find(Builders<Hazard>.Filter.In(h => h.Id, ids)).ToListAsync(ct));
+            await Hazards.Find(h => h.ReportedBy == login).SortByDescending(h => h.CreatedAt).Limit(limit).ToListAsync(ct));
 
     public Task<IReadOnlyList<Hazard>> ListAsync(string? cityId, HazardStatus? status, int limit, CancellationToken ct) =>
         MongoCollections.RunAsync<IReadOnlyList<Hazard>>(async () =>
@@ -52,12 +52,14 @@ internal sealed class MongoHazardRepository(MongoCollections collections) : IHaz
                 new FindOneAndUpdateOptions<Hazard> { ReturnDocument = ReturnDocument.After }, ct);
         });
 
-    /// <summary>Indeks pod listę potwierdzonych punktów miasta i pod listę w panelu urzędnika.</summary>
+    /// <summary>Indeksy pod listę potwierdzonych punktów miasta, listę w panelu urzędnika i punkty jednego konta.</summary>
     public static Task EnsureIndexesAsync(IMongoCollection<Hazard> hazards, CancellationToken ct)
     {
         var keys = Builders<Hazard>.IndexKeys;
-        return hazards.Indexes.CreateOneAsync(
+        return hazards.Indexes.CreateManyAsync(
+        [
             new CreateIndexModel<Hazard>(keys.Ascending(h => h.CityId).Ascending(h => h.Status).Descending(h => h.CreatedAt)),
-            cancellationToken: ct);
+            new CreateIndexModel<Hazard>(keys.Ascending(h => h.ReportedBy).Descending(h => h.CreatedAt))
+        ], ct);
     }
 }

@@ -4,56 +4,26 @@ using Domain.Reports;
 
 namespace Application.Reports;
 
-/// <summary>Wysyła zgłoszenie i zapamiętuje jego identyfikator na urządzeniu, żeby można było sprawdzić odpowiedź urzędu.</summary>
+/// <summary>Wysyła zgłoszenie z konta zalogowanego mieszkańca.</summary>
 public sealed record SubmitReportCommand(ReportDraft Draft) : ICommand<ReportReceipt>;
 
-internal sealed class SubmitReportCommandHandler(IReportsClient client, ILocalStore store)
-    : ICommandHandler<SubmitReportCommand, ReportReceipt>
+internal sealed class SubmitReportCommandHandler(IReportsClient client) : ICommandHandler<SubmitReportCommand, ReportReceipt>
 {
-    public async Task<Result<ReportReceipt>> Handle(SubmitReportCommand command, CancellationToken ct)
+    public Task<Result<ReportReceipt>> Handle(SubmitReportCommand command, CancellationToken ct)
     {
         var errors = command.Draft.Validate();
-        if (errors.Count > 0)
-            return Result.Failure<ReportReceipt>(string.Join(" ", errors));
-
-        var result = await client.SubmitAsync(command.Draft, ct);
-        if (result.IsSuccess)
-        {
-            // Zgłoszenie już jest w bazie; brak lokalnej kopii nie może wyglądać na nieudaną wysyłkę.
-            try { await store.PutAsync(LocalStores.Reports, result.Value.Id, result.Value); }
-            catch (Exception) { }
-        }
-        return result;
+        return errors.Count > 0
+            ? Task.FromResult(Result.Failure<ReportReceipt>(string.Join(" ", errors)))
+            : client.SubmitAsync(command.Draft, ct);
     }
 }
 
-/// <param name="Current">Stan z bazy; null, gdy host nie odpowiedział albo zgłoszenia już nie ma.</param>
-public sealed record MyReport(ReportReceipt Receipt, ReportStatusView? Current);
+/// <summary>Zgłoszenia zalogowanego mieszkańca, od najnowszych, ze stanem obsługi.</summary>
+public sealed record GetMyReportsQuery : IQuery<IReadOnlyList<ReportStatusView>>;
 
-/// <summary>Zgłoszenia wysłane z tego urządzenia, od najnowszych, ze stanem obsługi.</summary>
-public sealed record GetMyReportsQuery(string? PlaceId = null) : IQuery<IReadOnlyList<MyReport>>;
-
-internal sealed class GetMyReportsQueryHandler(IReportsClient client, ILocalStore store)
-    : IQueryHandler<GetMyReportsQuery, IReadOnlyList<MyReport>>
+internal sealed class GetMyReportsQueryHandler(IReportsClient client) : IQueryHandler<GetMyReportsQuery, IReadOnlyList<ReportStatusView>>
 {
-    public async Task<Result<IReadOnlyList<MyReport>>> Handle(GetMyReportsQuery query, CancellationToken ct)
-    {
-        var receipts = (await store.ListAsync<ReportReceipt>(LocalStores.Reports))
-            .OrderByDescending(r => r.CreatedAt)
-            .ToList();
-        if (receipts.Count == 0)
-            return Result.Success<IReadOnlyList<MyReport>>([]);
-
-        // Gdy host nie odpowiada, pokazujemy same potwierdzenia bez stanu, zamiast pustej listy.
-        var statuses = await client.GetStatusesAsync(receipts.Select(r => r.Id).ToList(), ct);
-        var byId = statuses.IsSuccess ? statuses.Value.ToDictionary(s => s.Id) : [];
-
-        IReadOnlyList<MyReport> result = receipts
-            .Select(r => new MyReport(r, byId.GetValueOrDefault(r.Id)))
-            .Where(r => query.PlaceId is null || r.Receipt.PlaceId == query.PlaceId)
-            .ToList();
-        return Result.Success(result);
-    }
+    public Task<Result<IReadOnlyList<ReportStatusView>>> Handle(GetMyReportsQuery query, CancellationToken ct) => client.GetMineAsync(ct);
 }
 
 public sealed record OfficialLoginCommand(OfficialLogin Login) : ICommand<OfficialProfile>;

@@ -162,7 +162,7 @@ else
                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                                 <div>
                                     <h2 class="h5 mb-0"><a href="@($"miejsca/{report.PlaceId}")">@report.PlaceName</a></h2>
-                                    <p class="small text-body-secondary mb-1">@Labels.Of(report.Category) · wysłane @Labels.When(report.CreatedAt)</p>
+                                    <p class="small text-body-secondary mb-1">@Labels.Of(report.Category) · wysłane @Labels.When(report.CreatedAt) · zgłaszający: @Labels.Reporter(report.ReportedBy)</p>
                                 </div>
                                 <ReportStatusBadge Status="report.Status" />
                             </div>

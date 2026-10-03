@@ -8,8 +8,8 @@ public enum ReportKind { MissingAmenity, Barrier, WrongData }
 public enum ReportStatus { New, InReview, Planned, Resolved, Rejected }
 
 /// <summary>
-/// Zgłoszenie wysyłane przez mieszkańca. Celowo bez danych osobowych i bez profilu potrzeb:
-/// dotyczy miejsca, a nie osoby, która je zgłasza.
+/// Zgłoszenie wysyłane przez zalogowanego mieszkańca. Celowo bez profilu potrzeb: dotyczy miejsca.
+/// Kto zgłasza, ustala host na podstawie sesji, nie treść żądania.
 /// </summary>
 public sealed record ReportDraft(
     string CityId, string PlaceId, string PlaceName, PlaceCategory Category, double Lat, double Lon,
@@ -56,6 +56,9 @@ public sealed record Report(
 {
     public const int MaxNoteLength = 1000;
 
+    /// <summary>Login konta, z którego wysłano zgłoszenie; null w zgłoszeniach sprzed wprowadzenia kont. Widzi go tylko urząd.</summary>
+    public string? ReportedBy { get; init; }
+
     public static Report Create(ReportDraft draft, DateTime now) => new(
         Guid.NewGuid().ToString("N"), draft.CityId, draft.PlaceId, draft.PlaceName.Trim(), draft.Category, draft.Lat, draft.Lon,
         draft.Kind, draft.Features, draft.Description.Trim(), ReportStatus.New, now, now, null, null);
@@ -71,7 +74,7 @@ public sealed record ReportStatusView(
     string Id, string PlaceId, string PlaceName, ReportKind Kind, IReadOnlyList<FeatureKey> Features,
     ReportStatus Status, DateTime CreatedAt, DateTime UpdatedAt, string? OfficialNote);
 
-/// <summary>Potwierdzenie przyjęcia zgłoszenia; identyfikator zostaje na urządzeniu zgłaszającego.</summary>
+/// <summary>Potwierdzenie przyjęcia zgłoszenia.</summary>
 public sealed record ReportReceipt(string Id, string PlaceId, string PlaceName, DateTime CreatedAt);
 
 public sealed record ReportFilter(string? CityId = null, ReportStatus? Status = null, string? PlaceId = null);

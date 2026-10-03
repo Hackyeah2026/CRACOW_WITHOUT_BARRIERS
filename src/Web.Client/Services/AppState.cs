@@ -1,6 +1,8 @@
 using Application.Abstractions;
+using Application.Accounts;
 using Application.Places;
 using Application.Profile;
+using Domain.Accounts;
 using Domain.Needs;
 using Domain.Places;
 using MediatR;
@@ -34,6 +36,9 @@ public sealed class AppState(ISender sender, ILocalStore store)
     public string? PlacesSearch { get; set; }
     public string PlacesCategory { get; set; } = "";
 
+    /// <summary>Zalogowany mieszkaniec; null bez konta. Sesję trzyma ciasteczko hosta, tu jest tylko login do wyświetlenia.</summary>
+    public UserProfile? User { get; private set; }
+
     public event Action? Changed;
 
     /// <summary>Wczytuje stan z urządzenia. Równoległe wywołania czekają na to samo wczytanie.</summary>
@@ -59,6 +64,15 @@ public sealed class AppState(ISender sender, ILocalStore store)
         if (Cities.Count > 0 && City is null)
             CityId = DefaultCityId;
 
+        var user = await sender.Send(new GetCurrentUserQuery());
+        User = user.IsSuccess ? user.Value : null;
+
+        Changed?.Invoke();
+    }
+
+    public void SetUser(UserProfile? user)
+    {
+        User = user;
         Changed?.Invoke();
     }
 

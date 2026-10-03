@@ -10,6 +10,8 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 **Co doszło 3.10.2026 późnym wieczorem:** punkty z utrudnieniami zaznaczane na mapie (przeszkody terenowe, hałas, tłum), zakładka "Zgłoś na mapie", weryfikacja punktów i statystyki w panelu urzędnika; punkty potwierdzone przez urzędnika są widoczne na mapie i ostrzegają w planie trasy. Szczegóły w sekcji "Punkty z utrudnieniami na mapie".
 
+**Co doszło 3.10.2026 ok. 20:30:** konta mieszkańców (rejestracja i logowanie samym loginem i hasłem). Wysłanie zgłoszenia miejsca albo punktu na mapie wymaga konta, a urzędnik widzi login zgłaszającego. Szczegóły w sekcji "Konta mieszkańców".
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -50,7 +52,7 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 ### Baza danych (MongoDB)
 
-Stan: **połączenie działa, trzy kolekcje: `reports` (zgłoszenia miejsc), `hazards` (punkty z utrudnieniami) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
+Stan: **połączenie działa, cztery kolekcje: `reports` (zgłoszenia miejsc), `hazards` (punkty z utrudnieniami), `users` (konta mieszkańców) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
 
 - **Gdzie działa baza:** klaster w MongoDB Atlas (cloud.mongodb.com). Łączy się z nim wyłącznie host (`Web`); przeglądarka nigdy nie dostaje adresu połączenia.
 - **Osobny projekt `Infrastructure.Mongo`**, podpięty tylko do hosta. Sterownik (`MongoDB.Driver` 3.12.0, licencja Apache-2.0) nie trafia do `Infrastructure`, bo ten projekt jest też częścią aplikacji w przeglądarce.
@@ -63,13 +65,24 @@ Stan: **połączenie działa, trzy kolekcje: `reports` (zgłoszenia miejsc), `ha
 
 Jak dodać kolejną kolekcję: interfejs repozytorium w `Application/Abstractions`, implementacja w `Infrastructure.Mongo` na `MongoCollections`, endpoint w `Web/Endpoints`, klient HTTP w `Infrastructure/Browser` (wzór: zgłoszenia).
 
+### Konta mieszkańców
+
+- **Rejestracja i logowanie** na stronie "Konto" (`/konto`, w menu "Zaloguj" albo login): tylko login (3-30 znaków: litery bez polskich znaków, cyfry, `.`, `-`, `_`; wielkość liter bez znaczenia) i hasło (co najmniej 8 znaków). Bez e-maila, więc **hasła nie da się odzyskać**.
+- **Konto jest potrzebne tylko do zgłoszeń.** Miejsca, profil i plan działają bez logowania; profil potrzeb nadal nie opuszcza urządzenia i nie jest częścią konta.
+- **Sesja** to ciasteczko hosta `kbb.user` (HttpOnly, SameSite=Strict, 30 dni), osobne od sesji urzędnika `kbb.official`, więc obie mogą działać w jednej przeglądarce i żadna nie daje uprawnień drugiej.
+- **Zgłaszający:** host zapisuje login z sesji w polu `reportedBy` zgłoszenia i punktu (nie bierze go z treści żądania). Widzi go tylko urzędnik w panelu; nie ma go w widoku zgłaszającego ani na publicznej liście potwierdzonych punktów. Zgłoszenia sprzed wprowadzenia kont nie mają zgłaszającego.
+- **"Zgłoszenia" (`/zgloszenia`)** pokazują zgłoszenia konta (`GET /api/reports/mine`, `GET /api/hazards/mine`), więc działają na każdym urządzeniu po zalogowaniu. Zgłoszenia wysłane wcześniej anonimowo nie są już widoczne na tej liście.
+- **Hasła** jak u urzędników: PBKDF2-SHA256. Rejestracja: limit 5 kont na 10 minut z adresu IP; logowanie: 5 prób na minutę; zajęty login → 409.
+
+**Endpointy:** `POST /api/account/register`, `POST /api/account/login`, `POST /api/account/logout`, `GET /api/account/me`.
+
 ### Zgłoszenia i panel urzędnika
 
-**Mieszkaniec (bez konta):**
+**Mieszkaniec (zalogowany, patrz "Konta mieszkańców"):**
 
 - Na karcie miejsca przycisk "Zgłoś": rodzaj (brakuje udogodnienia / bariera / błędne dane w aplikacji), lista udogodnień do zaznaczenia (winda, toaleta, pętla indukcyjna, PJM, ławki itd.), opis do 1000 znaków.
-- Wysyłane jest tylko miejsce, udogodnienia i opis. **Profil potrzeb ani dane osobowe nie trafiają na serwer**; formularz mówi to wprost i prosi, żeby nie wpisywać danych osobowych.
-- Identyfikator zgłoszenia zostaje w IndexedDB (magazyn `reports`). Strona **"Zgłoszenia"** (`/zgloszenia`) pokazuje status i odpowiedź urzędu. Bez konta lista jest związana z przeglądarką.
+- Wysyłane jest miejsce, udogodnienia i opis; host dopisuje login konta. **Profil potrzeb nie trafia na serwer**; formularz mówi to wprost i prosi, żeby nie wpisywać danych osobowych.
+- Strona **"Zgłoszenia"** (`/zgloszenia`) pokazuje status i odpowiedź urzędu dla zgłoszeń konta.
 - `POST /api/reports` ma limit 10 zgłoszeń na 10 minut z jednego adresu IP.
 
 **Urzędnik (`/urzednik`, link w stopce):**
@@ -89,15 +102,15 @@ dotnet user-secrets set "Officials:Seed:0:Unit" "Pełnomocnik ds. osób z niepe�
 
 Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password` itd. Zmiana hasła w konfiguracji zmienia je w bazie przy następnym starcie.
 
-**Endpointy:** `POST /api/reports`, `POST /api/reports/status` (identyfikatory w treści żądania), `POST /api/official/login`, `POST /api/official/logout`, `GET /api/official/me`, `GET /api/official/reports?cityId=&status=&placeId=`, `PATCH /api/official/reports/{id}`.
+**Endpointy:** `POST /api/reports` i `GET /api/reports/mine` (wymagają konta mieszkańca), `POST /api/official/login`, `POST /api/official/logout`, `GET /api/official/me`, `GET /api/official/reports?cityId=&status=&placeId=`, `PATCH /api/official/reports/{id}`.
 
 ### Punkty z utrudnieniami na mapie
 
-**Mieszkaniec (bez konta), zakładka "Zgłoś na mapie" (`/zglos`):**
+**Mieszkaniec (zalogowany), zakładka "Zgłoś na mapie" (`/zglos`):**
 
 - Tryb "Utrudnienie w terenie": kliknięcie w mapę albo przycisk "Jestem tutaj" stawia przesuwalną pinezkę; do tego rodzaj (schody, wysoki krawężnik, nierówna nawierzchnia, stromy odcinek, wąskie przejście, roboty, hałas, tłum, ostre światło, inne) i opis do 500 znaków. Wysyłane jest tylko położenie, rodzaj i opis.
 - Tryb "Miejsce z katalogu": wybór miejsca na mapie albo z wyszukiwarki i ten sam formularz zgłoszenia co na karcie miejsca.
-- Identyfikator punktu zostaje w IndexedDB (magazyn `hazards`, wersja bazy 2); strona "Zgłoszenia" pokazuje decyzję urzędu.
+- Strona "Zgłoszenia" pokazuje decyzję urzędu dla punktów konta. Mapę i potwierdzone punkty widzi każdy; konto jest potrzebne dopiero do wysłania.
 
 **Urzędnik (`/urzednik`), trzy zakładki:**
 
@@ -111,7 +124,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 - Przy układaniu planu każdy odcinek dostaje punkty leżące do 40 m od trasy (`HazardRules.AlongRoute`), w kolejności marszu: komunikat "W tym miejscu jest zweryfikowane utrudnienie dla ...", odległość od trasy, data potwierdzenia, symbol na mapie planu. Punkty istotne dla profilu (`HazardRules.Concerns`, np. schody dla wózka, hałas dla profilu sensorycznego) są wyróżnione i policzone w podsumowaniu planu.
 - Trasa **nie omija** punktu, plan tylko o nim ostrzega. Gdy host nie odpowiada, plan układa się bez ostrzeżeń.
 
-**Endpointy:** `GET /api/hazards?cityId=`, `POST /api/hazards` (limit wspólny ze zgłoszeniami), `POST /api/hazards/status`, `GET /api/official/hazards?cityId=`, `PATCH /api/official/hazards/{id}`.
+**Endpointy:** `GET /api/hazards?cityId=`, `POST /api/hazards` i `GET /api/hazards/mine` (wymagają konta mieszkańca; limit wspólny ze zgłoszeniami), `GET /api/official/hazards?cityId=`, `PATCH /api/official/hazards/{id}`.
 
 ### Warstwy
 
@@ -124,7 +137,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
 | `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 63 testy: punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
+| `Tests` | 65 testów: konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 
@@ -153,6 +166,8 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 - **Zgłoszenia na klastrze Atlas** (osobna baza `krakow-bez-barier-test`, konto urzędnika z zmiennych środowiskowych): wysłanie zgłoszenia z karty Sukiennic, walidacja pustego formularza, lista "Moje zgłoszenia", logowanie urzędnika (złe hasło i nieznany login → 401, szósta próba w minucie → 429), zestawienie i mapa w panelu, zmiana statusu z odpowiedzią widoczna u zgłaszającego, wylogowanie.
 
 - **Punkty z utrudnieniami na bazie testowej** (`krakow-bez-barier-test`): zgłoszenie punktu z mapy, lista "Zgłoszenia", potwierdzenie w panelu, statystyki, symbol na mapie miejsc, ostrzeżenie i symbol w planie (profil "kule lub balkonik", schody ok. 40 m od trasy), zgłoszenie miejsca wybranego na mapie.
+
+- **Konta mieszkańców na bazie testowej:** bez konta formularze pokazują prośbę o logowanie, a `POST /api/hazards` i `GET /api/reports/mine` zwracają 401; rejestracja z powrotem do formularza; zajęty login → 409; wysłanie punktu z konta i lista "Zgłoszenia"; login zgłaszającego w panelu urzędnika; sesja mieszkańca nie daje dostępu do panelu; wylogowanie, złe hasło → 401, ponowne logowanie.
 
 ### Nie sprawdzone
 
@@ -206,6 +221,8 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | Trasa nie omija potwierdzonych utrudnień | plan ostrzega, ale prowadzi tą samą drogą | OpenRouteService przyjmuje obszary do ominięcia (`avoid_polygons`); do podpięcia dla punktów istotnych dla profilu |
 | Publiczna lista potwierdzonych punktów jest pobierana w całości (do 2000) | przy dużej liczbie punktów rośnie odpowiedź | zapytanie po obszarze mapy |
 | Opis punktu jest tekstem mieszkańca pokazywanym publicznie po potwierdzeniu | urzędnik musi go przeczytać przed potwierdzeniem; nie może go poprawić | edycja opisu w panelu |
+| Konto mieszkańca nie ma e-maila | nie ma odzyskiwania ani zmiany hasła, nie da się też usunąć konta z aplikacji | zmiana hasła po zalogowaniu i usuwanie konta; odzyskiwanie wymaga kanału kontaktu |
+| Login zgłaszającego to dane o osobie, powiązane z miejscami, które zgłasza | wchodzi w zakres RODO (informacja o przetwarzaniu, prawo do usunięcia) | krótka informacja przy rejestracji i procedura usunięcia konta przed wdrożeniem dla urzędu |
 | Lista zgłoszeń w panelu ma limit 500 najnowszych | przy większej liczbie starsze nie są widoczne | stronicowanie, gdy będzie potrzebne |
 | Zmienna `--neutral-400` nie była zdefiniowana w `app.css` | pola wyboru (profil, formularze) nie miały obramowania | poprawione: `#6b7280`, kontrast 4,8:1 |
 
@@ -237,7 +254,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | Zasięg miejsc: Kraków | centrum (prostokąt ok. 3 × 3 km); komunikacja obejmuje cały Kraków | mniejszy plik i szybszy import; zasięg jest jednym wpisem w `CityImports` |
 | Bez bazy danych: pliki statyczne i IndexedDB | doszło połączenie hosta z MongoDB z kolekcjami zgłoszeń i kont urzędników | zgłoszenia mają trafiać do urzędu, a nie zostawać na urządzeniu |
 | Zgłoszenie bariery zapisane lokalnie, zmienia ocenę i trasę | zgłoszenie trafia do bazy na hoście i do panelu urzędnika; na urządzeniu zostaje tylko jego identyfikator; ocena i trasa się nie zmieniają | decyzja zespołu: zgłoszenia jako źródło informacji dla miasta; wpływ na ocenę dopiero po weryfikacji przez urzędnika |
-| "Bez konta" | konto ma tylko urzędnik; mieszkaniec zgłasza anonimowo | panel musi być chroniony, a profil mieszkańca nadal nie opuszcza urządzenia |
+| "Bez konta" | konto ma urzędnik, a mieszkaniec zakłada je (login i hasło) dopiero, gdy chce coś zgłosić | decyzja zespołu: urząd ma wiedzieć, kto zgłasza; przeglądanie, profil i plan zostają bez konta, a profil nie opuszcza urządzenia |
 | Solution w formacie `.sln` | `.slnx` | domyślny format SDK .NET 10; starsze wersje IDE mogą go nie otwierać |
 | Leaflet | wersja 1.9.4 wgrana do repozytorium | bez CDN; licencja BSD-2 |
 

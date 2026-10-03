@@ -1,0 +1,147 @@
+@page "/konto"
+@using System.Text.RegularExpressions
+@inject AppState State
+@inject ISender Sender
+@inject NavigationManager Navigation
+
+<PageTitle>Konto</PageTitle>
+
+<h1>Konto</h1>
+
+@if (!_loaded)
+{
+    <p role="status">Wczytuję…</p>
+}
+else if (State.User is { } user)
+{
+    <p>Jesteś zalogowany jako <strong>@user.Login</strong>.</p>
+    <p class="text-body-secondary">
+        Z konta wysyłasz zgłoszenia do urzędu i sprawdzasz odpowiedzi w zakładce <a href="zgloszenia">Zgłoszenia</a>.
+        Urząd widzi Twój login przy zgłoszeniach. Profil potrzeb nie jest częścią konta i zostaje na tym urządzeniu.
+    </p>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="zglos">Zgłoś na mapie</a>
+        <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="LogoutAsync">Wyloguj</button>
+    </div>
+}
+else
+{
+    <p class="text-body-secondary">
+        Konto jest potrzebne tylko do wysyłania zgłoszeń. Wystarczy login i hasło: nie pytamy o e-mail ani imię.
+        Miejsca, profil i plan działają bez logowania.
+    </p>
+
+    <div class="mode-selector mb-3" role="group" aria-label="Logowanie albo rejestracja">
+        <button type="button" class="btn @(_registering ? "btn-outline-secondary" : "btn-primary")"
+                aria-pressed="@(_registering ? "false" : "true")" @onclick="() => Switch(false)">Mam konto</button>
+        <button type="button" class="btn @(_registering ? "btn-primary" : "btn-outline-secondary")"
+                aria-pressed="@(_registering ? "true" : "false")" @onclick="() => Switch(true)">Zakładam konto</button>
+    </div>
+
+    <form class="card card-body official-login" @onsubmit="SubmitAsync" @onsubmit:preventDefault novalidate>
+        <h2 class="h5">@(_registering ? "Nowe konto" : "Logowanie")</h2>
+        <div class="mb-3">
+            <label class="form-label" for="account-login">Login</label>
+            <input id="account-login" class="form-control" autocomplete="username" autocapitalize="none" spellcheck="false"
+                   maxlength="@UserCredentials.MaxLoginLength" aria-describedby="@(_registering ? "account-login-help" : null)" @bind="_login" />
+            @if (_registering)
+            {
+                <div id="account-login-help" class="form-text">
+                    Od @UserCredentials.MinLoginLength do @UserCredentials.MaxLoginLength znaków: litery bez polskich znaków, cyfry, kropka, myślnik, podkreślenie.
+                    Urząd zobaczy go przy Twoich zgłoszeniach, więc nie musi to być imię i nazwisko.
+                </div>
+            }
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="account-password">Hasło</label>
+            <input id="account-password" type="password" class="form-control" autocomplete="@(_registering ? "new-password" : "current-password")"
+                   maxlength="@UserCredentials.MaxPasswordLength" aria-describedby="@(_registering ? "account-password-help" : null)" @bind="_password" />
+            @if (_registering)
+            {
+                <div id="account-password-help" class="form-text">
+                    Co najmniej @UserCredentials.MinPasswordLength znaków. Zapamiętaj je: bez adresu e-mail nie możemy przypomnieć hasła.
+                </div>
+            }
+        </div>
+        @if (_registering)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="account-password-repeat">Powtórz hasło</label>
+                <input id="account-password-repeat" type="password" class="form-control" autocomplete="new-password"
+                       maxlength="@UserCredentials.MaxPasswordLength" @bind="_repeat" />
+            </div>
+        }
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger" role="alert">@_error</div>
+        }
+        <button type="submit" class="btn btn-primary" disabled="@_busy">
+            @(_busy ? "Chwileczkę…" : _registering ? "Załóż konto" : "Zaloguj")
+        </button>
+    </form>
+}
+
+@code {
+    private bool _loaded;
+    private bool _registering;
+    private bool _busy;
+    private string _login = "";
+    private string _password = "";
+    private string _repeat = "";
+    private string? _error;
+
+    /// <summary>Strona, na którą wracamy po zalogowaniu, np. formularz zgłoszenia.</summary>
+    [SupplyParameterFromQuery(Name = "powrot")] public string? ReturnTo { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        _loaded = true;
+    }
+
+    private void Switch(bool registering)
+    {
+        _registering = registering;
+        _error = null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_registering && _password != _repeat)
+        {
+            _error = "Hasła nie są takie same.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        var credentials = new UserCredentials(_login, _password);
+        var result = _registering
+            ? await Sender.Send(new RegisterUserCommand(credentials))
+            : await Sender.Send(new LoginUserCommand(credentials));
+        _busy = false;
+
+        if (result.IsFailure)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _password = _repeat = "";
+        State.SetUser(result.Value);
+        if (SafeReturnTo() is { } target)
+            Navigation.NavigateTo(target);
+    }
+
+    private async Task LogoutAsync()
+    {
+        _busy = true;
+        await Sender.Send(new LogoutUserCommand());
+        _busy = false;
+        State.SetUser(null);
+    }
+
+    /// <summary>Tylko ścieżka wewnątrz aplikacji: parametr z adresu nie może wyprowadzić na obcą stronę.</summary>
+    private string? SafeReturnTo() =>
+        ReturnTo is not null && Regex.IsMatch(ReturnTo, "^[a-z0-9][a-z0-9/_-]{0,100}$", RegexOptions.IgnoreCase) ? ReturnTo : null;
+}

@@ -43,7 +43,9 @@ public class HazardTests
         Assert.Equal(HazardStatus.Pending, hazard.Status);
         Assert.Equal("trzy stopnie", hazard.Description);
         Assert.DoesNotContain(typeof(HazardStatusView).GetProperties(), p => p.Name == nameof(Hazard.HandledBy));
-        Assert.DoesNotContain(typeof(VerifiedHazard).GetProperties(), p => p.Name is nameof(Hazard.HandledBy) or nameof(Hazard.OfficialNote));
+        Assert.DoesNotContain(typeof(HazardStatusView).GetProperties(), p => p.Name == nameof(Hazard.ReportedBy));
+        Assert.DoesNotContain(typeof(VerifiedHazard).GetProperties(),
+            p => p.Name is nameof(Hazard.HandledBy) or nameof(Hazard.OfficialNote) or nameof(Hazard.ReportedBy));
     }
 
     [Fact]

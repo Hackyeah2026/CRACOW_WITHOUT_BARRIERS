@@ -1,4 +1,5 @@
 @inject ISender Sender
+@inject AppState State
 
 <section class="card card-body mt-3" aria-labelledby="report-heading">
     <h2 id="report-heading" class="h5">Zgłoś barierę lub brak udogodnienia</h2>
@@ -9,6 +10,11 @@
             Dziękujemy, zgłoszenie trafiło do urzędu. Odpowiedź sprawdzisz w zakładce <a href="zgloszenia">Zgłoszenia</a>.
         </div>
         <button type="button" class="btn btn-outline-secondary align-self-start" @onclick="Reset">Zgłoś coś jeszcze</button>
+    }
+    else if (State.User is null)
+    {
+        <p>Brakuje tu czegoś, czego potrzebujesz, albo coś utrudnia wejście? Daj znać urzędowi miasta.</p>
+        <LoginRequired ReturnTo="@(ReturnTo ?? $"miejsca/{Place.Id}")" />
     }
     else if (!_open)
     {
@@ -73,7 +79,7 @@
             }
 
             <p class="form-text">
-                Zgłoszenie jest anonimowe: wysyłamy tylko miejsce, wybrane udogodnienia i opis. Twój profil potrzeb zostaje na tym urządzeniu.
+                Wysyłamy miejsce, wybrane udogodnienia i opis. Urząd zobaczy login Twojego konta (@State.User.Login). Twój profil potrzeb zostaje na tym urządzeniu.
             </p>
 
             <div class="d-flex gap-2">
@@ -97,6 +103,9 @@
 
     /// <summary>Wywoływane po przyjęciu zgłoszenia, np. żeby odświeżyć listę zgłoszeń miejsca.</summary>
     [Parameter] public EventCallback<ReportReceipt> OnSubmitted { get; set; }
+
+    /// <summary>Dokąd wrócić po zalogowaniu, gdy formularz jest poza kartą miejsca.</summary>
+    [Parameter] public string? ReturnTo { get; set; }
 
     /// <summary>Formularz od razu rozwinięty, np. gdy miejsce zostało dopiero co wybrane na mapie.</summary>
     [Parameter] public bool StartOpen { get; set; }

@@ -1,6 +1,7 @@
 using Application;
 using Application.Abstractions;
 using Application.Reports;
+using Domain.Accounts;
 using Domain.Places;
 using Domain.Reports;
 using Infrastructure.Mongo;
@@ -117,17 +118,44 @@ public class ReportTests
 
         await Assert.ThrowsAsync<DatabaseUnavailableException>(() => repository.AddAsync(Sample("rynek", ReportStatus.New), CancellationToken.None));
         await Assert.ThrowsAsync<DatabaseUnavailableException>(() => officials.VerifyAsync(new OfficialLogin("jan", "x"), CancellationToken.None));
+        await Assert.ThrowsAsync<DatabaseUnavailableException>(() => services.GetRequiredService<IUserDirectory>()
+            .RegisterAsync(new UserCredentials("ania", "haslo-123"), Now, CancellationToken.None));
     }
 
     [Fact]
-    public async Task Submitting_stores_the_receipt_on_the_device()
+    public async Task Valid_report_is_sent()
     {
-        var store = new MemoryStore();
+        var client = new FakeReportsClient();
 
-        var result = await Send(new SubmitReportCommand(Draft()), new FakeReportsClient(), store);
+        var result = await Send(new SubmitReportCommand(Draft()), client);
 
         Assert.True(result.IsSuccess);
-        Assert.Single(await store.ListAsync<ReportReceipt>(LocalStores.Reports));
+        Assert.Equal(1, client.Submitted);
+    }
+
+    [Fact]
+    public void Reporter_is_stored_but_hidden_from_the_status_view_and_old_reports_have_none()
+    {
+        var report = Report.Create(Draft(), Now) with { ReportedBy = "ania" };
+
+        var document = report.ToBsonDocument();
+        Assert.Equal("ania", document["reportedBy"].AsString);
+        Assert.Equal("ania", BsonSerializer.Deserialize<Report>(document).ReportedBy);
+        Assert.DoesNotContain(typeof(ReportStatusView).GetProperties(), p => p.Name == nameof(Report.ReportedBy));
+
+        document.Remove("reportedBy");
+        Assert.Null(BsonSerializer.Deserialize<Report>(document).ReportedBy);
+    }
+
+    [Fact]
+    public void Registration_requires_a_simple_login_and_a_password_of_eight_characters()
+    {
+        Assert.Empty(new UserCredentials("Ania_K", "haslo-123").Validate());
+        Assert.Equal("ania_k", UserCredentials.NormalizeLogin("  Ania_K "));
+        Assert.NotEmpty(new UserCredentials("an", "haslo-123").Validate());
+        Assert.NotEmpty(new UserCredentials("ania kowalska", "haslo-123").Validate());
+        Assert.NotEmpty(new UserCredentials("ania", "krotkie").Validate());
+        Assert.NotEmpty(new UserCredentials(null!, null!).Validate());
     }
 
     [Fact]
@@ -135,14 +163,14 @@ public class ReportTests
     {
         var client = new FakeReportsClient();
 
-        var result = await Send(new SubmitReportCommand(Draft(features: [])), client, new MemoryStore());
+        var result = await Send(new SubmitReportCommand(Draft(features: [])), client);
 
         Assert.True(result.IsFailure);
         Assert.Equal(0, client.Submitted);
     }
 
-    private static Task<Result<ReportReceipt>> Send(SubmitReportCommand command, IReportsClient client, ILocalStore store) =>
-        new ServiceCollection().AddApplication().AddSingleton(client).AddSingleton(store).BuildServiceProvider()
+    private static Task<Result<ReportReceipt>> Send(SubmitReportCommand command, IReportsClient client) =>
+        new ServiceCollection().AddApplication().AddSingleton(client).BuildServiceProvider()
             .GetRequiredService<ISender>().Send(command);
 
     private sealed class FakeReportsClient : IReportsClient
@@ -155,29 +183,8 @@ public class ReportTests
             return Task.FromResult(Result.Success(Report.Create(draft, Now).ToReceipt()));
         }
 
-        public Task<Result<IReadOnlyList<ReportStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct) =>
+        public Task<Result<IReadOnlyList<ReportStatusView>>> GetMineAsync(CancellationToken ct) =>
             Task.FromResult(Result.Success<IReadOnlyList<ReportStatusView>>([]));
     }
 
-    private sealed class MemoryStore : ILocalStore
-    {
-        private readonly Dictionary<(string, string), object> _items = [];
-
-        public Task<T?> GetAsync<T>(string store, string key) => Task.FromResult(_items.TryGetValue((store, key), out var v) ? (T?)v : default);
-
-        public Task PutAsync<T>(string store, string key, T value)
-        {
-            _items[(store, key)] = value!;
-            return Task.CompletedTask;
-        }
-
-        public Task DeleteAsync(string store, string key)
-        {
-            _items.Remove((store, key));
-            return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyList<T>> ListAsync<T>(string store) =>
-            Task.FromResult<IReadOnlyList<T>>(_items.Where(i => i.Key.Item1 == store).Select(i => (T)i.Value).ToList());
-    }
 }

@@ -138,7 +138,7 @@ public class BuildTripPlanTests
     {
         public Task<Result<HazardReceipt>> SubmitAsync(HazardDraft draft, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<Result<IReadOnlyList<HazardStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct) =>
+        public Task<Result<IReadOnlyList<HazardStatusView>>> GetMineAsync(CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<Result<IReadOnlyList<VerifiedHazard>>> GetVerifiedAsync(string cityId, CancellationToken ct) => Task.FromResult(

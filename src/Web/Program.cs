@@ -43,11 +43,24 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         // API odpowiada kodem, zamiast przekierowywać na stronę logowania.
         options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
         options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+    })
+    // Sesja mieszkańca: osobne ciasteczko, żeby nie mieszała się z sesją urzędnika w tej samej przeglądarce.
+    .AddCookie(AccountEndpoints.UserScheme, options =>
+    {
+        options.Cookie.Name = "kbb.user";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
+        options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
     });
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(ReportEndpoints.OfficialPolicy, policy => policy.RequireRole(ReportEndpoints.OfficialPolicy));
+    .AddPolicy(ReportEndpoints.OfficialPolicy, policy => policy.RequireRole(ReportEndpoints.OfficialPolicy))
+    .AddPolicy(AccountEndpoints.UserPolicy, policy => policy.AddAuthenticationSchemes(AccountEndpoints.UserScheme).RequireAuthenticatedUser());
 
-// Zgłoszenia są anonimowe, więc limitujemy je per adres IP; logowanie także, przeciw zgadywaniu haseł.
+// Limity per adres IP: zgłoszenia, logowanie (przeciw zgadywaniu haseł) i zakładanie kont (przeciw masowej rejestracji).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -57,6 +70,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(ReportEndpoints.LoginLimit, context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
+    options.AddPolicy(AccountEndpoints.RegisterLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(10) }));
 });
 
 var app = builder.Build();
@@ -87,6 +103,7 @@ app.MapRouteEndpoints();
 app.MapHealthEndpoints();
 app.MapReportEndpoints();
 app.MapHazardEndpoints();
+app.MapAccountEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

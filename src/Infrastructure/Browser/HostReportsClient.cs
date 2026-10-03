@@ -7,15 +7,14 @@ using Domain.Reports;
 
 namespace Infrastructure.Browser;
 
-/// <summary>Zgłoszenia mieszkańców (POST api/reports) i sprawdzanie ich stanu po identyfikatorach z urządzenia.</summary>
+/// <summary>Zgłoszenia zalogowanego mieszkańca: wysyłka (POST api/reports) i lista własnych ze stanem obsługi.</summary>
 internal sealed class HostReportsClient(HttpClient http) : IReportsClient
 {
     public Task<Result<ReportReceipt>> SubmitAsync(ReportDraft draft, CancellationToken ct) =>
         HostApi.SendAsync<ReportReceipt>(() => http.PostAsJsonAsync("api/reports", draft, DomainJson.Options, ct), ct);
 
-    public Task<Result<IReadOnlyList<ReportStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct) =>
-        HostApi.SendAsync<IReadOnlyList<ReportStatusView>>(
-            () => http.PostAsJsonAsync("api/reports/status", new { ids }, DomainJson.Options, ct), ct);
+    public Task<Result<IReadOnlyList<ReportStatusView>>> GetMineAsync(CancellationToken ct) =>
+        HostApi.SendAsync<IReadOnlyList<ReportStatusView>>(() => http.GetAsync("api/reports/mine", ct), ct);
 }
 
 /// <summary>Punkty z utrudnieniami (api/hazards): wysyłka, stan własnych punktów i lista potwierdzonych przez urząd.</summary>
@@ -24,9 +23,8 @@ internal sealed class HostHazardsClient(HttpClient http) : IHazardsClient
     public Task<Result<HazardReceipt>> SubmitAsync(HazardDraft draft, CancellationToken ct) =>
         HostApi.SendAsync<HazardReceipt>(() => http.PostAsJsonAsync("api/hazards", draft, DomainJson.Options, ct), ct);
 
-    public Task<Result<IReadOnlyList<HazardStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct) =>
-        HostApi.SendAsync<IReadOnlyList<HazardStatusView>>(
-            () => http.PostAsJsonAsync("api/hazards/status", new { ids }, DomainJson.Options, ct), ct);
+    public Task<Result<IReadOnlyList<HazardStatusView>>> GetMineAsync(CancellationToken ct) =>
+        HostApi.SendAsync<IReadOnlyList<HazardStatusView>>(() => http.GetAsync("api/hazards/mine", ct), ct);
 
     public Task<Result<IReadOnlyList<VerifiedHazard>>> GetVerifiedAsync(string cityId, CancellationToken ct) =>
         HostApi.SendAsync<IReadOnlyList<VerifiedHazard>>(() => http.GetAsync($"api/hazards?cityId={Uri.EscapeDataString(cityId)}", ct), ct);
@@ -100,7 +98,7 @@ internal static class HostApi
                 HttpStatusCode.NotFound => "Nie znaleziono.",
                 HttpStatusCode.TooManyRequests => "Za dużo prób w krótkim czasie. Spróbuj ponownie za kilka minut.",
                 HttpStatusCode.ServiceUnavailable => "Baza zgłoszeń jest chwilowo niedostępna. Spróbuj później.",
-                HttpStatusCode.BadRequest => await ProblemDetailAsync(response, ct) ?? "Nieprawidłowe dane.",
+                HttpStatusCode.BadRequest or HttpStatusCode.Conflict => await ProblemDetailAsync(response, ct) ?? "Nieprawidłowe dane.",
                 _ => "Serwer nie przyjął żądania. Spróbuj ponownie."
             });
         }

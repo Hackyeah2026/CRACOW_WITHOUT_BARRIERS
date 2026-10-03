@@ -1,0 +1,11 @@
+<div class="alert alert-info mb-0" role="note">
+    Żeby wysłać zgłoszenie, potrzebujesz konta: wystarczy login i hasło.
+    <a class="alert-link" href="@Href">Zaloguj się albo załóż konto</a>.
+</div>
+
+@code {
+    /// <summary>Strona aplikacji, na którą wracamy po zalogowaniu (ścieżka względna, np. "zglos").</summary>
+    [Parameter] public string? ReturnTo { get; set; }
+
+    private string Href => ReturnTo is null ? "konto" : $"konto?powrot={Uri.EscapeDataString(ReturnTo)}";
+}

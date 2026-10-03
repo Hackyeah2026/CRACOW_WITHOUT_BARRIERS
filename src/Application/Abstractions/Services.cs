@@ -30,7 +30,6 @@ public static class LocalStores
     public const string Profile = "profile";
     public const string Plans = "plans";
     public const string Reports = "reports";
-    public const string Hazards = "hazards";
     public const string RouteCache = "routeCache";
 }
 

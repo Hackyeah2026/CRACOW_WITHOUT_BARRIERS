@@ -13,8 +13,8 @@ public enum HazardKind { Stairs, HighKerb, UnevenSurface, SteepSlope, NarrowPass
 public enum HazardStatus { Pending, Verified, Rejected, Removed }
 
 /// <summary>
-/// Punkt z utrudnieniem wskazany na mapie przez mieszkańca. Tak jak zgłoszenie miejsca: bez danych osobowych
-/// i bez profilu potrzeb.
+/// Punkt z utrudnieniem wskazany na mapie przez zalogowanego mieszkańca. Tak jak zgłoszenie miejsca: bez profilu
+/// potrzeb, a zgłaszającego ustala host na podstawie sesji.
 /// </summary>
 public sealed record HazardDraft(string CityId, double Lat, double Lon, HazardKind Kind, string Description)
 {
@@ -47,6 +47,9 @@ public sealed record Hazard(
 {
     public const int MaxNoteLength = 1000;
 
+    /// <summary>Login konta, z którego zgłoszono punkt; null w punktach sprzed wprowadzenia kont. Widzi go tylko urząd.</summary>
+    public string? ReportedBy { get; init; }
+
     public GeoPoint Location => new(Lat, Lon);
 
     public static Hazard Create(HazardDraft draft, DateTime now) => new(
@@ -58,7 +61,7 @@ public sealed record Hazard(
     /// <summary>Widok dla zgłaszającego: bez loginu urzędnika.</summary>
     public HazardStatusView ToStatusView() => new(Id, Kind, Lat, Lon, Description, Status, CreatedAt, UpdatedAt, OfficialNote);
 
-    /// <summary>Widok publiczny potwierdzonego punktu.</summary>
+    /// <summary>Widok publiczny potwierdzonego punktu: bez zgłaszającego i bez urzędnika.</summary>
     public VerifiedHazard ToVerified() => new(Id, Kind, Lat, Lon, Description, DateOnly.FromDateTime(UpdatedAt));
 }
 
@@ -73,7 +76,7 @@ public sealed record HazardStatusView(
     string Id, HazardKind Kind, double Lat, double Lon, string Description,
     HazardStatus Status, DateTime CreatedAt, DateTime UpdatedAt, string? OfficialNote);
 
-/// <summary>Potwierdzenie przyjęcia punktu; identyfikator zostaje na urządzeniu zgłaszającego.</summary>
+/// <summary>Potwierdzenie przyjęcia punktu.</summary>
 public sealed record HazardReceipt(string Id, HazardKind Kind, double Lat, double Lon, DateTime CreatedAt);
 
 public sealed record HazardReview(HazardStatus Status, string? Note)

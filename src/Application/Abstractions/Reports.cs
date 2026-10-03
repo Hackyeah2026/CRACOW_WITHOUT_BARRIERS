@@ -7,7 +7,8 @@ namespace Application.Abstractions;
 public interface IReportRepository
 {
     Task AddAsync(Report report, CancellationToken ct);
-    Task<IReadOnlyList<Report>> GetByIdsAsync(IReadOnlyCollection<string> ids, CancellationToken ct);
+    /// <summary>Najnowsze zgłoszenia wysłane z danego konta.</summary>
+    Task<IReadOnlyList<Report>> ListByReporterAsync(string login, int limit, CancellationToken ct);
 
     /// <summary>Najnowsze zgłoszenia spełniające filtr.</summary>
     Task<IReadOnlyList<Report>> ListAsync(ReportFilter filter, int limit, CancellationToken ct);
@@ -20,7 +21,8 @@ public interface IReportRepository
 public interface IHazardRepository
 {
     Task AddAsync(Hazard hazard, CancellationToken ct);
-    Task<IReadOnlyList<Hazard>> GetByIdsAsync(IReadOnlyCollection<string> ids, CancellationToken ct);
+    /// <summary>Najnowsze punkty zgłoszone z danego konta.</summary>
+    Task<IReadOnlyList<Hazard>> ListByReporterAsync(string login, int limit, CancellationToken ct);
 
     /// <summary>Najnowsze punkty w mieście; bez statusu wszystkie.</summary>
     Task<IReadOnlyList<Hazard>> ListAsync(string? cityId, HazardStatus? status, int limit, CancellationToken ct);
@@ -39,18 +41,20 @@ public interface IOfficialDirectory
 /// <summary>Baza nie jest skonfigurowana albo nie odpowiada. Host zamienia to na odpowiedź 503.</summary>
 public sealed class DatabaseUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
 
-/// <summary>Wysyłka zgłoszeń z przeglądarki do hosta.</summary>
+/// <summary>Wysyłka zgłoszeń z przeglądarki do hosta; wymaga zalogowanego mieszkańca.</summary>
 public interface IReportsClient
 {
     Task<Result<ReportReceipt>> SubmitAsync(ReportDraft draft, CancellationToken ct);
-    Task<Result<IReadOnlyList<ReportStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct);
+    /// <summary>Zgłoszenia zalogowanego mieszkańca, od najnowszych.</summary>
+    Task<Result<IReadOnlyList<ReportStatusView>>> GetMineAsync(CancellationToken ct);
 }
 
 /// <summary>Punkty z utrudnieniami: wysyłka z przeglądarki do hosta i odczyt punktów potwierdzonych przez urząd.</summary>
 public interface IHazardsClient
 {
     Task<Result<HazardReceipt>> SubmitAsync(HazardDraft draft, CancellationToken ct);
-    Task<Result<IReadOnlyList<HazardStatusView>>> GetStatusesAsync(IReadOnlyList<string> ids, CancellationToken ct);
+    /// <summary>Punkty zalogowanego mieszkańca, od najnowszych.</summary>
+    Task<Result<IReadOnlyList<HazardStatusView>>> GetMineAsync(CancellationToken ct);
     Task<Result<IReadOnlyList<VerifiedHazard>>> GetVerifiedAsync(string cityId, CancellationToken ct);
 }
 

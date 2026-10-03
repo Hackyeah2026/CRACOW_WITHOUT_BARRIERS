@@ -15,6 +15,18 @@
             </li>
             <li class="nav-item"><NavLink class="nav-link" href="zglos">Zgłoś na mapie</NavLink></li>
             <li class="nav-item"><NavLink class="nav-link" href="zgloszenia">Zgłoszenia</NavLink></li>
+            <li class="nav-item">
+                <NavLink class="nav-link" href="konto">
+                    @if (State.User is { } user)
+                    {
+                        <span aria-hidden="true">👤</span> <span class="visually-hidden">Konto: </span>@user.Login
+                    }
+                    else
+                    {
+                        <text>Zaloguj</text>
+                    }
+                </NavLink>
+            </li>
         </ul>
     </nav>
 </header>

@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Infrastructure.Mongo.Reports;
 
-/// <summary>Hasła urzędników jako PBKDF2-SHA256 z losową solą; zapis "pbkdf2-sha256$iteracje$sól$skrót" (Base64).</summary>
+/// <summary>Hasła urzędników i mieszkańców jako PBKDF2-SHA256 z losową solą; zapis "pbkdf2-sha256$iteracje$sól$skrót" (Base64).</summary>
 public static class PasswordHashing
 {
     private const string Scheme = "pbkdf2-sha256";

@@ -73,6 +73,10 @@
                     </div>
                     <button type="button" class="btn btn-outline-secondary align-self-start" @onclick="Reset">Zgłoś kolejny punkt</button>
                 }
+                else if (State.User is null)
+                {
+                    <LoginRequired ReturnTo="zglos" />
+                }
                 else
                 {
                     <form @onsubmit="SubmitAsync" @onsubmit:preventDefault novalidate>
@@ -114,7 +118,7 @@
                         }
 
                         <p class="form-text">
-                            Zgłoszenie jest anonimowe: wysyłamy tylko położenie punktu, rodzaj utrudnienia i opis. Twój profil potrzeb zostaje na tym urządzeniu.
+                            Wysyłamy położenie punktu, rodzaj utrudnienia i opis. Urząd zobaczy login Twojego konta (@State.User.Login); na mapie publicznej go nie ma. Twój profil potrzeb zostaje na tym urządzeniu.
                         </p>
 
                         <button type="submit" class="btn btn-primary" disabled="@(_sending || _point is null)">
@@ -163,7 +167,7 @@ else
             {
                 <h2 class="h5 mb-0"><a href="miejsca/@_place.Id">@_place.Name</a></h2>
                 <p class="small text-body-secondary mb-0">@Labels.Of(_place.Category)@(_place.Address is null ? "" : $" · {_place.Address}")</p>
-                <ReportForm @key="_place.Id" Place="_place" StartOpen="true" />
+                <ReportForm @key="_place.Id" Place="_place" StartOpen="true" ReturnTo="zglos" />
             }
         </div>
     </div>

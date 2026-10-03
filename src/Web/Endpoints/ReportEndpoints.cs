@@ -13,34 +13,30 @@ public static class ReportEndpoints
     public const string LoginLimit = "official-login";
 
     private const string UnitClaim = "unit";
-    private const int MaxStatusIds = 100;
+    private const int MaxMine = 100;
     private const int MaxListed = 500;
 
     /// <summary>
-    /// Zgłoszenia mieszkańców (anonimowe, bez danych osobowych) i panel urzędnika (logowanie ciasteczkiem hosta).
+    /// Zgłoszenia mieszkańców (wymagają konta; urząd widzi login zgłaszającego) i panel urzędnika (osobna sesja).
     /// </summary>
     public static IEndpointRouteBuilder MapReportEndpoints(this IEndpointRouteBuilder app)
     {
         var reports = app.MapGroup("/api/reports").AddEndpointFilter(DatabaseUnavailableFilter);
 
-        reports.MapPost("/", async (ReportDraft draft, IReportRepository repository, CancellationToken ct) =>
+        reports.MapPost("/", async (ReportDraft draft, ClaimsPrincipal user, IReportRepository repository, CancellationToken ct) =>
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
                 return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
 
-            var report = Report.Create(draft, DateTime.UtcNow);
+            var report = Report.Create(draft, DateTime.UtcNow) with { ReportedBy = AccountEndpoints.LoginOf(user) };
             await repository.AddAsync(report, ct);
             return Results.Created($"/api/reports/{report.Id}", report.ToReceipt());
-        }).RequireRateLimiting(SubmitLimit);
+        }).RequireAuthorization(AccountEndpoints.UserPolicy).RequireRateLimiting(SubmitLimit);
 
-        // Identyfikatory w treści żądania, nie w adresie: nie trafiają do logów serwerów pośrednich.
-        reports.MapPost("/status", async (StatusRequest request, IReportRepository repository, CancellationToken ct) =>
-        {
-            var ids = request.Ids.Where(IsReportId).Distinct().Take(MaxStatusIds).ToList();
-            var found = ids.Count == 0 ? [] : await repository.GetByIdsAsync(ids, ct);
-            return Results.Ok(found.Select(r => r.ToStatusView()));
-        });
+        reports.MapGet("/mine", async (ClaimsPrincipal user, IReportRepository repository, CancellationToken ct) =>
+            Results.Ok((await repository.ListByReporterAsync(AccountEndpoints.LoginOf(user), MaxMine, ct)).Select(r => r.ToStatusView())))
+            .RequireAuthorization(AccountEndpoints.UserPolicy);
 
         var official = app.MapGroup("/api/official").AddEndpointFilter(DatabaseUnavailableFilter);
 
@@ -115,6 +111,4 @@ public static class ReportEndpoints
             return Results.Problem("Baza zgłoszeń jest chwilowo niedostępna.", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
-
-    private sealed record StatusRequest(IReadOnlyList<string> Ids);
 }

@@ -6,15 +6,15 @@ namespace Web.Endpoints;
 
 public static class HazardEndpoints
 {
-    private const int MaxStatusIds = 100;
+    private const int MaxMine = 100;
     private const int MaxListed = 500;
 
     /// <summary>Publiczna lista potwierdzonych punktów jest krótka i rzadko się zmienia, a czyta ją każde ułożenie planu.</summary>
     private const int MaxVerified = 2000;
 
     /// <summary>
-    /// Punkty z utrudnieniami zaznaczane na mapie (anonimowe, bez danych osobowych). Publicznie widać tylko punkty
-    /// potwierdzone przez urzędnika; weryfikacja wymaga sesji urzędnika.
+    /// Punkty z utrudnieniami zaznaczane na mapie (wymagają konta). Publicznie widać tylko punkty potwierdzone
+    /// przez urzędnika, bez zgłaszającego; weryfikacja wymaga sesji urzędnika.
     /// </summary>
     public static IEndpointRouteBuilder MapHazardEndpoints(this IEndpointRouteBuilder app)
     {
@@ -23,24 +23,20 @@ public static class HazardEndpoints
         hazards.MapGet("/", async (string cityId, IHazardRepository repository, CancellationToken ct) =>
             Results.Ok((await repository.ListAsync(cityId, HazardStatus.Verified, MaxVerified, ct)).Select(h => h.ToVerified())));
 
-        hazards.MapPost("/", async (HazardDraft draft, IHazardRepository repository, CancellationToken ct) =>
+        hazards.MapPost("/", async (HazardDraft draft, ClaimsPrincipal user, IHazardRepository repository, CancellationToken ct) =>
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
                 return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
 
-            var hazard = Hazard.Create(draft, DateTime.UtcNow);
+            var hazard = Hazard.Create(draft, DateTime.UtcNow) with { ReportedBy = AccountEndpoints.LoginOf(user) };
             await repository.AddAsync(hazard, ct);
             return Results.Created($"/api/hazards/{hazard.Id}", hazard.ToReceipt());
-        }).RequireRateLimiting(ReportEndpoints.SubmitLimit);
+        }).RequireAuthorization(AccountEndpoints.UserPolicy).RequireRateLimiting(ReportEndpoints.SubmitLimit);
 
-        // Identyfikatory w treści żądania, nie w adresie: nie trafiają do logów serwerów pośrednich.
-        hazards.MapPost("/status", async (StatusRequest request, IHazardRepository repository, CancellationToken ct) =>
-        {
-            var ids = request.Ids.Where(ReportEndpoints.IsReportId).Distinct().Take(MaxStatusIds).ToList();
-            var found = ids.Count == 0 ? [] : await repository.GetByIdsAsync(ids, ct);
-            return Results.Ok(found.Select(h => h.ToStatusView()));
-        });
+        hazards.MapGet("/mine", async (ClaimsPrincipal user, IHazardRepository repository, CancellationToken ct) =>
+            Results.Ok((await repository.ListByReporterAsync(AccountEndpoints.LoginOf(user), MaxMine, ct)).Select(h => h.ToStatusView())))
+            .RequireAuthorization(AccountEndpoints.UserPolicy);
 
         var official = app.MapGroup("/api/official/hazards")
             .AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter)
@@ -64,6 +60,4 @@ public static class HazardEndpoints
 
         return app;
     }
-
-    private sealed record StatusRequest(IReadOnlyList<string> Ids);
 }

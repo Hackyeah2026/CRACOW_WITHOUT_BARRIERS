@@ -12,6 +12,10 @@ public static class NeedsProfilePresets
     public const string Autism = "autism";
     public const string SensorySensitivity = "sensory";
     public const string Senior = "senior";
+    public const string Blind = "blind";
+    public const string Deaf = "deaf";
+    public const string HardOfHearing = "hard-of-hearing";
+    public const string EasyRead = "easy-read";
 
     public static IReadOnlyList<NeedsPreset> All { get; } =
     [
@@ -29,14 +33,22 @@ public static class NeedsProfilePresets
             }),
         new(WalkingAid, "Ruch", "Kule lub balkonik", "Schody są utrudnieniem, potrzebne miejsca do siedzenia.",
             new NeedsProfile { AvoidStairs = true, NeedsSeating = true, MaxDistanceWithoutRestM = 400, WalkingSpeedKmh = 3 }),
-        new(Stroller, "Towarzyszące", "Wózek dziecięcy", "Schody i bruk są utrudnieniem.",
-            new NeedsProfile { AvoidStairs = true, AvoidCobblestone = true, WalkingSpeedKmh = 4 }),
+        new(Blind, "Wzrok", "Osoba niewidoma / słabowidząca", "Ścieżki dotykowe, audiodeskrypcja, pies asystujący.",
+            new NeedsProfile { NeedsTactilePaving = true, NeedsAudioDescription = true, NeedsAssistanceDog = true }),
+        new(Deaf, "Słuch", "Osoba głucha", "Obsługa w Polskim Języku Migowym (PJM), informacja wizualna.",
+            new NeedsProfile { NeedsSignLanguage = true, NeedsVisualInformation = true }),
+        new(HardOfHearing, "Słuch", "Osoba słabosłysząca", "Pętla indukcyjna na stanowisku obsługi.",
+            new NeedsProfile { NeedsInductionLoop = true }),
         new(Autism, "Sensoryka", "Spektrum autyzmu", "Cicho i bez tłumu, ciche miejsca na przerwę.",
             new NeedsProfile { MaxNoiseLevel = 1, MaxCrowdLevel = 1, PrefersQuietRoom = true }),
         new(SensorySensitivity, "Sensoryka", "Nadwrażliwość sensoryczna", "Unikanie dużego hałasu i tłumu.",
             new NeedsProfile { MaxNoiseLevel = 2, MaxCrowdLevel = 2 }),
+        new(EasyRead, "Poznawcze", "Niepełnosprawność intelektualna", "Tekst łatwy do czytania (ETR) i piktogramy.",
+            new NeedsProfile { NeedsEasyToRead = true, NeedsPictograms = true }),
         new(Senior, "Kondycja", "Senior", "Krótkie odcinki, ławki po drodze, wolniejsze tempo.",
-            new NeedsProfile { AvoidStairs = true, NeedsSeating = true, MaxDistanceWithoutRestM = 500, WalkingSpeedKmh = 3 })
+            new NeedsProfile { AvoidStairs = true, NeedsSeating = true, MaxDistanceWithoutRestM = 500, WalkingSpeedKmh = 3 }),
+        new(Stroller, "Towarzyszące", "Wózek dziecięcy", "Schody i bruk są utrudnieniem.",
+            new NeedsProfile { AvoidStairs = true, AvoidCobblestone = true, WalkingSpeedKmh = 4 })
     ];
 
     public static NeedsProfile Build(IEnumerable<string> presetIds)

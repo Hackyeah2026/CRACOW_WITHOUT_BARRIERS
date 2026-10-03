@@ -107,4 +107,34 @@ public class AssessmentEngineTests
         Assert.Equal(500, combined.MaxDistanceWithoutRestM);
         Assert.Equal(3, combined.WalkingSpeedKmh);
     }
+
+    [Fact]
+    public void Deaf_profile_requires_sign_language_interpreter_in_public_office()
+    {
+        var deaf = NeedsProfilePresets.Build([NeedsProfilePresets.Deaf]);
+        var officeWithSignLanguage = new Place("office1", "krakow", "Urząd", PlaceCategory.Office, 50.06, 19.94, null, null,
+            [Feature(FeatureKey.SignLanguage, FeatureState.Yes)]);
+        var officeNoSignLanguage = new Place("office2", "krakow", "Urząd 2", PlaceCategory.Office, 50.06, 19.94, null, null,
+            [Feature(FeatureKey.SignLanguage, FeatureState.No)]);
+
+        Assert.Equal(AssessmentStatus.Accessible, AssessmentEngine.Assess(deaf, officeWithSignLanguage).Status);
+        Assert.Equal(AssessmentStatus.Inaccessible, AssessmentEngine.Assess(deaf, officeNoSignLanguage).Status);
+    }
+
+    [Fact]
+    public void Blind_profile_requires_tactile_paving_and_assistance_dog_approval()
+    {
+        var blind = NeedsProfilePresets.Build([NeedsProfilePresets.Blind]);
+        var accessibleMuseum = PlaceWith(
+            Feature(FeatureKey.TactilePaving, FeatureState.Yes),
+            Feature(FeatureKey.AudioDescription, FeatureState.Yes),
+            Feature(FeatureKey.AssistanceDogAllowed, FeatureState.Yes));
+
+        var forbiddenDogMuseum = PlaceWith(
+            Feature(FeatureKey.TactilePaving, FeatureState.Yes),
+            Feature(FeatureKey.AssistanceDogAllowed, FeatureState.No));
+
+        Assert.Equal(AssessmentStatus.Accessible, AssessmentEngine.Assess(blind, accessibleMuseum).Status);
+        Assert.Equal(AssessmentStatus.Inaccessible, AssessmentEngine.Assess(blind, forbiddenDogMuseum).Status);
+    }
 }

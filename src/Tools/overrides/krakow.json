@@ -1,33 +1,38 @@
 [
   { "id": "osm-way-23256528", "note": "Sukiennice", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 3 }, { "key": "CrowdLevel", "state": "Yes", "value": 3 },
-    { "key": "SurfaceCobblestone", "state": "Yes" }, { "key": "SeatingInside", "state": "No" } ] },
+    { "key": "SurfaceCobblestone", "state": "Yes" }, { "key": "SeatingInside", "state": "No" }, { "key": "AssistanceDogAllowed", "state": "Yes" } ] },
   { "id": "osm-relation-2270819", "note": "Zamek Królewski na Wawelu", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 2 }, { "key": "CrowdLevel", "state": "Yes", "value": 3 },
-    { "key": "SurfaceCobblestone", "state": "Yes" }, { "key": "Benches", "state": "Yes" } ] },
+    { "key": "SurfaceCobblestone", "state": "Yes" }, { "key": "Benches", "state": "Yes" }, { "key": "AudioDescription", "state": "Yes" }, { "key": "AssistanceDogAllowed", "state": "Yes" } ] },
   { "id": "osm-way-1284375894", "note": "Muzeum Narodowe w Krakowie", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 1 }, { "key": "CrowdLevel", "state": "Yes", "value": 2 },
-    { "key": "SeatingInside", "state": "Yes" }, { "key": "AccessibleToilet", "state": "Yes" }, { "key": "QuietHours", "state": "Yes" } ] },
+    { "key": "SeatingInside", "state": "Yes" }, { "key": "AccessibleToilet", "state": "Yes" }, { "key": "QuietHours", "state": "Yes" },
+    { "key": "AudioDescription", "state": "Yes" }, { "key": "TactilePaving", "state": "Yes" }, { "key": "InductionLoop", "state": "Yes" }, { "key": "AssistanceDogAllowed", "state": "Yes" } ] },
   { "id": "osm-way-233371578", "note": "Muzeum Manggha", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 1 }, { "key": "CrowdLevel", "state": "Yes", "value": 1 },
-    { "key": "StepFreeEntrance", "state": "Yes" }, { "key": "SeatingInside", "state": "Yes" }, { "key": "AccessibleToilet", "state": "Yes" } ] },
+    { "key": "StepFreeEntrance", "state": "Yes" }, { "key": "SeatingInside", "state": "Yes" }, { "key": "AccessibleToilet", "state": "Yes" },
+    { "key": "InductionLoop", "state": "Yes" }, { "key": "AssistanceDogAllowed", "state": "Yes" } ] },
   { "id": "osm-way-136648568", "note": "Fabryka Emalia Oskara Schindlera", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 2 }, { "key": "CrowdLevel", "state": "Yes", "value": 3 },
-    { "key": "SeatingInside", "state": "Yes" } ] },
+    { "key": "SeatingInside", "state": "Yes" }, { "key": "AssistanceDogAllowed", "state": "Yes" } ] },
   { "id": "osm-way-1334317116", "note": "Muzeum Książąt Czartoryskich", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 1 }, { "key": "CrowdLevel", "state": "Yes", "value": 1 },
-    { "key": "SeatingInside", "state": "Yes" }, { "key": "QuietRoom", "state": "Yes" } ] },
+    { "key": "SeatingInside", "state": "Yes" }, { "key": "QuietRoom", "state": "Yes" }, { "key": "AudioDescription", "state": "Yes" } ] },
   { "id": "osm-relation-13562708", "note": "Barbakan", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 2 }, { "key": "CrowdLevel", "state": "Yes", "value": 2 },
     { "key": "SurfaceCobblestone", "state": "Yes" }, { "key": "Stairs", "state": "Yes" } ] },
   { "id": "osm-way-404255986", "note": "Urząd Miasta Krakowa", "features": [
     { "key": "StepFreeEntrance", "state": "Yes" }, { "key": "Stairs", "state": "Yes" }, { "key": "Elevator", "state": "Yes" },
     { "key": "NoiseLevel", "state": "Yes", "value": 2 }, { "key": "CrowdLevel", "state": "Yes", "value": 2 },
-    { "key": "SeatingInside", "state": "Yes" } ] },
+    { "key": "SeatingInside", "state": "Yes" }, { "key": "SignLanguage", "state": "Yes" }, { "key": "InductionLoop", "state": "Yes" },
+    { "key": "TactilePaving", "state": "Yes" }, { "key": "AssistanceDogAllowed", "state": "Yes" }, { "key": "EasyToReadText", "state": "Yes" } ] },
   { "id": "osm-way-29327226", "note": "Wojewódzka Biblioteka Publiczna", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 1 }, { "key": "CrowdLevel", "state": "Yes", "value": 1 },
-    { "key": "SeatingInside", "state": "Yes" } ] },
+    { "key": "SeatingInside", "state": "Yes" }, { "key": "InductionLoop", "state": "Yes" }, { "key": "SignLanguage", "state": "Yes" },
+    { "key": "EasyToReadText", "state": "Yes" }, { "key": "AssistanceDogAllowed", "state": "Yes" } ] },
   { "id": "osm-node-14031210214", "note": "Przychodnia Medycyna Polska", "features": [
     { "key": "NoiseLevel", "state": "Yes", "value": 2 }, { "key": "CrowdLevel", "state": "Yes", "value": 2 },
-    { "key": "SeatingInside", "state": "Yes" } ] }
+    { "key": "SeatingInside", "state": "Yes" }, { "key": "SignLanguage", "state": "Yes" }, { "key": "InductionLoop", "state": "Yes" },
+    { "key": "AssistanceDogAllowed", "state": "Yes" } ] }
 ]

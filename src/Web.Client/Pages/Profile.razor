@@ -38,12 +38,17 @@
                                 <div class="preset-icon">
                                     @switch (preset.Id)
                                     {
-                                        case "wheelchair": <span>🦽</span>; break;
-                                        case "autism": <span>🧠</span>; break;
-                                        case "senior": <span>👵</span>; break;
-                                        case "parent": <span>👨‍👧‍👦</span>; break;
-                                        case "blind": <span>👓</span>; break;
-                                        case "deaf": <span>👂</span>; break;
+                                        case NeedsProfilePresets.ElectricWheelchair:
+                                        case NeedsProfilePresets.ManualWheelchair: <span>🦽</span>; break;
+                                        case NeedsProfilePresets.WalkingAid: <span>🦯</span>; break;
+                                        case NeedsProfilePresets.Blind: <span>👓</span>; break;
+                                        case NeedsProfilePresets.Deaf:
+                                        case NeedsProfilePresets.HardOfHearing: <span>👂</span>; break;
+                                        case NeedsProfilePresets.Autism:
+                                        case NeedsProfilePresets.SensorySensitivity: <span>🧠</span>; break;
+                                        case NeedsProfilePresets.EasyRead: <span>🔤</span>; break;
+                                        case NeedsProfilePresets.Senior: <span>👵</span>; break;
+                                        case NeedsProfilePresets.Stroller: <span>👨‍👧‍👦</span>; break;
                                         default: <span>✓</span>; break;
                                     }
                                 </div>
@@ -64,7 +69,7 @@
                     <span class="section-number">2</span>
                     <div>
                         <h2>Dostosuj parametry</h2>
-                        <p class="section-help">Precyzuj swoją potrzeby</p>
+                        <p class="section-help">Precyzuj swoje potrzeby</p>
                     </div>
                 </div>
 
@@ -78,9 +83,25 @@
                         <Toggle Id="toilet" Label="Potrzebuję toalety dostosowanej" Value="_draft.NeedsAccessibleToilet" OnChange="v => { _draft = _draft with { NeedsAccessibleToilet = v }; StateHasChanged(); }" />
                     </div>
 
+                    <!-- Vision -->
+                    <div class="param-group">
+                        <h3 class="param-group-title">👓 Wzrok</h3>
+                        <Toggle Id="tactile" Label="Potrzebuję ścieżek dotykowych / oznaczeń fakturalnych" Value="_draft.NeedsTactilePaving" OnChange="v => { _draft = _draft with { NeedsTactilePaving = v }; StateHasChanged(); }" />
+                        <Toggle Id="audiodesc" Label="Potrzebuję audiodeskrypcji / przewodnika audio" Value="_draft.NeedsAudioDescription" OnChange="v => { _draft = _draft with { NeedsAudioDescription = v }; StateHasChanged(); }" />
+                        <Toggle Id="guide-dog" Label="Poruszam się z psem asystującym" Value="_draft.NeedsAssistanceDog" OnChange="v => { _draft = _draft with { NeedsAssistanceDog = v }; StateHasChanged(); }" />
+                    </div>
+
+                    <!-- Hearing -->
+                    <div class="param-group">
+                        <h3 class="param-group-title">👂 Słuch</h3>
+                        <Toggle Id="sign-lang" Label="Potrzebuję obsługi w Polskim Języku Migowym (PJM)" Value="_draft.NeedsSignLanguage" OnChange="v => { _draft = _draft with { NeedsSignLanguage = v }; StateHasChanged(); }" />
+                        <Toggle Id="ind-loop" Label="Potrzebuję pętli indukcyjnej" Value="_draft.NeedsInductionLoop" OnChange="v => { _draft = _draft with { NeedsInductionLoop = v }; StateHasChanged(); }" />
+                        <Toggle Id="visual-info" Label="Potrzebuję informacji i komunikatów wizualnych" Value="_draft.NeedsVisualInformation" OnChange="v => { _draft = _draft with { NeedsVisualInformation = v }; StateHasChanged(); }" />
+                    </div>
+
                     <!-- Sensory -->
                     <div class="param-group">
-                        <h3 class="param-group-title">👁️ Sensoryka</h3>
+                        <h3 class="param-group-title">🧠 Sensoryka</h3>
                         <div class="form-group">
                             <label>Hałas - co tolerujesz?</label>
                             <select class="form-select" value="@(_draft.MaxNoiseLevel?.ToString() ?? "")"
@@ -99,6 +120,14 @@
                                 <option value="2">Najwyżej umiarkowany</option>
                             </select>
                         </div>
+                        <Toggle Id="quiet-room" Label="Preferuję miejsca z pokojem wyciszenia" Value="_draft.PrefersQuietRoom" OnChange="v => { _draft = _draft with { PrefersQuietRoom = v }; StateHasChanged(); }" />
+                    </div>
+
+                    <!-- Cognitive -->
+                    <div class="param-group">
+                        <h3 class="param-group-title">🔤 Poznawcze i komunikacja</h3>
+                        <Toggle Id="etr" Label="Potrzebuję tekstu łatwego do czytania (ETR)" Value="_draft.NeedsEasyToRead" OnChange="v => { _draft = _draft with { NeedsEasyToRead = v }; StateHasChanged(); }" />
+                        <Toggle Id="picto" Label="Potrzebuję oznaczeń piktogramowych" Value="_draft.NeedsPictograms" OnChange="v => { _draft = _draft with { NeedsPictograms = v }; StateHasChanged(); }" />
                     </div>
 
                     <!-- Fitness -->
@@ -183,8 +212,17 @@
         if (_draft.NeedsAccessibleToilet) count++;
         if (_draft.MaxNoiseLevel.HasValue) count++;
         if (_draft.MaxCrowdLevel.HasValue) count++;
+        if (_draft.PrefersQuietRoom) count++;
         if (_draft.NeedsSeating) count++;
         if (_draft.MaxDistanceWithoutRestM.HasValue) count++;
+        if (_draft.NeedsTactilePaving) count++;
+        if (_draft.NeedsAudioDescription) count++;
+        if (_draft.NeedsAssistanceDog) count++;
+        if (_draft.NeedsInductionLoop) count++;
+        if (_draft.NeedsSignLanguage) count++;
+        if (_draft.NeedsVisualInformation) count++;
+        if (_draft.NeedsEasyToRead) count++;
+        if (_draft.NeedsPictograms) count++;
         return count;
     }
 

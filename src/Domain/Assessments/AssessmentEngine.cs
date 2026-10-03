@@ -9,7 +9,15 @@ namespace Domain.Assessments;
 /// </summary>
 public static class AssessmentEngine
 {
-    private static readonly IAssessmentRule[] Rules = [new MobilityRule(), new SensoryRule(), new StaminaRule()];
+    private static readonly IAssessmentRule[] Rules =
+    [
+        new MobilityRule(),
+        new SensoryRule(),
+        new StaminaRule(),
+        new VisionRule(),
+        new HearingRule(),
+        new CognitiveRule()
+    ];
 
     public static Assessment Assess(NeedsProfile profile, Place place)
     {

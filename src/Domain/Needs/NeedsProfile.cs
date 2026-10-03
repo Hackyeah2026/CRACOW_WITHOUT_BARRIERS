@@ -28,11 +28,28 @@ public sealed record NeedsProfile
     public int? MaxDistanceWithoutRestM { get; init; }
     public double WalkingSpeedKmh { get; init; } = 4.5;
 
+    // Wzrok
+    public bool NeedsTactilePaving { get; init; }
+    public bool NeedsAudioDescription { get; init; }
+    public bool NeedsAssistanceDog { get; init; }
+
+    // Słuch
+    public bool NeedsInductionLoop { get; init; }
+    public bool NeedsSignLanguage { get; init; }
+    public bool NeedsVisualInformation { get; init; }
+
+    // Poznawcze i komunikacja
+    public bool NeedsEasyToRead { get; init; }
+    public bool NeedsPictograms { get; init; }
+
     [JsonIgnore]
     public bool IsEmpty => !StepFreeRequired && !AvoidStairs && MaxThresholdCm is null && MinDoorWidthCm is null
                            && !AvoidCobblestone && !NeedsAccessibleToilet && MaxNoiseLevel is null
                            && MaxCrowdLevel is null && !PrefersQuietRoom && !NeedsSeating
-                           && MaxDistanceWithoutRestM is null;
+                           && MaxDistanceWithoutRestM is null
+                           && !NeedsTactilePaving && !NeedsAudioDescription && !NeedsAssistanceDog
+                           && !NeedsInductionLoop && !NeedsSignLanguage && !NeedsVisualInformation
+                           && !NeedsEasyToRead && !NeedsPictograms;
 
     /// <summary>Łączy dwa profile, biorąc w każdym parametrze wartość bardziej restrykcyjną.</summary>
     public NeedsProfile CombineWith(NeedsProfile other) => new()
@@ -49,7 +66,15 @@ public sealed record NeedsProfile
         PrefersQuietRoom = PrefersQuietRoom || other.PrefersQuietRoom,
         NeedsSeating = NeedsSeating || other.NeedsSeating,
         MaxDistanceWithoutRestM = (int?)Min(MaxDistanceWithoutRestM, other.MaxDistanceWithoutRestM),
-        WalkingSpeedKmh = Math.Min(WalkingSpeedKmh, other.WalkingSpeedKmh)
+        WalkingSpeedKmh = Math.Min(WalkingSpeedKmh, other.WalkingSpeedKmh),
+        NeedsTactilePaving = NeedsTactilePaving || other.NeedsTactilePaving,
+        NeedsAudioDescription = NeedsAudioDescription || other.NeedsAudioDescription,
+        NeedsAssistanceDog = NeedsAssistanceDog || other.NeedsAssistanceDog,
+        NeedsInductionLoop = NeedsInductionLoop || other.NeedsInductionLoop,
+        NeedsSignLanguage = NeedsSignLanguage || other.NeedsSignLanguage,
+        NeedsVisualInformation = NeedsVisualInformation || other.NeedsVisualInformation,
+        NeedsEasyToRead = NeedsEasyToRead || other.NeedsEasyToRead,
+        NeedsPictograms = NeedsPictograms || other.NeedsPictograms
     };
 
     private static double? Min(double? a, double? b) => a is null ? b : b is null ? a : Math.Min(a.Value, b.Value);

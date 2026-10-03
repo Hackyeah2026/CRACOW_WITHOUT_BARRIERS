@@ -149,3 +149,154 @@ public sealed class StaminaRule : IAssessmentRule
             yield return Reasons.Missing(FeatureKey.Benches, "Brak informacji o miejscach do siedzenia.", blocking: false);
     }
 }
+
+/// <summary>Wzrok: ścieżki dotykowe, audiodeskrypcja, pies asystujący.</summary>
+public sealed class VisionRule : IAssessmentRule
+{
+    public IEnumerable<AssessmentReason> Evaluate(NeedsProfile profile, Place place)
+    {
+        if (profile.NeedsTactilePaving)
+        {
+            switch (place.StateOf(FeatureKey.TactilePaving))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.TactilePaving, "Dostępne ścieżki dotykowe / oznaczenia fakturalne.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Barrier(place, FeatureKey.TactilePaving, AssessmentStatus.Limited, "Brak ścieżek dotykowych i oznaczeń fakturalnych.");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.TactilePaving, "Brak informacji o ścieżkach dotykowych.", blocking: false);
+                    break;
+            }
+        }
+
+        if (profile.NeedsAudioDescription)
+        {
+            switch (place.StateOf(FeatureKey.AudioDescription))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.AudioDescription, "Dostępna audiodeskrypcja / przewodnik audio.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Barrier(place, FeatureKey.AudioDescription, AssessmentStatus.Limited, "Brak audiodeskrypcji.");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.AudioDescription, "Brak informacji o audiodeskrypcji.", blocking: false);
+                    break;
+            }
+        }
+
+        if (profile.NeedsAssistanceDog)
+        {
+            switch (place.StateOf(FeatureKey.AssistanceDogAllowed))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.AssistanceDogAllowed, "Wstęp z psem asystującym jest dozwolony.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Barrier(place, FeatureKey.AssistanceDogAllowed, AssessmentStatus.Inaccessible, "Zakaz wstępu z psem asystującym.");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.AssistanceDogAllowed, "Brak informacji o możliwości wstępu z psem asystującym.", blocking: true);
+                    break;
+            }
+        }
+    }
+}
+
+/// <summary>Słuch: tłumacz języka migowego (PJM), pętla indukcyjna, informacja wizualna.</summary>
+public sealed class HearingRule : IAssessmentRule
+{
+    public IEnumerable<AssessmentReason> Evaluate(NeedsProfile profile, Place place)
+    {
+        if (profile.NeedsSignLanguage)
+        {
+            var isPublicInstitution = place.Category is PlaceCategory.Office or PlaceCategory.Clinic or PlaceCategory.Culture or PlaceCategory.Museum or PlaceCategory.Library;
+            switch (place.StateOf(FeatureKey.SignLanguage))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.SignLanguage, "Obsługa w Polskim Języku Migowym (PJM) na miejscu lub online.");
+                    break;
+                case FeatureState.No:
+                    var impact = isPublicInstitution ? AssessmentStatus.Inaccessible : AssessmentStatus.Limited;
+                    yield return Reasons.Barrier(place, FeatureKey.SignLanguage, impact, "Brak obsługi w języku migowym (PJM).");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.SignLanguage, "Brak informacji o tłumaczu języka migowego (PJM).", blocking: isPublicInstitution);
+                    break;
+            }
+        }
+
+        if (profile.NeedsInductionLoop)
+        {
+            switch (place.StateOf(FeatureKey.InductionLoop))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.InductionLoop, "Dostępna pętla indukcyjna przy stanowisku obsługi / kasie.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Barrier(place, FeatureKey.InductionLoop, AssessmentStatus.Limited, "Brak pętli indukcyjnej.");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.InductionLoop, "Brak informacji o pętli indukcyjnej.", blocking: false);
+                    break;
+            }
+        }
+
+        if (profile.NeedsVisualInformation)
+        {
+            switch (place.StateOf(FeatureKey.VisualInformation))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.VisualInformation, "Komunikaty i system wywoławczy dostępne w formie wizualnej.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Barrier(place, FeatureKey.VisualInformation, AssessmentStatus.Limited, "Brak wizualnego systemu informacji.");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.VisualInformation, "Brak informacji o wizualnym systemie komunikatów.", blocking: false);
+                    break;
+            }
+        }
+    }
+}
+
+/// <summary>Poznawcze i komunikacja: tekst łatwy do czytania (ETR), piktogramy.</summary>
+public sealed class CognitiveRule : IAssessmentRule
+{
+    public IEnumerable<AssessmentReason> Evaluate(NeedsProfile profile, Place place)
+    {
+        if (profile.NeedsEasyToRead)
+        {
+            switch (place.StateOf(FeatureKey.EasyToReadText))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.EasyToReadText, "Informacje i materiały dostępne w tekście łatwym do czytania (ETR).");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Barrier(place, FeatureKey.EasyToReadText, AssessmentStatus.Limited, "Brak materiałów w tekście łatwym do czytania (ETR).");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.EasyToReadText, "Brak informacji o materiałach ETR.", blocking: false);
+                    break;
+            }
+        }
+
+        if (profile.NeedsPictograms)
+        {
+            switch (place.StateOf(FeatureKey.Pictograms))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Amenity(place, FeatureKey.Pictograms, "Oznaczenia czytelne z użyciem piktogramów.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Barrier(place, FeatureKey.Pictograms, AssessmentStatus.Limited, "Brak piktogramów w oznaczeniach.");
+                    break;
+                default:
+                    yield return Reasons.Missing(FeatureKey.Pictograms, "Brak informacji o piktogramach.", blocking: false);
+                    break;
+            }
+        }
+    }
+}

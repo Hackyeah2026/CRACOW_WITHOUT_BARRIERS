@@ -81,10 +81,14 @@ else
                         {
                             var leg = _plan.Legs[i];
                             <li class="leg">
-                                ↓ około @Labels.Distance(leg.DistanceM), około @Math.Ceiling(leg.DurationMin) min
+                                ↓ @(leg.IsEstimated ? "około " : "")@Labels.Distance(leg.DistanceM), około @Math.Ceiling(leg.DurationMin) min
                                 @foreach (var warning in leg.Warnings.Where(w => !w.StartsWith("Dystans szacowany")))
                                 {
                                     <div class="text-warning-emphasis"><span aria-hidden="true">!</span> @warning</div>
+                                }
+                                @if (leg.Transit is not null)
+                                {
+                                    <TransitPanel Advice="leg.Transit" />
                                 }
                             </li>
                         }
@@ -93,7 +97,7 @@ else
                 @if (_plan.Legs.Any(l => l.IsEstimated))
                 {
                     <div class="alert alert-info" role="note">
-                        Dystanse są szacowane w linii prostej. Przebieg ulicami i bariery po drodze (krawężniki, bruk, nachylenie) nie są jeszcze sprawdzane.
+                        Nie udało się pobrać trasy po ulicach dla części odcinków. Ich dystans jest szacowany w linii prostej, a bariery po drodze nie są sprawdzone.
                     </div>
                 }
             </div>
@@ -146,7 +150,7 @@ else
 
     private async Task BuildAsync()
     {
-        var result = await Sender.Send(new BuildTripPlanCommand(State.CityId, State.PlanPlaceIds, State.Profile, State.Mode));
+        var result = await Sender.Send(new BuildTripPlanCommand(State.CityId, State.PlanPlaceIds, State.Profile, State.Mode, DateTime.Now));
         if (result.IsFailure)
         {
             _error = result.Error;

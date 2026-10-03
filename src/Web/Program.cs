@@ -1,11 +1,16 @@
-using Web.Client.Pages;
+using Infrastructure;
+using Infrastructure.Server;
 using Web.Components;
+using Web.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
+
+builder.Services.AddServerInfrastructure(
+    builder.Configuration.GetSection(OpenRouteServiceOptions.Section).Get<OpenRouteServiceOptions>() ?? new());
 
 var app = builder.Build();
 
@@ -26,6 +31,7 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapRouteEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

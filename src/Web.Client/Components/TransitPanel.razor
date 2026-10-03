@@ -1,0 +1,59 @@
+@if (Advice.Status == TransitStatus.Found)
+{
+    <div class="transit" role="group" aria-label="Przejazd komunikacją miejską">
+        <div class="transit-title">Możesz pojechać komunikacją miejską</div>
+        @foreach (var journey in Advice.Journeys)
+        {
+            <div class="transit-journey">
+                <div>
+                    <strong>Wyjdź o @Labels.Time(journey.LeaveMinute), na miejscu około @Labels.Time(journey.ArriveMinute)</strong>
+                    · @(journey.Transfers == 0 ? "bez przesiadek" : "1 przesiadka")
+                    · pieszo razem @Labels.Distance(journey.TotalWalkM)
+                </div>
+                <ol class="transit-steps">
+                    <li>Dojście @Labels.Distance(journey.WalkToStopM) do przystanku <strong>@journey.Rides[0].BoardStop</strong>.</li>
+                    @for (var i = 0; i < journey.Rides.Count; i++)
+                    {
+                        var ride = journey.Rides[i];
+                        @if (i > 0)
+                        {
+                            <li>
+                                Przesiadka na przystanku <strong>@ride.BoardStop</strong>@(journey.TransferWalkM >= 10 ? $" (przejście {Labels.Distance(journey.TransferWalkM)})" : "").
+                            </li>
+                        }
+                        <li>
+                            <span class="transit-line">@Labels.Of(ride.Kind) @ride.LineName</span> kierunek @ride.Headsign:
+                            odjazd <strong>@Labels.Time(ride.DepartMinute)</strong> z @ride.BoardStop,
+                            przyjazd @Labels.Time(ride.ArriveMinute) na <strong>@ride.AlightStop</strong> (@Labels.Stops(ride.StopsCount)).
+                            <div class="small">Najbliższe odjazdy: @string.Join(", ", ride.NextDepartures.Select(Labels.Time))</div>
+                        </li>
+                    }
+                    <li>Z przystanku @journey.Rides[^1].AlightStop @Labels.Distance(journey.WalkFromStopM) pieszo do celu.</li>
+                </ol>
+            </div>
+        }
+        <div class="small">Brak danych o dostępności pojazdów i przystanków: sprawdź ją przed podróżą. @DataNote</div>
+    </div>
+}
+else
+{
+    <div class="transit transit-none" role="group" aria-label="Brak przejazdu komunikacją miejską">
+        <div class="transit-title"><span aria-hidden="true">✕</span> Tego odcinka nie da się teraz przejechać komunikacją miejską</div>
+        <div>@Reason</div>
+        <div class="small">@DataNote</div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public TransitAdvice Advice { get; set; } = default!;
+
+    private string Reason => Advice.Status switch
+    {
+        TransitStatus.NoStopsNearby => "W zasięgu dojścia nie ma przystanku przy początku lub końcu odcinka.",
+        TransitStatus.NoTimetable => "Rozkład jazdy, który mamy, nie obejmuje dzisiejszego dnia.",
+        _ => $"Nie ma połączenia z najwyżej jedną przesiadką z odjazdem w ciągu 2 godzin od {Labels.Time(Advice.SearchedFromMinute)}."
+    };
+
+    private string DataNote =>
+        $"Godziny według rozkładu, bez opóźnień. Źródło: {Advice.Source}, rozkład ważny {Advice.ValidFrom:dd.MM.yyyy}-{Advice.ValidTo:dd.MM.yyyy}, pobrany {Advice.GeneratedOn:dd.MM.yyyy}.";
+}

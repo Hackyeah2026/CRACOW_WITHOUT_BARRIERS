@@ -1,5 +1,6 @@
 using Domain.Assessments;
 using Domain.Places;
+using Domain.Transit;
 
 namespace Web.Client.Services;
 
@@ -92,6 +93,13 @@ public static class Labels
     public static string Value(AccessibilityFeature feature) => feature.Value is { } value
         ? value.ToString("0.#")
         : feature.State switch { FeatureState.Yes => "tak", FeatureState.No => "nie", _ => "nieznane" };
+
+    public static string Of(TransitKind kind) => kind == TransitKind.Tram ? "Tramwaj" : "Autobus";
+
+    /// <summary>Minuta od północy jako godzina; czasy po północy zawijają się do następnej doby.</summary>
+    public static string Time(int minute) => $"{minute / 60 % 24:00}:{minute % 60:00}";
+
+    public static string Stops(int count) => count == 1 ? "1 przystanek" : count is >= 2 and <= 4 ? $"{count} przystanki" : $"{count} przystanków";
 
     public static string Distance(double meters) => meters >= 1000 ? $"{meters / 1000:0.0} km" : $"{Math.Round(meters / 10) * 10:0} m";
 }

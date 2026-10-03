@@ -1,3 +1,5 @@
+using Application.Abstractions;
+using Infrastructure.Mongo.Reports;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 
@@ -29,6 +31,14 @@ public static class DependencyInjection
         });
         services.AddSingleton(provider => provider.GetRequiredService<IMongoClient>().GetDatabase(options.Database));
         services.AddSingleton<MongoHealth>();
+        services.AddSingleton<MongoCollections>();
         return services;
     }
+
+    /// <summary>Zgłoszenia mieszkańców i konta urzędników. Wymaga <see cref="AddMongo"/>.</summary>
+    public static IServiceCollection AddMongoReports(this IServiceCollection services, OfficialsOptions officials) => services
+        .AddSingleton(officials)
+        .AddSingleton<IReportRepository, MongoReportRepository>()
+        .AddSingleton<IOfficialDirectory, MongoOfficialDirectory>()
+        .AddHostedService<ReportsStartup>();
 }

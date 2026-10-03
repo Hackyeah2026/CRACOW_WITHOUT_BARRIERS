@@ -1,12 +1,12 @@
 # Stan realizacji: Kraków bez barier
 
-Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-prac.md](plan-prac.md) i [plan-implementacji.md](plan-implementacji.md).
+Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [plan-prac.md](plan-prac.md) i [plan-implementacji.md](plan-implementacji.md).
 
 **W skrócie:** działa lokalnie pełna ścieżka profil → miejsca → karta miejsca → plan, na danych z OpenStreetMap, z trasami po ulicach (OpenRouteService) i przejazdami komunikacją miejską według rozkładu ZTP. Brakuje wdrożenia na serwer, publicznego API, opisu AI i danych z MSIP. Największe ryzyka: nietestowana wersja opublikowana, niestabilne połączenie z OpenRouteService i wymyślone dane demonstracyjne.
 
 **Co doszło od poprzedniej wersji tego dokumentu (13:00):** routing po ulicach, komunikacja miejska z rozkładem i przesiadkami, nowy wygląd interfejsu (Łukasz).
 
-**Co doszło 3.10.2026 wieczorem:** przygotowane połączenie hosta z MongoDB (klaster w MongoDB Atlas). Na razie sama infrastruktura, bez kolekcji z danymi; szczegóły w sekcji "Baza danych (MongoDB)".
+**Co doszło 3.10.2026 wieczorem:** przygotowane połączenie hosta z MongoDB (klaster w MongoDB Atlas), a na nim zgłoszenia mieszkańców (brakujące udogodnienia, bariery, błędne dane) i panel urzędnika do ich obsługi; szczegóły w sekcjach "Baza danych (MongoDB)" i "Zgłoszenia i panel urzędnika".
 
 ## 1. Co zostało zrealizowane
 
@@ -24,7 +24,7 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 | – | **Komunikacja miejska (poza pierwotnym planem)** | zrobione | patrz niżej |
 | 8 | Opis planu przez AI | brak | |
 | 9 | Publiczne API z OpenAPI | brak | jest tylko wewnętrzny `POST /api/route` |
-| 10 | Zgłoszenie bariery | brak | |
+| 10 | Zgłoszenie bariery | zrobione, inaczej niż w planie | zgłoszenia trafiają do bazy na hoście i obsługuje je urzędnik w panelu; nie wpływają jeszcze na ocenę i trasę |
 | 11 | Harmonogram godzinowy | brak | |
 | 12 | Tryb offline (PWA) | brak | |
 
@@ -48,7 +48,7 @@ Stan na **3.10.2026, ok. 14:00** (commit `7bf1ae4`). Punkt odniesienia: [plan-pr
 
 ### Baza danych (MongoDB)
 
-Stan: **przygotowane połączenie, bez danych.** Żadna funkcja aplikacji nie korzysta jeszcze z bazy; katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
+Stan: **połączenie działa, dwie kolekcje: `reports` (zgłoszenia) i `officials` (konta urzędników).** Katalog miejsc i rozkład nadal są plikami statycznymi, a profil zostaje na urządzeniu.
 
 - **Gdzie działa baza:** klaster w MongoDB Atlas (cloud.mongodb.com). Łączy się z nim wyłącznie host (`Web`); przeglądarka nigdy nie dostaje adresu połączenia.
 - **Osobny projekt `Infrastructure.Mongo`**, podpięty tylko do hosta. Sterownik (`MongoDB.Driver` 3.12.0, licencja Apache-2.0) nie trafia do `Infrastructure`, bo ten projekt jest też częścią aplikacji w przeglądarce.
@@ -57,20 +57,50 @@ Stan: **przygotowane połączenie, bez danych.** Żadna funkcja aplikacji nie ko
 - **Zapis dokumentów:** pola camelCase, enumy jako tekst, nieznane pola pomijane, czyli tak samo jak w plikach JSON katalogu. `Place.Id` staje się kluczem `_id`.
 - **Sprawdzenie połączenia:** `GET /api/health/db` zwraca `ok` z czasem odpowiedzi, `not-configured` (503), gdy brakuje adresu, albo `unreachable` (503), gdy baza nie odpowiada. Szczegóły błędu trafiają tylko do logów hosta.
 
-Jak dodać pierwszą kolekcję: interfejs repozytorium w `Application/Abstractions`, implementacja w `Infrastructure.Mongo` na `IMongoDatabase`, endpoint w `Web/Endpoints`, klient HTTP w `Infrastructure/Browser`.
+- **Brak bazy:** repozytoria rzucają `DatabaseUnavailableException`, a endpointy zgłoszeń zamieniają go na 503 z komunikatem dla użytkownika (`MongoCollections`).
+
+Jak dodać kolejną kolekcję: interfejs repozytorium w `Application/Abstractions`, implementacja w `Infrastructure.Mongo` na `MongoCollections`, endpoint w `Web/Endpoints`, klient HTTP w `Infrastructure/Browser` (wzór: zgłoszenia).
+
+### Zgłoszenia i panel urzędnika
+
+**Mieszkaniec (bez konta):**
+
+- Na karcie miejsca przycisk "Zgłoś": rodzaj (brakuje udogodnienia / bariera / błędne dane w aplikacji), lista udogodnień do zaznaczenia (winda, toaleta, pętla indukcyjna, PJM, ławki itd.), opis do 1000 znaków.
+- Wysyłane jest tylko miejsce, udogodnienia i opis. **Profil potrzeb ani dane osobowe nie trafiają na serwer**; formularz mówi to wprost i prosi, żeby nie wpisywać danych osobowych.
+- Identyfikator zgłoszenia zostaje w IndexedDB (magazyn `reports`). Strona **"Zgłoszenia"** (`/zgloszenia`) pokazuje status i odpowiedź urzędu. Bez konta lista jest związana z przeglądarką.
+- `POST /api/reports` ma limit 10 zgłoszeń na 10 minut z jednego adresu IP.
+
+**Urzędnik (`/urzednik`, link w stopce):**
+
+- Logowanie loginem i hasłem. Sesja to ciasteczko hosta `kbb.official` (HttpOnly, SameSite=Strict, 8 godzin); kod w przeglądarce go nie widzi. Logowanie: limit 5 prób na minutę z adresu IP; odpowiedź dla nieistniejącego loginu trwa tyle samo co dla złego hasła.
+- Zestawienie otwartych zgłoszeń: liczba, czego najczęściej brakuje, miejsca z największą liczbą zgłoszeń; mapa miejsc z otwartymi zgłoszeniami (kliknięcie filtruje listę).
+- Lista z filtrem statusu; zmiana statusu (nowe → sprawdzane → zaplanowane → rozwiązane / odrzucone) z odpowiedzią widoczną dla zgłaszającego. Zapisywany jest login urzędnika, ale zgłaszający go nie widzi.
+
+**Konta urzędników** zakłada host przy starcie z sekcji `Officials:Seed` (hasła jako PBKDF2-SHA256). Lokalnie:
+
+```bash
+dotnet user-secrets set "Officials:Seed:0:Login" "urzednik" --project src/Web
+dotnet user-secrets set "Officials:Seed:0:Password" "<hasło>" --project src/Web
+dotnet user-secrets set "Officials:Seed:0:DisplayName" "Jan Kowalski" --project src/Web
+dotnet user-secrets set "Officials:Seed:0:Unit" "Pełnomocnik ds. osób z niepełnosprawnościami" --project src/Web
+```
+
+Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password` itd. Zmiana hasła w konfiguracji zmienia je w bazie przy następnym starcie.
+
+**Endpointy:** `POST /api/reports`, `POST /api/reports/status` (identyfikatory w treści żądania), `POST /api/official/login`, `POST /api/official/logout`, `GET /api/official/me`, `GET /api/official/reports?cityId=&status=&placeId=`, `PATCH /api/official/reports/{id}`.
 
 ### Warstwy
 
 | Projekt | Co zawiera |
 |---|---|
 | `Domain` | model miejsc i cech, profil potrzeb z gotowymi profilami, silnik oceny (ruch, sensoryka, kondycja), model planu, sieć komunikacji i wyszukiwarka połączeń |
-| `Application` | `Result`, `ICommand` / `IQuery` nad MediatR, zapytania o miejsca i kartę miejsca, zapis i odczyt profilu, układanie planu (kolejność, odcinki, komunikacja), ranking podpowiedzi |
+| `Application` | `Result`, `ICommand` / `IQuery` nad MediatR, zapytania o miejsca i kartę miejsca, zapis i odczyt profilu, układanie planu (kolejność, odcinki, komunikacja), ranking podpowiedzi, zgłoszenia i zestawienie dla urzędu |
 | `Infrastructure` | katalog miejsc i sieć komunikacji z plików statycznych, magazyn IndexedDB, klient routingu z cache i wariantem awaryjnym, klient OpenRouteService po stronie hosta |
-| `Web.Client` | strony: start, profil, miejsca, karta miejsca, plan; mapa Leaflet; panel komunikacji; stan sesji |
-| `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia |
-| `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`) |
+| `Web.Client` | strony: start, profil, miejsca, karta miejsca z formularzem zgłoszenia, plan, moje zgłoszenia, panel urzędnika; mapa Leaflet; panel komunikacji; stan sesji |
+| `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
+| `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 44 testy: silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy |
+| `Tests` | 54 testy: silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 
@@ -96,10 +126,12 @@ Jak dodać pierwszą kolekcję: interfejs repozytorium w `Application/Abstractio
 | Przychodnia Medycyna Polska → Wojewódzka Biblioteka (limit 500 m) | brak połączenia, oznaczone na czerwono |
 
 - MongoDB bez dostępu do klastra: host uruchamia się bez adresu połączenia, `GET /api/health/db` zwraca `not-configured`; zapis i odczyt miejsca przez BSON oraz zachowanie przy niedostępnym serwerze są pokryte testami.
+- **Zgłoszenia na klastrze Atlas** (osobna baza `krakow-bez-barier-test`, konto urzędnika z zmiennych środowiskowych): wysłanie zgłoszenia z karty Sukiennic, walidacja pustego formularza, lista "Moje zgłoszenia", logowanie urzędnika (złe hasło i nieznany login → 401, szósta próba w minucie → 429), zestawienie i mapa w panelu, zmiana statusu z odpowiedzią widoczna u zgłaszającego, wylogowanie.
 
 ### Nie sprawdzone
 
-- **Połączenie z klastrem MongoDB Atlas.** Adres połączenia nie był jeszcze ustawiony; pierwsze sprawdzenie to `GET /api/health/db` po ustawieniu sekretu.
+- Zgłoszenia na bazie `krakow-bez-barier` (testy szły na osobnej bazie testowej) i na serwerze.
+- Panel urzędnika i formularz zgłoszenia na telefonie i z czytnikiem ekranu.
 - Wersja opublikowana (`dotnet publish`) i wdrożenie na serwer.
 - Routing na żywo dla profilu wózkowego z limitem krawężnika.
 - Komunikacja dla profilu bez limitu odcinka (próg 1 km) w przeglądarce; logika jest pokryta testami tylko pośrednio.
@@ -143,6 +175,10 @@ Jak dodać pierwszą kolekcję: interfejs repozytorium w `Application/Abstractio
 
 | Brak adresu IP na liście dostępu w MongoDB Atlas | połączenie kończy się limitem czasu, a endpoint zwraca `unreachable` | dodać adresy zespołu i serwera w Network Access; przyczyna jest w logach hosta |
 | Adres `mongodb+srv://` wymaga rekordów DNS SRV | w niektórych sieciach połączenie się nie uda | użyć dłuższego adresu `mongodb://` z Atlasa |
+| Limity zgłoszeń i logowań liczone per adres IP | za reverse proxy na serwerze wszyscy mają ten sam adres, więc limit będzie wspólny | włączyć `UseForwardedHeaders` z adresem proxy przy wdrożeniu |
+| Ciasteczko urzędnika ma flagę `Secure` tylko przy żądaniu HTTPS | za proxy kończącym HTTPS host widzi HTTP | jak wyżej: nagłówki `X-Forwarded-Proto` |
+| Lista zgłoszeń w panelu ma limit 500 najnowszych | przy większej liczbie starsze nie są widoczne | stronicowanie, gdy będzie potrzebne |
+| Zmienna `--neutral-400` nie była zdefiniowana w `app.css` | pola wyboru (profil, formularze) nie miały obramowania | poprawione: `#6b7280`, kontrast 4,8:1 |
 
 ### Organizacja
 
@@ -170,7 +206,9 @@ Jak dodać pierwszą kolekcję: interfejs repozytorium w `Application/Abstractio
 | `BreakInserter` wstawia przerwy | ostrzeżenie i propozycja przejazdu komunikacją | przerwy (ławki, toalety) nadal do zrobienia |
 | Toalety w liście i podpowiedziach | dostępne tylko przez filtr kategorii | zajmowały górę rankingu |
 | Zasięg miejsc: Kraków | centrum (prostokąt ok. 3 × 3 km); komunikacja obejmuje cały Kraków | mniejszy plik i szybszy import; zasięg jest jednym wpisem w `CityImports` |
-| Bez bazy danych: pliki statyczne i IndexedDB | doszło połączenie hosta z MongoDB (na razie bez kolekcji) | przygotowanie pod dane wspólne dla użytkowników, np. zgłoszenia barier |
+| Bez bazy danych: pliki statyczne i IndexedDB | doszło połączenie hosta z MongoDB z kolekcjami zgłoszeń i kont urzędników | zgłoszenia mają trafiać do urzędu, a nie zostawać na urządzeniu |
+| Zgłoszenie bariery zapisane lokalnie, zmienia ocenę i trasę | zgłoszenie trafia do bazy na hoście i do panelu urzędnika; na urządzeniu zostaje tylko jego identyfikator; ocena i trasa się nie zmieniają | decyzja zespołu: zgłoszenia jako źródło informacji dla miasta; wpływ na ocenę dopiero po weryfikacji przez urzędnika |
+| "Bez konta" | konto ma tylko urzędnik; mieszkaniec zgłasza anonimowo | panel musi być chroniony, a profil mieszkańca nadal nie opuszcza urządzenia |
 | Solution w formacie `.sln` | `.slnx` | domyślny format SDK .NET 10; starsze wersje IDE mogą go nie otwierać |
 | Leaflet | wersja 1.9.4 wgrana do repozytorium | bez CDN; licencja BSD-2 |
 
@@ -186,7 +224,8 @@ Jak dodać pierwszą kolekcję: interfejs repozytorium w `Application/Abstractio
 6. **Zasięg importu miejsc.** Centrum czy cały Kraków. Komunikacja obejmuje już całe miasto, więc różnica jest widoczna.
 7. **Drugie miasto.** Model ma `CityId` i `Coverage`, import jest parametryzowany, ale interfejs nie ma wyboru miasta.
 
-8. **Co trafia do MongoDB.** Kandydaci: zgłoszenia barier (punkt 10 zakresu), katalog miejsc, zapisane plany. Profil potrzeb powinien zostać na urządzeniu: aplikacja deklaruje, że dane o zdrowiu go nie opuszczają.
+8. **Co jeszcze trafia do MongoDB.** Zgłoszenia już tam są. Kandydaci: katalog miejsc, zapisane plany. Profil potrzeb powinien zostać na urządzeniu: aplikacja deklaruje, że dane o zdrowiu go nie opuszczają.
+9. **Czy zgłoszenia mają wpływać na ocenę miejsc.** Plan zakładał, że zgłoszenie zmienia ocenę i trasę. Teraz trafia tylko do urzędu. Prosty krok: karta miejsca pokazuje zgłoszenia przyjęte przez urzędnika jako osobne źródło ("zgłoszenie mieszkańca, potwierdzone").
 
 ### Ryzyka przed demo
 
@@ -211,4 +250,4 @@ Jak dodać pierwszą kolekcję: interfejs repozytorium w `Application/Abstractio
 | 8 | Opis planu przez OpenAI | punkt 8 zakresu |
 | 9 | Mapa hałasu MSIP, warstwy ZTP | mniej "brak danych" dla profili sensorycznych, cechy przystanków |
 | 10 | README, przegląd dostępności interfejsu | materiały do zgłoszenia |
-| 11 | MongoDB: ustawić adres połączenia, potwierdzić `GET /api/health/db`, zdecydować o pierwszej kolekcji | baza jest podłączona, ale jeszcze nieużywana |
+| 11 | Konta urzędników na serwerze (`Officials__Seed__...`), zgłoszenia potwierdzone przez urząd widoczne na karcie miejsca | zgłoszenia i panel działają lokalnie |

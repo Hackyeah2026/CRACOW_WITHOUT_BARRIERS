@@ -1,0 +1,5 @@
+<span class="status-badge @Labels.Css(Status)">@Labels.Of(Status)</span>
+
+@code {
+    [Parameter, EditorRequired] public ReportStatus Status { get; set; }
+}

@@ -17,6 +17,8 @@
     --neutral-100: #f3f4f6;
     --neutral-200: #e5e7eb;
     --neutral-300: #d1d5db;
+    /* Obramowanie pól wyboru: kontrast min. 3:1 do białego tła (WCAG 1.4.11). */
+    --neutral-400: #6b7280;
     --neutral-600: #4b5563;
     --neutral-700: #374151;
     --neutral-900: #111827;
@@ -1762,3 +1764,18 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .transit-steps { margin: 0.25rem 0 0; padding-left: 1.25rem; }
 .transit-steps li { margin-bottom: 0.25rem; }
 .transit-none { border-color: #58151c; background: #f8d7da; color: #58151c; }
+
+/* Zgłoszenia */
+.report-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 0 var(--spacing-4);
+}
+
+.report-description {
+    white-space: pre-line;
+}
+
+.official-login {
+    max-width: 26rem;
+}

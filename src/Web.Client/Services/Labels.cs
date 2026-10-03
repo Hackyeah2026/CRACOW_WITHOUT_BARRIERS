@@ -1,5 +1,6 @@
 using Domain.Assessments;
 using Domain.Places;
+using Domain.Reports;
 using Domain.Transit;
 
 namespace Web.Client.Services;
@@ -111,4 +112,36 @@ public static class Labels
     public static string Stops(int count) => count == 1 ? "1 przystanek" : count is >= 2 and <= 4 ? $"{count} przystanki" : $"{count} przystanków";
 
     public static string Distance(double meters) => meters >= 1000 ? $"{meters / 1000:0.0} km" : $"{Math.Round(meters / 10) * 10:0} m";
+
+    public static string Of(ReportKind kind) => kind switch
+    {
+        ReportKind.MissingAmenity => "Brakuje udogodnienia",
+        ReportKind.Barrier => "Bariera",
+        ReportKind.WrongData => "Błędne dane w aplikacji",
+        _ => kind.ToString()
+    };
+
+    public static string Of(ReportStatus status) => status switch
+    {
+        ReportStatus.New => "Nowe",
+        ReportStatus.InReview => "Sprawdzane",
+        ReportStatus.Planned => "Zaplanowane",
+        ReportStatus.Resolved => "Rozwiązane",
+        ReportStatus.Rejected => "Odrzucone",
+        _ => status.ToString()
+    };
+
+    /// <summary>Wygląd statusu zgłoszenia, zgodny z oceną miejsc: zielony = załatwione, czerwony = odrzucone.</summary>
+    public static string Css(ReportStatus status) => status switch
+    {
+        ReportStatus.Resolved => "status-accessible",
+        ReportStatus.Rejected => "status-inaccessible",
+        ReportStatus.InReview or ReportStatus.Planned => "status-limited",
+        _ => "status-unknown"
+    };
+
+    public static string Features(IReadOnlyList<FeatureKey> features) => string.Join(", ", features.Select(Of));
+
+    /// <summary>Data i godzina w czasie lokalnym przeglądarki.</summary>
+    public static string When(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("dd.MM.yyyy HH:mm");
 }

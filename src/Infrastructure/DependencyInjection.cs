@@ -13,7 +13,9 @@ public static class DependencyInjection
         .AddScoped<IPlaceCatalog, HttpPlaceCatalog>()
         .AddScoped<ITransitCatalog, HttpTransitCatalog>()
         .AddScoped<ILocalStore, IndexedDbLocalStore>()
-        .AddScoped<IRoutingClient, HostRoutingClient>();
+        .AddScoped<IRoutingClient, HostRoutingClient>()
+        .AddScoped<IReportsClient, HostReportsClient>()
+        .AddScoped<IOfficialClient, HostOfficialClient>();
 
     /// <summary>Usługi hosta: integracje wymagające kluczy API.</summary>
     public static IServiceCollection AddServerInfrastructure(this IServiceCollection services, OpenRouteServiceOptions routing)

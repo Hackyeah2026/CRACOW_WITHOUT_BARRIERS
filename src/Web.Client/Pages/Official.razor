@@ -1,0 +1,313 @@
+@page "/urzednik"
+@inject ISender Sender
+@inject AppState State
+
+<PageTitle>Panel urzędnika</PageTitle>
+
+@if (_checking)
+{
+    <h1>Panel urzędnika</h1>
+    <p role="status">Wczytuję…</p>
+}
+else if (_official is null)
+{
+    <h1>Panel urzędnika</h1>
+    <p class="text-body-secondary">Logowanie dla pracowników urzędu obsługujących zgłoszenia mieszkańców.</p>
+
+    <form class="card card-body official-login" @onsubmit="LoginAsync" @onsubmit:preventDefault>
+        <div class="mb-3">
+            <label class="form-label" for="official-login">Login</label>
+            <input id="official-login" class="form-control" autocomplete="username" @bind="_login" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="official-password">Hasło</label>
+            <input id="official-password" type="password" class="form-control" autocomplete="current-password" @bind="_password" />
+        </div>
+        @if (_loginError is not null)
+        {
+            <div class="alert alert-danger" role="alert">@_loginError</div>
+        }
+        <button type="submit" class="btn btn-primary" disabled="@_busy">@(_busy ? "Loguję…" : "Zaloguj")</button>
+    </form>
+}
+else
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="mb-0">Zgłoszenia mieszkańców</h1>
+            <p class="text-body-secondary mb-0">
+                @_official.DisplayName@(string.IsNullOrEmpty(_official.Unit) ? "" : $" · {_official.Unit}")
+            </p>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" @onclick="LogoutAsync">Wyloguj</button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@_error</div>
+    }
+
+    @if (_reports is null)
+    {
+        <p role="status">Wczytuję zgłoszenia…</p>
+    }
+    else
+    {
+        var summary = ReportStatistics.Summarize(_reports);
+        <div class="row g-3 mb-3">
+            <section class="col-md-4">
+                <div class="card card-body h-100">
+                    <h2 class="h6">Otwarte zgłoszenia</h2>
+                    <p class="display-6 mb-0">@summary.Open</p>
+                    <p class="small text-body-secondary mb-0">z @summary.Total wszystkich</p>
+                </div>
+            </section>
+            <section class="col-md-4">
+                <div class="card card-body h-100">
+                    <h2 class="h6">Czego najczęściej brakuje</h2>
+                    @if (summary.TopFeatures.Count == 0)
+                    {
+                        <p class="mb-0 text-body-secondary">Brak otwartych zgłoszeń z udogodnieniami.</p>
+                    }
+                    else
+                    {
+                        <ol class="mb-0 ps-3">
+                            @foreach (var item in summary.TopFeatures)
+                            {
+                                <li>@Labels.Of(item.Feature): <strong>@item.Count</strong></li>
+                            }
+                        </ol>
+                    }
+                </div>
+            </section>
+            <section class="col-md-4">
+                <div class="card card-body h-100">
+                    <h2 class="h6">Miejsca z największą liczbą zgłoszeń</h2>
+                    @if (summary.TopPlaces.Count == 0)
+                    {
+                        <p class="mb-0 text-body-secondary">Brak otwartych zgłoszeń.</p>
+                    }
+                    else
+                    {
+                        <ol class="mb-0 ps-3">
+                            @foreach (var place in summary.TopPlaces)
+                            {
+                                <li>
+                                    <button type="button" class="btn btn-link p-0 align-baseline text-start" @onclick="() => _placeFilter = place.PlaceId">
+                                        @place.PlaceName
+                                    </button>: <strong>@place.Count</strong>
+                                </li>
+                            }
+                        </ol>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-7">
+                <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                    <div>
+                        <label class="form-label mb-1" for="status-filter">Status</label>
+                        <select id="status-filter" class="form-select" @bind="_statusFilter">
+                            <option value="open">Otwarte</option>
+                            <option value="">Wszystkie</option>
+                            @foreach (var status in Enum.GetValues<ReportStatus>())
+                            {
+                                <option value="@status">@Labels.Of(status)</option>
+                            }
+                        </select>
+                    </div>
+                    @if (_placeFilter is not null)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => _placeFilter = null">
+                            Pokaż wszystkie miejsca <span class="visually-hidden">(usuń filtr miejsca)</span>
+                        </button>
+                    }
+                    <button type="button" class="btn btn-outline-primary ms-auto" @onclick="LoadAsync">Odśwież</button>
+                </div>
+
+                @{ var visible = Visible().ToList(); }
+                <p class="small text-body-secondary" role="status">Pokazano @visible.Count z @_reports.Count zgłoszeń.</p>
+
+                <ul class="list-unstyled">
+                    @foreach (var report in visible)
+                    {
+                        <li class="card card-body mb-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                <div>
+                                    <h2 class="h5 mb-0"><a href="@($"miejsca/{report.PlaceId}")">@report.PlaceName</a></h2>
+                                    <p class="small text-body-secondary mb-1">@Labels.Of(report.Category) · wysłane @Labels.When(report.CreatedAt)</p>
+                                </div>
+                                <ReportStatusBadge Status="report.Status" />
+                            </div>
+                            <p class="mb-1"><strong>@Labels.Of(report.Kind)</strong>@(report.Features.Count > 0 ? $": {Labels.Features(report.Features)}" : "")</p>
+                            @if (!string.IsNullOrEmpty(report.Description))
+                            {
+                                <p class="mb-1 report-description">@report.Description</p>
+                            }
+                            @if (report.OfficialNote is not null)
+                            {
+                                <p class="small mb-1 border-start border-3 ps-2">
+                                    Odpowiedź (@report.HandledBy, @Labels.When(report.UpdatedAt)): @report.OfficialNote
+                                </p>
+                            }
+
+                            @if (_editing?.Id == report.Id)
+                            {
+                                <form class="mt-2" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                                    <div class="mb-2">
+                                        <label class="form-label" for="edit-status">Nowy status</label>
+                                        <select id="edit-status" class="form-select" @bind="_editing.Status">
+                                            @foreach (var status in Enum.GetValues<ReportStatus>())
+                                            {
+                                                <option value="@status">@Labels.Of(status)</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label" for="edit-note">Odpowiedź dla zgłaszającego (widoczna dla niego)</label>
+                                        <textarea id="edit-note" class="form-control" rows="3" maxlength="@Report.MaxNoteLength" @bind="_editing.Note"></textarea>
+                                    </div>
+                                    @if (_saveError is not null)
+                                    {
+                                        <div class="alert alert-danger" role="alert">@_saveError</div>
+                                    }
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary" disabled="@_busy">@(_busy ? "Zapisuję…" : "Zapisz")</button>
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="() => _editing = null">Anuluj</button>
+                                    </div>
+                                </form>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-outline-primary btn-sm align-self-start mt-2" @onclick="() => Edit(report)">
+                                    Zmień status <span class="visually-hidden">zgłoszenia: @report.PlaceName</span>
+                                </button>
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+            <div class="col-lg-5">
+                <MapView Label="Mapa miejsc z otwartymi zgłoszeniami" Markers="_markers" FitToMarkers="true"
+                         OnMarkerSelected="id => _placeFilter = id" />
+                <p class="small text-body-secondary mt-2">Pomarańczowe pinezki to miejsca z otwartymi zgłoszeniami. Kliknij pinezkę, żeby zobaczyć zgłoszenia tego miejsca.</p>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool _checking = true;
+    private bool _busy;
+    private OfficialProfile? _official;
+    private string _login = "";
+    private string _password = "";
+    private string? _loginError;
+    private string? _error;
+    private IReadOnlyList<Report>? _reports;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private string _statusFilter = "open";
+    private string? _placeFilter;
+    private EditState? _editing;
+    private string? _saveError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        var current = await Sender.Send(new GetCurrentOfficialQuery());
+        _official = current.IsSuccess ? current.Value : null;
+        _checking = false;
+        if (_official is not null)
+            await LoadAsync();
+    }
+
+    private async Task LoginAsync()
+    {
+        _busy = true;
+        _loginError = null;
+        var result = await Sender.Send(new OfficialLoginCommand(new OfficialLogin(_login, _password)));
+        _busy = false;
+        _password = "";
+
+        if (result.IsFailure)
+        {
+            _loginError = result.Error;
+            return;
+        }
+
+        _official = result.Value;
+        await LoadAsync();
+    }
+
+    private async Task LogoutAsync()
+    {
+        await Sender.Send(new OfficialLogoutCommand());
+        _official = null;
+        _reports = null;
+        _editing = null;
+    }
+
+    private async Task LoadAsync()
+    {
+        _error = null;
+        var result = await Sender.Send(new GetReportsQuery(new ReportFilter(CityId: State.CityId)));
+        if (result.IsFailure)
+        {
+            _error = result.Error;
+            if (await Sender.Send(new GetCurrentOfficialQuery()) is { IsFailure: true })
+                _official = null;
+            _reports ??= [];
+            return;
+        }
+
+        _reports = result.Value;
+        _markers = _reports
+            .Where(r => ReportStatistics.IsOpen(r.Status))
+            .GroupBy(r => r.PlaceId)
+            .Select(g => new MapMarker(g.Key, $"{g.First().PlaceName}: otwarte zgłoszenia {g.Count()}", g.First().Lat, g.First().Lon, "#d97706"))
+            .ToList();
+    }
+
+    private IEnumerable<Report> Visible() => _reports!
+        .Where(r => _placeFilter is null || r.PlaceId == _placeFilter)
+        .Where(r => _statusFilter switch
+        {
+            "open" => ReportStatistics.IsOpen(r.Status),
+            "" => true,
+            var s => r.Status.ToString() == s
+        });
+
+    private void Edit(Report report)
+    {
+        _saveError = null;
+        _editing = new EditState { Id = report.Id, Status = report.Status, Note = report.OfficialNote ?? "" };
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_editing is null)
+            return;
+
+        _busy = true;
+        var result = await Sender.Send(new UpdateReportStatusCommand(_editing.Id, new ReportStatusChange(_editing.Status, _editing.Note)));
+        _busy = false;
+
+        if (result.IsFailure)
+        {
+            _saveError = result.Error;
+            return;
+        }
+
+        _editing = null;
+        await LoadAsync();
+    }
+
+    private sealed class EditState
+    {
+        public string Id { get; init; } = "";
+        public ReportStatus Status { get; set; }
+        public string Note { get; set; } = "";
+    }
+}

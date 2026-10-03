@@ -23,7 +23,8 @@ public static class MongoConventions
             ConventionRegistry.Register("kbb", new ConventionPack
             {
                 new CamelCaseElementNameConvention(),
-                new EnumRepresentationConvention(BsonType.String),
+                // topLevelOnly: false, żeby także listy enumów (np. udogodnienia w zgłoszeniu) były tekstem.
+                new EnumRepresentationConvention(BsonType.String, topLevelOnly: false),
                 new IgnoreExtraElementsConvention(true)
             }, _ => true);
             _registered = true;

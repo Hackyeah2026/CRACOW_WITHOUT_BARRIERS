@@ -1,6 +1,10 @@
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Infrastructure;
 using Infrastructure.Mongo;
+using Infrastructure.Mongo.Reports;
 using Infrastructure.Server;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Web.Components;
 using Web.Endpoints;
 
@@ -16,6 +20,44 @@ builder.Services.AddServerInfrastructure(
 // Baza działa tylko na hoście: adres połączenia z hasłem nie może trafić do przeglądarki.
 builder.Services.AddMongo(
     builder.Configuration.GetSection(MongoOptions.Section).Get<MongoOptions>() ?? new());
+builder.Services.AddMongoReports(
+    builder.Configuration.GetSection(OfficialsOptions.Section).Get<OfficialsOptions>() ?? new());
+
+// Enumy jako tekst, tak jak w DomainJson po stronie przeglądarki.
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+});
+
+// Sesja urzędnika: ciasteczko HttpOnly niedostępne dla skryptów; SameSite=Strict chroni przed żądaniami z innych stron.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "kbb.official";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        // API odpowiada kodem, zamiast przekierowywać na stronę logowania.
+        options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
+        options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+    });
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(ReportEndpoints.OfficialPolicy, policy => policy.RequireRole(ReportEndpoints.OfficialPolicy));
+
+// Zgłoszenia są anonimowe, więc limitujemy je per adres IP; logowanie także, przeciw zgadywaniu haseł.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(ReportEndpoints.SubmitLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10) }));
+    options.AddPolicy(ReportEndpoints.LoginLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
+});
 
 var app = builder.Build();
 
@@ -30,14 +72,20 @@ else
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+// Strona "nie znaleziono" tylko dla stron aplikacji: API ma zwracać sam kod (np. 401), a nie przepisywać żądanie na stronę.
+app.UseWhen(context => !context.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRouteEndpoints();
 app.MapHealthEndpoints();
+app.MapReportEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

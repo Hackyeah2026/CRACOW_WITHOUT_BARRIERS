@@ -1,0 +1,68 @@
+@page "/zgloszenia"
+@inject ISender Sender
+
+<PageTitle>Moje zgłoszenia</PageTitle>
+
+<h1>Moje zgłoszenia</h1>
+<p class="text-body-secondary">
+    Zgłoszenia wysłane z tego urządzenia i odpowiedzi urzędu. Nie zakładamy konta: listę pamięta tylko ta przeglądarka.
+    Nowe zgłoszenie wyślesz z karty miejsca.
+</p>
+
+@if (_reports is null)
+{
+    <p role="status">Wczytuję…</p>
+}
+else if (_reports.Count == 0)
+{
+    <div class="alert alert-info">
+        Nie wysłano jeszcze żadnego zgłoszenia. Otwórz <a href="miejsca">kartę miejsca</a> i użyj przycisku „Zgłoś”.
+    </div>
+}
+else
+{
+    @if (_reports.Any(r => r.Current is null))
+    {
+        <div class="alert alert-warning" role="status">
+            Nie udało się sprawdzić stanu części zgłoszeń. Serwer może być chwilowo niedostępny.
+        </div>
+    }
+
+    <ul class="list-unstyled">
+        @foreach (var report in _reports)
+        {
+            <li class="card card-body mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <h2 class="h5 mb-1"><a href="@($"miejsca/{report.Receipt.PlaceId}")">@report.Receipt.PlaceName</a></h2>
+                    @if (report.Current is { } current)
+                    {
+                        <ReportStatusBadge Status="current.Status" />
+                    }
+                </div>
+                <p class="small text-body-secondary mb-2">Wysłane @Labels.When(report.Receipt.CreatedAt)</p>
+
+                @if (report.Current is { } c)
+                {
+                    <p class="mb-1"><strong>@Labels.Of(c.Kind)</strong>@(c.Features.Count > 0 ? $": {Labels.Features(c.Features)}" : "")</p>
+                    @if (c.OfficialNote is not null)
+                    {
+                        <div class="border-start border-3 ps-3 mt-2">
+                            <p class="small text-body-secondary mb-1">Odpowiedź urzędu, @Labels.When(c.UpdatedAt)</p>
+                            <p class="mb-0">@c.OfficialNote</p>
+                        </div>
+                    }
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private IReadOnlyList<MyReport>? _reports;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Sender.Send(new GetMyReportsQuery());
+        _reports = result.IsSuccess ? result.Value : [];
+    }
+}

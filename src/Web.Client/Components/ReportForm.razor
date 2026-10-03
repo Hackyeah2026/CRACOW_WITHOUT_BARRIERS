@@ -1,0 +1,140 @@
+@inject ISender Sender
+
+<section class="card card-body mt-3" aria-labelledby="report-heading">
+    <h2 id="report-heading" class="h5">Zgłoś barierę lub brak udogodnienia</h2>
+
+    @if (_receipt is not null)
+    {
+        <div class="alert alert-success mb-2" role="status">
+            Dziękujemy, zgłoszenie trafiło do urzędu. Odpowiedź sprawdzisz w zakładce <a href="zgloszenia">Zgłoszenia</a>.
+        </div>
+        <button type="button" class="btn btn-outline-secondary align-self-start" @onclick="Reset">Zgłoś coś jeszcze</button>
+    }
+    else if (!_open)
+    {
+        <p>Brakuje tu czegoś, czego potrzebujesz, albo coś utrudnia wejście? Daj znać urzędowi miasta.</p>
+        <button type="button" class="btn btn-outline-primary align-self-start" aria-expanded="false" @onclick="() => _open = true">
+            Zgłoś
+        </button>
+    }
+    else
+    {
+        <form @onsubmit="SubmitAsync" @onsubmit:preventDefault novalidate>
+            <fieldset class="mb-3">
+                <legend class="h6">Czego dotyczy zgłoszenie?</legend>
+                @foreach (var kind in Enum.GetValues<ReportKind>())
+                {
+                    var id = $"report-kind-{kind}";
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="report-kind" id="@id"
+                               checked="@(_kind == kind)" @onchange="() => _kind = kind" />
+                        <label class="form-check-label" for="@id">@Labels.Of(kind)</label>
+                    </div>
+                }
+            </fieldset>
+
+            <fieldset class="mb-3">
+                <legend class="h6">
+                    @(_kind == ReportKind.MissingAmenity ? "Jakich udogodnień brakuje?" : "Których udogodnień to dotyczy? (opcjonalnie)")
+                </legend>
+                <div class="report-features">
+                    @foreach (var feature in ReportDraft.RequestableFeatures)
+                    {
+                        var id = $"report-feature-{feature}";
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="@id"
+                                   checked="@_features.Contains(feature)" @onchange="e => ToggleFeature(feature, (bool)e.Value!)" />
+                            <label class="form-check-label" for="@id">@Labels.Of(feature)</label>
+                        </div>
+                    }
+                </div>
+            </fieldset>
+
+            <div class="mb-3">
+                <label class="form-label h6" for="report-description">
+                    Opis @(_kind == ReportKind.MissingAmenity ? "(opcjonalnie)" : "")
+                </label>
+                <textarea id="report-description" class="form-control" rows="4" maxlength="@ReportDraft.MaxDescriptionLength"
+                          aria-describedby="report-description-help" @bind="_description" @bind:event="oninput"></textarea>
+                <div id="report-description-help" class="form-text">
+                    Np. „Przy wejściu są 3 stopnie, brak podjazdu”. @_description.Length / @ReportDraft.MaxDescriptionLength znaków.
+                    Nie wpisuj danych osobowych.
+                </div>
+            </div>
+
+            @if (_errors.Count > 0)
+            {
+                <div class="alert alert-danger" role="alert">
+                    @foreach (var error in _errors)
+                    {
+                        <div>@error</div>
+                    }
+                </div>
+            }
+
+            <p class="form-text">
+                Zgłoszenie jest anonimowe: wysyłamy tylko miejsce, wybrane udogodnienia i opis. Twój profil potrzeb zostaje na tym urządzeniu.
+            </p>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@_sending">@(_sending ? "Wysyłam…" : "Wyślij zgłoszenie")</button>
+                <button type="button" class="btn btn-outline-secondary" disabled="@_sending" @onclick="Reset">Anuluj</button>
+            </div>
+        </form>
+    }
+</section>
+
+@code {
+    private bool _open;
+    private bool _sending;
+    private ReportKind _kind = ReportKind.MissingAmenity;
+    private readonly List<FeatureKey> _features = [];
+    private string _description = "";
+    private IReadOnlyList<string> _errors = [];
+    private ReportReceipt? _receipt;
+
+    [Parameter, EditorRequired] public Place Place { get; set; } = default!;
+
+    /// <summary>Wywoływane po przyjęciu zgłoszenia, np. żeby odświeżyć listę zgłoszeń miejsca.</summary>
+    [Parameter] public EventCallback<ReportReceipt> OnSubmitted { get; set; }
+
+    private void ToggleFeature(FeatureKey feature, bool on)
+    {
+        if (on && !_features.Contains(feature))
+            _features.Add(feature);
+        else if (!on)
+            _features.Remove(feature);
+    }
+
+    private async Task SubmitAsync()
+    {
+        var draft = new ReportDraft(Place.CityId, Place.Id, Place.Name, Place.Category, Place.Lat, Place.Lon,
+            _kind, _features.ToList(), _description.Trim());
+        _errors = draft.Validate();
+        if (_errors.Count > 0)
+            return;
+
+        _sending = true;
+        var result = await Sender.Send(new SubmitReportCommand(draft));
+        _sending = false;
+
+        if (result.IsFailure)
+        {
+            _errors = [result.Error!];
+            return;
+        }
+
+        _receipt = result.Value;
+        await OnSubmitted.InvokeAsync(result.Value);
+    }
+
+    private void Reset()
+    {
+        _open = _receipt is not null;
+        _receipt = null;
+        _kind = ReportKind.MissingAmenity;
+        _features.Clear();
+        _description = "";
+        _errors = [];
+    }
+}

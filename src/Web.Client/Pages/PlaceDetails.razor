@@ -1,6 +1,7 @@
 @page "/miejsca/{Id}"
 @inject AppState State
 @inject ISender Sender
+@inject NavigationManager Navigation
 
 <PageTitle>@(_item?.Place.Name ?? "Miejsce")</PageTitle>
 
@@ -19,11 +20,13 @@ else
     <h1>@place.Name</h1>
     <p class="text-body-secondary">@Labels.Of(place.Category)@(place.Address is null ? "" : $" · {place.Address}")</p>
 
+    <CoverageNotice />
+
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <AssessmentBadge Status="_item.Assessment.Status" />
         <span>dla profilu: <ProfileSummaryInline /></span>
         <button type="button" class="btn @(State.IsInPlan(place.Id) ? "btn-success" : "btn-primary")"
-                aria-pressed="@(State.IsInPlan(place.Id) ? "true" : "false")" @onclick="() => State.TogglePlaceAsync(place.Id)">
+                aria-pressed="@(State.IsInPlan(place.Id) ? "true" : "false")" @onclick="() => TogglePlanAsync(place.Id)">
             @(State.IsInPlan(place.Id) ? "✓ W planie (usuń)" : "+ Dodaj do planu")
         </button>
     </div>
@@ -96,6 +99,16 @@ else
         }
 
         _item = result.Value;
-        _markers = [new MapMarker(_item.Place.Id, _item.Place.Name, _item.Place.Lat, _item.Place.Lon, Labels.Color(_item.Assessment.Status))];
+        _markers = [new MapMarker(_item.Place.Id, _item.Place.Name, _item.Place.Lat, _item.Place.Lon, Labels.Color(_item.Assessment.Status),
+            Icon: Labels.MapIcon(_item.Place.Category))];
+    }
+
+    /// <summary>Po dodaniu wracamy do listy, żeby wybierać dalej; po usunięciu zostajemy na karcie miejsca.</summary>
+    private async Task TogglePlanAsync(string placeId)
+    {
+        var adding = !State.IsInPlan(placeId);
+        await State.TogglePlaceAsync(placeId);
+        if (adding)
+            Navigation.NavigateTo("miejsca");
     }
 }

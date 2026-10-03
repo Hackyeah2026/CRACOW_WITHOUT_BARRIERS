@@ -37,6 +37,11 @@ var overrides = Path.Combine(root, "src", "Tools", "overrides", $"{cityId}.json"
 
 var places = await new OsmOverpassSource().GetPlacesAsync(cityId, city);
 Console.WriteLine($"OSM: {places.Count} miejsc");
+if (places.Count == 0)
+{
+    Console.Error.WriteLine("Import nie zwrócił żadnego miejsca. Plik z danymi zostaje bez zmian.");
+    return 1;
+}
 
 places = OverridesApplier.Apply(places, overrides);
 

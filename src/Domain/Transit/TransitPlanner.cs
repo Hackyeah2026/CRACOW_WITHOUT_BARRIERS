@@ -190,7 +190,9 @@ public sealed class TransitPlanner
             rides.Add(new TransitRide(line.Name, line.Kind, pattern.Headsign,
                 _network.Stops[board].Name, _network.Stops[stop].Name,
                 depart, TimeAt(pattern, parent.Trip, parent.AlightPosition), parent.AlightPosition - parent.BoardPosition,
-                NextDepartures(line, board, stop, depart, services)));
+                NextDepartures(line, board, stop, depart, services),
+                pattern.Stops.Skip(parent.BoardPosition).Take(parent.AlightPosition - parent.BoardPosition + 1)
+                    .Select(s => _network.Stops[s].Location).ToList()));
             stop = board;
             k--;
         }

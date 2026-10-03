@@ -4,7 +4,8 @@ using Domain.Transit;
 
 namespace Domain.Trips;
 
-public sealed record TripStop(int Order, Place Place, Assessment Assessment);
+/// <param name="IsUserLocation">Start spoza katalogu: lokalizacja użytkownika albo punkt wskazany na mapie.</param>
+public sealed record TripStop(int Order, Place Place, Assessment Assessment, bool IsUserLocation = false);
 
 /// <param name="IsEstimated">Odcinek policzony w linii prostej, bez silnika routingu.</param>
 /// <param name="Transit">Wynik szukania połączenia komunikacją dla dłuższego odcinka; null, gdy odcinek jest krótki.</param>

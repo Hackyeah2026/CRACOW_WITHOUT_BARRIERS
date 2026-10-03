@@ -16,3 +16,10 @@ public readonly record struct GeoPoint(double Lat, double Lon)
 
     private static double ToRad(double deg) => deg * Math.PI / 180;
 }
+
+/// <summary>Prostokątny obszar mapy (np. aktualnie widoczny fragment).</summary>
+public readonly record struct GeoBounds(double South, double West, double North, double East)
+{
+    public bool Contains(GeoPoint point) =>
+        point.Lat >= South && point.Lat <= North && point.Lon >= West && point.Lon <= East;
+}

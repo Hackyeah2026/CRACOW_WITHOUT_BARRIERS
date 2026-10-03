@@ -135,7 +135,8 @@
     private async Task ChooseAsync(AppMode mode)
     {
         await State.SetModeAsync(mode);
-        Navigation.NavigateTo(State.Profile.IsEmpty ? "profil" : "miejsca");
+        // Po wyborze trybu zawsze najpierw profil potrzeb: od niego zależy ocena miejsc.
+        Navigation.NavigateTo("profil");
     }
 }
 

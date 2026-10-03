@@ -33,6 +33,8 @@
         </div>
     </div>
 
+    <CoverageNotice />
+
     @if (_error is not null)
     {
         <div class="alert alert-danger" role="alert">
@@ -78,11 +80,11 @@
                     <div class="form-group">
                         <label class="form-label" for="search">Szukaj</label>
                         <input id="search" class="form-control" type="search" placeholder="np. Muzeum, kawiarnia…"
-                               @bind="_search" @bind:after="LoadAsync" />
+                               @bind="_search" @bind:after="FilterChangedAsync" />
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="category">Kategoria</label>
-                        <select id="category" class="form-select" @bind="_category" @bind:after="LoadAsync">
+                        <select id="category" class="form-select" @bind="_category" @bind:after="FilterChangedAsync">
                             <option value="">Wszystkie kategorie</option>
                             @foreach (var category in ModeCategories.For(State.Mode).Concat(ModeCategories.Support))
                             {
@@ -90,15 +92,28 @@
                             }
                         </select>
                     </div>
-                    <p class="small text-muted mt-3">
-                        Znaleziono <strong>@_places.Count</strong> miejsc
+                    <p class="small text-muted mt-3" role="status">
+                        W widocznym obszarze mapy: <strong>@_visible.Count</strong> z @_places.Count miejsc.
+                        Przesuń lub powiększ mapę, żeby zmienić obszar.
                     </p>
+                    @if (_visible.Count < _places.Count)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ShowAllAsync">Pokaż wszystkie na mapie</button>
+                    }
                 </div>
             </div>
 
             <div class="places-content">
                 <div class="places-list">
-                    @foreach (var item in _places.Take(_shown))
+                    @if (_visible.Count == 0)
+                    {
+                        <div class="alert alert-info" role="status">
+                            @(_places.Count == 0
+                                ? "Nie znaleźliśmy miejsc dla tych filtrów."
+                                : "W widocznym obszarze mapy nie ma miejsc dla tych filtrów. Oddal mapę albo pokaż wszystkie.")
+                        </div>
+                    }
+                    @foreach (var item in _visible.Take(_shown))
                     {
                         <div class="place-card">
                             <div class="place-card-header">
@@ -144,18 +159,19 @@
                     }
                 </div>
 
-                @if (_places.Count > _shown)
+                @if (_visible.Count > _shown)
                 {
                     <div class="text-center mt-4">
                         <button type="button" class="btn btn-secondary" @onclick="() => _shown += PageSize">
-                            Pokaż więcej (@(_places.Count - _shown) pozostałych)
+                            Pokaż więcej (@(_visible.Count - _shown) pozostałych)
                         </button>
                     </div>
                 }
             </div>
 
             <div class="places-map">
-                <MapView Markers="_markers" OnMarkerSelected="OpenDetails" />
+                <MapView @ref="_map" Markers="_markers" Center="_center" Zoom="_zoom" FitToMarkers="_fitToResults"
+                         OnMarkerSelected="OpenDetails" OnBoundsChanged="OnBoundsChanged" />
             </div>
         </div>
     }
@@ -164,6 +180,12 @@
 @code {
     private const int PageSize = 20;
     private IReadOnlyList<AssessedPlace>? _places;
+    private IReadOnlyList<AssessedPlace> _visible = [];
+    private MapView? _map;
+    private GeoBounds? _bounds;
+    private GeoPoint _center = new(50.0614, 19.9366);
+    private int _zoom = 14;
+    private bool _fitToResults;
     private IReadOnlyList<MapMarker> _markers = [];
     private string? _error;
     private string? _search;
@@ -173,18 +195,34 @@
     protected override async Task OnInitializedAsync()
     {
         await State.EnsureLoadedAsync();
+        _search = State.PlacesSearch;
+        _category = State.PlacesCategory;
+        if (State.City is { } city)
+        {
+            _center = new GeoPoint(city.Lat, city.Lon);
+            _zoom = city.Zoom;
+        }
         await LoadAsync();
+    }
+
+    /// <summary>Pierwszy widok to centrum miasta; po zmianie filtrów mapa dopasowuje się do wyników.</summary>
+    private Task FilterChangedAsync()
+    {
+        _fitToResults = true;
+        return LoadAsync();
     }
 
     private async Task SetModeAsync(AppMode mode)
     {
         _category = "";
         await State.SetModeAsync(mode);
-        await LoadAsync();
+        await FilterChangedAsync();
     }
 
     private async Task LoadAsync()
     {
+        State.PlacesSearch = _search;
+        State.PlacesCategory = _category;
         PlaceCategory? category = Enum.TryParse<PlaceCategory>(_category, out var parsed) ? parsed : null;
         var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
         if (result.IsFailure)
@@ -197,11 +235,31 @@
         _shown = PageSize;
         _places = result.Value;
         _markers = _places
-            .Select(p => new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)})", p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status)))
+            .Select(p => new MapMarker(p.Place.Id, $"{p.Place.Name} ({Labels.Of(p.Assessment.Status)})", p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status),
+                Icon: Labels.MapIcon(p.Place.Category)))
             .ToList();
+        UpdateVisible();
     }
 
-    private int Count(AssessmentStatus status) => _places!.Count(p => p.Assessment.Status == status);
+    /// <summary>Lista i statystyki pokazują tylko to, co widać na mapie.</summary>
+    private void OnBoundsChanged(GeoBounds bounds)
+    {
+        _bounds = bounds;
+        _shown = PageSize;
+        UpdateVisible();
+    }
+
+    private void UpdateVisible() => _visible = _places is null ? []
+        : _bounds is { } bounds ? _places.Where(p => bounds.Contains(p.Place.Location)).ToList()
+        : _places;
+
+    private async Task ShowAllAsync()
+    {
+        if (_map is not null)
+            await _map.ShowAllMarkersAsync();
+    }
+
+    private int Count(AssessmentStatus status) => _visible.Count(p => p.Assessment.Status == status);
 
     private static string? FirstReason(AssessedPlace item) =>
         (item.Assessment.Barriers.FirstOrDefault() ?? item.Assessment.Reasons.FirstOrDefault())?.Message;

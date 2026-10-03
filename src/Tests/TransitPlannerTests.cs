@@ -56,6 +56,15 @@ public class TransitPlannerTests
     }
 
     [Fact]
+    public void Ride_path_follows_the_stops_between_boarding_and_alighting()
+    {
+        var journey = Plan(NearA, NearF, Friday, now: 11 * 60 + 55).Journeys[0];
+
+        Assert.Equal(Network.Stops.Take(3).Select(s => s.Location), journey.Rides[0].Path);
+        Assert.Equal(new[] { 2, 4, 5 }.Select(i => Network.Stops[i].Location), journey.Rides[1].Path);
+    }
+
+    [Fact]
     public void Missed_departure_moves_to_the_following_one()
     {
         var ride = Plan(NearA, NearD, Friday, now: 12 * 60 + 5).Journeys[0].Rides[0];

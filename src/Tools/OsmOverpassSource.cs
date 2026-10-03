@@ -18,17 +18,22 @@ public sealed class OsmOverpassSource
 
     public async Task<List<Place>> GetPlacesAsync(string cityId, CityImport city)
     {
-        var bbox = string.Create(CultureInfo.InvariantCulture, $"{city.South},{city.West},{city.North},{city.East}");
+        // Obszar: granica administracyjna miasta (identyfikator obszaru = 3600000000 + numer relacji) albo prostokąt.
+        var area = city.OsmRelationId is { } relation ? $"area(id:{3_600_000_000 + relation})->.city;" : "";
+        var within = city.OsmRelationId is not null
+            ? "(area.city)"
+            : string.Create(CultureInfo.InvariantCulture, $"({city.South},{city.West},{city.North},{city.East})");
         var query = $"""
-            [out:json][timeout:90];
+            [out:json][timeout:180];
+            {area}
             (
-              nwr["tourism"~"^(attraction|museum|gallery)$"]["name"]({bbox});
-              nwr["amenity"~"^(townhall|post_office|library|clinic|doctors|hospital|pharmacy|theatre|cinema|arts_centre|community_centre)$"]["name"]({bbox});
-              nwr["office"="government"]["name"]({bbox});
-              nwr["amenity"="toilets"]({bbox});
-              nwr["amenity"~"^(restaurant|cafe)$"]["wheelchair"]["name"]({bbox});
-              node["railway"="tram_stop"]["name"]({bbox});
-              node["highway"="bus_stop"]["name"]({bbox});
+              nwr["tourism"~"^(attraction|museum|gallery)$"]["name"]{within};
+              nwr["amenity"~"^(townhall|post_office|library|clinic|doctors|hospital|pharmacy|theatre|cinema|arts_centre|community_centre)$"]["name"]{within};
+              nwr["office"="government"]["name"]{within};
+              nwr["amenity"="toilets"]{within};
+              nwr["amenity"~"^(restaurant|cafe)$"]["wheelchair"]["name"]{within};
+              node["railway"="tram_stop"]["name"]{within};
+              node["highway"="bus_stop"]["name"]{within};
             );
             out center meta;
             """;
@@ -67,7 +72,7 @@ public sealed class OsmOverpassSource
 
     private static async Task<string> DownloadAsync(string query)
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(240) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowBezBarier-Import/0.1 (HackYeah 2026)");
 
         foreach (var endpoint in Endpoints)
@@ -77,9 +82,16 @@ public sealed class OsmOverpassSource
                 using var content = new FormUrlEncodedContent(new Dictionary<string, string> { ["data"] = query });
                 using var response = await http.PostAsync(endpoint, content);
                 response.EnsureSuccessStatusCode();
-                return await response.Content.ReadAsStringAsync();
+                var body = await response.Content.ReadAsStringAsync();
+
+                // Błąd wykonania zapytania (np. instancja bez bazy obszarów) przychodzi z kodem 200 i polem "remark".
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("remark", out var remark) && remark.GetString() is { } message
+                    && message.Contains("error", StringComparison.OrdinalIgnoreCase))
+                    throw new HttpRequestException(message);
+                return body;
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
             {
                 Console.Error.WriteLine($"Overpass niedostępny ({endpoint}): {ex.Message}");
             }

@@ -59,9 +59,10 @@ public enum TransitStatus
 
 /// <param name="DepartMinute">Minuta odjazdu z przystanku (od północy).</param>
 /// <param name="NextDepartures">Najbliższe odjazdy tej linii z tego przystanku w stronę przystanku docelowego.</param>
+/// <param name="Path">Położenia kolejnych przystanków od wsiadania do wysiadania; przybliżony przebieg przejazdu na mapie.</param>
 public sealed record TransitRide(
     string LineName, TransitKind Kind, string Headsign, string BoardStop, string AlightStop,
-    int DepartMinute, int ArriveMinute, int StopsCount, IReadOnlyList<int> NextDepartures);
+    int DepartMinute, int ArriveMinute, int StopsCount, IReadOnlyList<int> NextDepartures, IReadOnlyList<GeoPoint> Path);
 
 /// <param name="LeaveMinute">O której trzeba wyjść, żeby zdążyć na pierwszy odjazd.</param>
 /// <param name="ArriveMinute">O której jest się u celu, z dojściem z ostatniego przystanku.</param>

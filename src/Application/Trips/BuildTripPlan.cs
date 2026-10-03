@@ -7,10 +7,13 @@ using Domain.Trips;
 
 namespace Application.Trips;
 
-/// <summary>Układa plan z wybranych miejsc. Pierwsze miejsce na liście jest punktem startu.</summary>
+/// <summary>Układa plan z wybranych miejsc. Startem jest <paramref name="Start"/>, a gdy go nie ma, pierwsze miejsce na liście.</summary>
 /// <param name="Now">Czas lokalny użytkownika; od niego szukamy odjazdów komunikacji.</param>
+/// <param name="Start">Punkt startu spoza katalogu: lokalizacja użytkownika albo miejsce wskazane na mapie.</param>
+/// <param name="OptimizeOrder">Czy ułożyć kolejność miejsc po starcie tak, żeby droga była najkrótsza. Gdy nie, zostaje kolejność z listy.</param>
 public sealed record BuildTripPlanCommand(
-    string CityId, IReadOnlyList<string> PlaceIds, NeedsProfile Profile, AppMode Mode, DateTime Now)
+    string CityId, IReadOnlyList<string> PlaceIds, NeedsProfile Profile, AppMode Mode, DateTime Now,
+    GeoPoint? Start = null, bool OptimizeOrder = true)
     : ICommand<TripPlan>;
 
 public static class TransitRules
@@ -20,6 +23,15 @@ public static class TransitRules
 
     /// <summary>Najdłuższe dojście do przystanku, gdy profil nie ma własnego limitu.</summary>
     public const int DefaultMaxWalkToStopM = 600;
+}
+
+public static class StartLocationRules
+{
+    public const string PlaceId = "my-location";
+    public const string Name = "Punkt startu";
+
+    /// <summary>Dalej od centrum miasta lokalizacja nie nadaje się na start pieszego planu.</summary>
+    public const int MaxDistanceFromCityM = 30_000;
 }
 
 internal sealed class BuildTripPlanCommandHandler(IPlaceCatalog catalog, IRoutingClient routing, ITransitCatalog transit)
@@ -33,14 +45,31 @@ internal sealed class BuildTripPlanCommandHandler(IPlaceCatalog catalog, IRoutin
             .OfType<Place>()
             .ToList();
 
-        if (places.Count < 2)
-            return Result.Failure<TripPlan>("Wybierz co najmniej dwa miejsca, żeby ułożyć plan.");
+        if (command.Start is { } start)
+        {
+            if (places.Count < 1)
+                return Result.Failure<TripPlan>("Wybierz co najmniej jedno miejsce, żeby ułożyć plan z punktu startu.");
 
-        var order = StopOrderOptimizer.Order(places.Select(p => p.Location).ToList());
-        var ordered = order.Select(i => places[i]).ToList();
+            var city = (await catalog.GetCitiesAsync(ct)).FirstOrDefault(c => c.Id == command.CityId);
+            if (city is not null && start.DistanceTo(new GeoPoint(city.Lat, city.Lon)) > StartLocationRules.MaxDistanceFromCityM)
+                return Result.Failure<TripPlan>(
+                    $"Punkt startu jest dalej niż {StartLocationRules.MaxDistanceFromCityM / 1000} km od centrum miasta: {city.Name}. Popraw go na mapie albo wybierz start z listy miejsc.");
+
+            places.Insert(0, new Place(StartLocationRules.PlaceId, command.CityId, StartLocationRules.Name,
+                PlaceCategory.Stop, start.Lat, start.Lon, null, null, []));
+        }
+        else if (places.Count < 2)
+        {
+            return Result.Failure<TripPlan>("Wybierz co najmniej dwa miejsca, żeby ułożyć plan.");
+        }
+
+        var ordered = command.OptimizeOrder
+            ? StopOrderOptimizer.Order(places.Select(p => p.Location).ToList()).Select(i => places[i]).ToList()
+            : places;
 
         var stops = ordered
-            .Select((place, index) => new TripStop(index + 1, place, AssessmentEngine.Assess(command.Profile, place)))
+            .Select((place, index) => new TripStop(index + 1, place, AssessmentEngine.Assess(command.Profile, place),
+                IsUserLocation: command.Start is not null && index == 0))
             .ToList();
 
         var network = await transit.GetNetworkAsync(command.CityId, ct);

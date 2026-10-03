@@ -1,0 +1,11 @@
+@inject AppState State
+
+@* Poza miastem z pełnym zakresem dane pochodzą tylko z OpenStreetMap; mówimy o tym wprost, żeby "brak danych" nie dziwił. *@
+@if (State.City is { Coverage: not CityCoverage.Full } city)
+{
+    <div class="alert alert-warning" role="note">
+        <strong>Ograniczone dane: @city.Name.</strong>
+        Dla tego miasta mamy tylko informacje z OpenStreetMap. Częściej zobaczysz ocenę „Brak danych”,
+        nie ma cech sprawdzonych przez zespół ani rozkładów komunikacji miejskiej. Pełne dane mamy dla Krakowa.
+    </div>
+}

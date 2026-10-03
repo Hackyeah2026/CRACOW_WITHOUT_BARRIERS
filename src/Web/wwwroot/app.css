@@ -561,6 +561,123 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     .map { height: 20rem; }
 }
 
+/* Ramka mapy: przycisk pełnego ekranu i tryb pełnoekranowy (Fullscreen API albo zapasowo styl na całe okno) */
+.map-frame {
+    position: relative;
+    background: white;
+}
+
+.map-fullscreen-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1001;
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    font-weight: 600;
+}
+
+.map-frame.map-frame-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+}
+
+.map-frame:fullscreen .map,
+.map-frame.map-frame-fullscreen .map {
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+}
+
+/* Strzałki kolejności w planie: cel dotykowy co najmniej 44 px */
+.place-item .btn-move {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    font-size: 1.25rem;
+    border: 1px solid var(--neutral-300);
+}
+
+/* Przesuwalna pinezka punktu startu */
+.map-pick-icon {
+    font-size: 34px;
+    line-height: 40px;
+    text-align: center;
+    cursor: grab;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+/* Pinezki i etykiety na mapie */
+.map-pin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 2px solid white;
+    border-radius: 50%;
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 0 0 1.5px #1b1b1b, var(--shadow-md);
+}
+
+/* Sam symbol bez kółka; ciemny obrys, bo jasne symbole (np. toaleta) giną na jasnej mapie. */
+.map-emoji-icon {
+    font-size: 22px;
+    line-height: 28px;
+    text-align: center;
+    filter: drop-shadow(0 0 1px #1b1b1b) drop-shadow(0 0 1px #1b1b1b);
+}
+
+.map-label {
+    font-weight: 600;
+}
+
+.map-label-transit {
+    background: #6f42c1;
+    border-color: #6f42c1;
+    color: white;
+    font-weight: 700;
+}
+
+.map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+}
+
+.map-legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.map-legend-pin {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 50%;
+    background: #0d6efd;
+}
+
+.map-legend-line {
+    width: 2rem;
+    border-top: 4px solid #6f42c1;
+}
+
+.map-legend-walk {
+    border-top: 4px dashed #0b5ed7;
+}
+
+.stop-number.stop-start,
+.map-legend-pin.stop-start {
+    background: #198754;
+}
+
+.stop-number.stop-end,
+.map-legend-pin.stop-end {
+    background: #dc3545;
+}
+
 @media (max-width: 575px) {
     .map { height: 16rem; }
 }

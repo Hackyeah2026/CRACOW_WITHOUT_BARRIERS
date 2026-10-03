@@ -1,22 +1,39 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div id="@_id" class="map" role="application" aria-label="@Label"></div>
+<div class="map-frame">
+    <div id="@_id" class="map" role="application" aria-label="@Label"></div>
+    <button type="button" class="btn btn-light map-fullscreen-btn" aria-pressed="@(_fullscreen ? "true" : "false")"
+            aria-label="@(_fullscreen ? "Zamknij pełny ekran mapy" : "Pokaż mapę na pełnym ekranie")" @onclick="ToggleFullscreenAsync">
+        <span aria-hidden="true">⛶</span> @(_fullscreen ? "Zamknij" : "Pełny ekran")
+    </button>
+</div>
 
 @code {
     private readonly string _id = $"map-{Guid.NewGuid():N}";
     private IJSObjectReference? _module;
     private DotNetObjectReference<MapView>? _self;
     private IReadOnlyList<MapMarker>? _shownMarkers;
-    private IReadOnlyList<GeoPoint>? _shownRoute;
+    private IReadOnlyList<MapRouteSegment>? _shownRoute;
+    private GeoPoint? _shownPick;
+    private bool _fullscreen;
 
     [Parameter] public string Label { get; set; } = "Mapa miejsc";
     [Parameter] public GeoPoint Center { get; set; } = new(50.0614, 19.9366);
     [Parameter] public int Zoom { get; set; } = 14;
     [Parameter] public IReadOnlyList<MapMarker> Markers { get; set; } = [];
-    [Parameter] public IReadOnlyList<GeoPoint> Route { get; set; } = [];
+    [Parameter] public IReadOnlyList<MapRouteSegment> Route { get; set; } = [];
     [Parameter] public bool FitToMarkers { get; set; }
     [Parameter] public EventCallback<string> OnMarkerSelected { get; set; }
+
+    /// <summary>Zgłasza widoczny obszar po każdym przesunięciu i zmianie powiększenia.</summary>
+    [Parameter] public EventCallback<GeoBounds> OnBoundsChanged { get; set; }
+
+    /// <summary>Przesuwalna pinezka wskazanego punktu (np. start planu); null, gdy punkt nie jest jeszcze wybrany.</summary>
+    [Parameter] public GeoPoint? PickPoint { get; set; }
+
+    /// <summary>Włącza wybór punktu: kliknięcie w mapę albo przesunięcie pinezki zgłasza nowe położenie.</summary>
+    [Parameter] public EventCallback<GeoPoint> OnPointPicked { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -24,7 +41,8 @@
         {
             _self = DotNetObjectReference.Create(this);
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/map.js");
-            await _module.InvokeVoidAsync("init", _id, Center.Lat, Center.Lon, Zoom, _self);
+            await _module.InvokeVoidAsync("init", _id, Center.Lat, Center.Lon, Zoom, _self,
+                OnBoundsChanged.HasDelegate, OnPointPicked.HasDelegate);
         }
 
         if (_module is null)
@@ -41,10 +59,49 @@
             _shownRoute = Route;
             await _module.InvokeVoidAsync("setRoute", _id, Route);
         }
+
+        if (_shownPick != PickPoint)
+        {
+            _shownPick = PickPoint;
+            await _module.InvokeVoidAsync("setPick", _id, PickPoint);
+        }
+    }
+
+    /// <summary>Ustawia widok tak, żeby objął wszystkie pinezki.</summary>
+    public async Task ShowAllMarkersAsync()
+    {
+        if (_module is not null)
+            await _module.InvokeVoidAsync("showAllMarkers", _id);
     }
 
     [JSInvokable]
     public Task MarkerClicked(string id) => OnMarkerSelected.InvokeAsync(id);
+
+    [JSInvokable]
+    public Task BoundsChanged(double south, double west, double north, double east) =>
+        OnBoundsChanged.InvokeAsync(new GeoBounds(south, west, north, east));
+
+    [JSInvokable]
+    public Task PointPicked(double lat, double lon)
+    {
+        // Pinezka już stoi w nowym miejscu, więc nie trzeba jej ustawiać ponownie.
+        _shownPick = new GeoPoint(lat, lon);
+        return OnPointPicked.InvokeAsync(_shownPick.Value);
+    }
+
+    /// <summary>Wywoływane także wtedy, gdy użytkownik zamknie pełny ekran klawiszem Esc.</summary>
+    [JSInvokable]
+    public void FullscreenChanged(bool on)
+    {
+        _fullscreen = on;
+        StateHasChanged();
+    }
+
+    private async Task ToggleFullscreenAsync()
+    {
+        if (_module is not null)
+            await _module.InvokeVoidAsync("toggleFullscreen", _id);
+    }
 
     public async ValueTask DisposeAsync()
     {

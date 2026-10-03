@@ -24,6 +24,15 @@ public static class Labels
         _ => category.ToString()
     };
 
+    /// <summary>Symbol na mapie dla punktów odpoczynku; pozostałe kategorie rysujemy kółkiem w kolorze oceny.</summary>
+    public static string? MapIcon(PlaceCategory category) => category switch
+    {
+        PlaceCategory.Toilet => "🚽",
+        PlaceCategory.Bench => "🪑",
+        PlaceCategory.QuietSpot => "🤫",
+        _ => null
+    };
+
     public static string Of(AppMode mode) => mode == AppMode.Sightseeing ? "Zwiedzam" : "Załatwiam sprawę";
 
     public static string Of(AssessmentStatus status) => status switch

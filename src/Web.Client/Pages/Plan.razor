@@ -1,15 +1,21 @@
 @page "/plan"
 @inject AppState State
 @inject ISender Sender
+@inject IJSRuntime JS
 
 <PageTitle>Plan</PageTitle>
 
 <h1>Plan: @Labels.Of(State.Mode)</h1>
 <p>Profil: <ProfileSummaryInline /> · <a href="profil">zmień</a></p>
 
+<CoverageNotice />
+
 @if (_selected is null)
 {
-    <p role="status">Wczytuję…</p>
+    <div class="text-center py-4" role="status">
+        <div class="spinner-border text-primary mb-2" aria-hidden="true"></div>
+        <p>Wczytuję wybrane miejsca…</p>
+    </div>
 }
 else if (_selected.Count == 0)
 {
@@ -18,28 +24,121 @@ else if (_selected.Count == 0)
 else
 {
     <h2 class="h5">Wybrane miejsca (@_selected.Count)</h2>
-    <p class="small text-body-secondary">Pierwsze miejsce na liście jest punktem startu. Kolejność pozostałych ułożymy tak, żeby droga była najkrótsza.</p>
-    <ul class="list-unstyled place-list">
-        @foreach (var item in _selected)
+    <p class="small text-body-secondary">
+        @(State.StartLocation is null ? "Pierwsze miejsce na liście jest punktem startu." : "Startem jest punkt wskazany na mapie.")
+        @(State.OptimizeOrder
+            ? "Kolejność pozostałych ułożymy tak, żeby droga była najkrótsza."
+            : "Pozostałe miejsca odwiedzisz w kolejności z listy.")
+        Strzałkami zmienisz kolejność.
+    </p>
+    <ol class="list-unstyled place-list">
+        @if (State.StartLocation is not null)
         {
             <li class="place-item">
                 <div>
-                    <a class="place-name" href="miejsca/@item.Place.Id">@item.Place.Name</a>
-                    <div><AssessmentBadge Status="item.Assessment.Status" /></div>
+                    <span class="place-name"><span aria-hidden="true">📍</span> @StartLocationRules.Name</span>
+                    <span class="badge text-bg-success ms-1">Start</span>
+                    <div class="small text-body-secondary">Możesz go poprawić na mapie poniżej. Używamy go tylko do ułożenia tego planu i nie zapisujemy.</div>
                 </div>
-                <button type="button" class="btn btn-outline-danger" aria-label="Usuń z planu: @item.Place.Name" @onclick="() => RemoveAsync(item.Place.Id)">Usuń</button>
+                <button type="button" class="btn btn-outline-danger" disabled="@_building" @onclick="RemoveStartLocation">Usuń<span class="visually-hidden"> punkt startu</span></button>
             </li>
         }
-    </ul>
+        @for (var i = 0; i < _selected.Count; i++)
+        {
+            var item = _selected[i];
+            var index = i;
+            <li class="place-item">
+                <div>
+                    <a class="place-name" href="miejsca/@item.Place.Id">@item.Place.Name</a>
+                    @if (index == 0 && State.StartLocation is null)
+                    {
+                        <span class="badge text-bg-success ms-1">Start</span>
+                    }
+                    <div><AssessmentBadge Status="item.Assessment.Status" /></div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary btn-move" disabled="@(index == 0 || _building)"
+                            aria-label="Przesuń wyżej: @item.Place.Name" @onclick="() => MoveAsync(item, -1)"><span aria-hidden="true">⬆️</span></button>
+                    <button type="button" class="btn btn-outline-secondary btn-move" disabled="@(index == _selected.Count - 1 || _building)"
+                            aria-label="Przesuń niżej: @item.Place.Name" @onclick="() => MoveAsync(item, 1)"><span aria-hidden="true">⬇️</span></button>
+                    <button type="button" class="btn btn-outline-danger" disabled="@_building" aria-label="Usuń z planu: @item.Place.Name" @onclick="() => RemoveAsync(item.Place.Id)">Usuń</button>
+                </div>
+            </li>
+        }
+    </ol>
+    <p class="visually-hidden" role="status">@_moveStatus</p>
+
+    <div class="form-check mb-3">
+        <input id="optimize-order" class="form-check-input" type="checkbox" checked="@State.OptimizeOrder" disabled="@_building" @onchange="SetOptimizeAsync" />
+        <label class="form-check-label" for="optimize-order">Ułóż kolejność automatycznie (najkrótsza droga)</label>
+    </div>
 
     <div class="d-flex flex-wrap gap-2 mb-3">
-        <button type="button" class="btn btn-primary btn-lg" disabled="@(_selected.Count < 2)" @onclick="BuildAsync">Ułóż plan</button>
-        <button type="button" class="btn btn-outline-secondary btn-lg" @onclick="ClearAsync">Wyczyść plan</button>
+        <button type="button" class="btn btn-primary btn-lg" disabled="@(!CanBuild || _building)" @onclick="BuildAsync">
+            @if (_building)
+            {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                <span>Układam plan…</span>
+            }
+            else
+            {
+                <span>Ułóż plan</span>
+            }
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-lg" disabled="@(_locating || _building)" @onclick="UseMyLocationAsync">
+            @if (_locating)
+            {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                <span>Ustalam lokalizację…</span>
+            }
+            else
+            {
+                <span><span aria-hidden="true">📍</span> Użyj mojej lokalizacji jako start</span>
+            }
+        </button>
+        @if (!ShowStartPicker)
+        {
+            <button type="button" class="btn btn-outline-primary btn-lg" disabled="@_building" @onclick="() => _pickingStart = true">
+                <span aria-hidden="true">🗺️</span> Wskaż start na mapie
+            </button>
+        }
+        <button type="button" class="btn btn-outline-secondary btn-lg" disabled="@_building" @onclick="ClearAsync">Wyczyść plan</button>
     </div>
-    @if (_selected.Count < 2)
+    @if (_locationError is not null)
     {
-        <p>Dodaj co najmniej dwa miejsca, żeby ułożyć plan.</p>
+        <div class="alert alert-warning" role="alert">@_locationError</div>
     }
+    @if (ShowStartPicker)
+    {
+        <section class="card card-body mb-3" aria-labelledby="start-heading">
+            <h3 id="start-heading" class="h6">Punkt startu na mapie</h3>
+            <p class="small mb-2">
+                @(State.StartLocation is null
+                    ? "Kliknij na mapie miejsce, z którego zaczynasz."
+                    : "Sprawdź, czy pinezka 📍 stoi tam, gdzie jesteś. Żeby ją poprawić albo wybrać inny punkt, przeciągnij ją lub kliknij w inne miejsce mapy.")
+                Z klawiatury: przejdź do pinezki klawiszem Tab i przesuwaj ją strzałkami.
+            </p>
+            <MapView Label="Mapa wyboru punktu startu" Center="CityCenter" Zoom="@(State.City?.Zoom ?? 14)" Markers="_pickerMarkers" FitToMarkers="true"
+                     PickPoint="State.StartLocation" OnPointPicked="SetStartPoint" />
+            <p class="small mt-2 mb-0" role="status">
+                @(State.StartLocation is { } start
+                    ? $"Punkt startu: {start.Lat:F5}, {start.Lon:F5}."
+                    : "Punkt startu nie jest jeszcze wybrany.")
+            </p>
+        </section>
+    }
+    @if (!CanBuild)
+    {
+        <p>Dodaj co najmniej dwa miejsca albo ustaw punkt startu, żeby ułożyć plan.</p>
+    }
+}
+
+@if (_building)
+{
+    <div class="text-center py-4" role="status">
+        <div class="spinner-border text-primary mb-2" aria-hidden="true"></div>
+        <p>Układam plan: liczę trasy po ulicach i sprawdzam komunikację miejską…</p>
+    </div>
 }
 
 @if (_error is not null)
@@ -64,15 +163,29 @@ else
                         var stop = _plan.Stops[i];
                         <li class="card card-body mb-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
-                                <span class="stop-number" aria-hidden="true">@stop.Order</span>
-                                <a class="place-name" href="miejsca/@stop.Place.Id"><span class="visually-hidden">Przystanek @stop.Order: </span>@stop.Place.Name</a>
-                                <AssessmentBadge Status="stop.Assessment.Status" />
+                                <span class="stop-number @StopCss(i, _plan.Stops.Count)" aria-hidden="true">@stop.Order</span>
+                                @if (stop.IsUserLocation)
+                                {
+                                    <span class="place-name"><span class="visually-hidden">Przystanek @stop.Order: </span><span aria-hidden="true">📍</span> @stop.Place.Name</span>
+                                }
+                                else
+                                {
+                                    <a class="place-name" href="miejsca/@stop.Place.Id"><span class="visually-hidden">Przystanek @stop.Order: </span>@stop.Place.Name</a>
+                                }
+                                @if (StopRole(i, _plan.Stops.Count) is { } role)
+                                {
+                                    <span class="badge text-bg-light border">@role</span>
+                                }
+                                @if (!stop.IsUserLocation)
+                                {
+                                    <AssessmentBadge Status="stop.Assessment.Status" />
+                                }
                             </div>
-                            @foreach (var barrier in stop.Assessment.Barriers)
+                            @foreach (var barrier in stop.IsUserLocation ? [] : stop.Assessment.Barriers)
                             {
                                 <div class="small mt-1"><span aria-hidden="true">✕</span> @barrier.Message</div>
                             }
-                            @if (stop.Assessment.Status == AssessmentStatus.Unknown)
+                            @if (!stop.IsUserLocation && stop.Assessment.Status == AssessmentStatus.Unknown)
                             {
                                 <div class="small mt-1"><span aria-hidden="true">?</span> Nie mamy danych, żeby ocenić to miejsce dla Twojego profilu.</div>
                             }
@@ -103,17 +216,44 @@ else
             </div>
             <div class="col-lg-6">
                 <MapView Label="Mapa planu" Markers="_markers" Route="_route" FitToMarkers="true" />
+                <ul class="map-legend list-unstyled small mt-2" aria-label="Legenda mapy">
+                    <li><span class="map-legend-pin stop-start" aria-hidden="true"></span> start</li>
+                    <li><span class="map-legend-pin" aria-hidden="true"></span> przystanek po drodze</li>
+                    <li><span class="map-legend-pin stop-end" aria-hidden="true"></span> cel</li>
+                    <li><span class="map-legend-line map-legend-walk" aria-hidden="true"></span> pieszo</li>
+                    @if (_route.Any(r => r.IsTransit))
+                    {
+                        <li><span class="map-legend-line map-legend-transit" aria-hidden="true"></span> propozycja przejazdu komunikacją miejską</li>
+                    }
+                </ul>
             </div>
         </div>
     </section>
 }
 
 @code {
+    private const string StartColor = "#198754";
+    private const string MiddleColor = "#0d6efd";
+    private const string EndColor = "#dc3545";
+
     private List<AssessedPlace>? _selected;
     private TripPlan? _plan;
     private IReadOnlyList<MapMarker> _markers = [];
-    private IReadOnlyList<GeoPoint> _route = [];
+    private IReadOnlyList<MapRouteSegment> _route = [];
     private string? _error;
+    private string? _locationError;
+    private string? _moveStatus;
+    private bool _building;
+    private bool _locating;
+
+    private bool _pickingStart;
+    private IReadOnlyList<MapMarker> _pickerMarkers = [];
+
+    private bool ShowStartPicker => _pickingStart || State.StartLocation is not null;
+
+    private GeoPoint CityCenter => State.City is { } city ? new GeoPoint(city.Lat, city.Lon) : new GeoPoint(50.0614, 19.9366);
+
+    private bool CanBuild => _selected is not null && _selected.Count >= (State.StartLocation is null ? 2 : 1);
 
     protected override async Task OnInitializedAsync()
     {
@@ -131,6 +271,17 @@ else
                 selected.Add(result.Value);
         }
         _selected = selected;
+        _pickerMarkers = selected
+            .Select(p => new MapMarker(p.Place.Id, p.Place.Name, p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status)))
+            .ToList();
+    }
+
+    /// <summary>Start wskazany lub poprawiony na mapie.</summary>
+    private void SetStartPoint(GeoPoint point)
+    {
+        State.SetStartLocation(point);
+        _plan = null;
+        _error = null;
     }
 
     private async Task RemoveAsync(string id)
@@ -140,29 +291,124 @@ else
         await LoadSelectedAsync();
     }
 
+    private async Task MoveAsync(AssessedPlace item, int offset)
+    {
+        if (offset < 0)
+            await State.MovePlaceUpAsync(item.Place.Id);
+        else
+            await State.MovePlaceDownAsync(item.Place.Id);
+
+        // Ułożony plan przestaje odpowiadać liście, więc go chowamy.
+        _plan = null;
+        await LoadSelectedAsync();
+        _moveStatus = $"{item.Place.Name}: pozycja {State.PlanPlaceIds.IndexOf(item.Place.Id) + 1} z {State.PlanPlaceIds.Count}.";
+    }
+
+    private async Task SetOptimizeAsync(ChangeEventArgs e)
+    {
+        await State.SetOptimizeOrderAsync(e.Value is true);
+        _plan = null;
+    }
+
+    private async Task UseMyLocationAsync()
+    {
+        _locating = true;
+        _locationError = null;
+        try
+        {
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/geolocation.js");
+            var position = await module.InvokeAsync<Position>("getCurrentPosition");
+            if (position.Ok)
+            {
+                State.SetStartLocation(new GeoPoint(position.Lat, position.Lon));
+                _plan = null;
+            }
+            else
+            {
+                _locationError = position.Reason switch
+                {
+                    "denied" => "Przeglądarka nie ma zgody na lokalizację. Włącz ją w ustawieniach strony albo wskaż start na mapie.",
+                    "timeout" => "Nie udało się ustalić lokalizacji na czas. Spróbuj ponownie albo wskaż start na mapie.",
+                    "unsupported" => "Ta przeglądarka nie udostępnia lokalizacji. Wskaż start na mapie.",
+                    _ => "Lokalizacja jest teraz niedostępna. Spróbuj ponownie albo wskaż start na mapie."
+                };
+            }
+        }
+        finally
+        {
+            _locating = false;
+        }
+    }
+
+    private void RemoveStartLocation()
+    {
+        State.SetStartLocation(null);
+        _pickingStart = false;
+        _plan = null;
+        _error = null;
+    }
+
     private async Task ClearAsync()
     {
         await State.ClearPlanAsync();
         _plan = null;
         _error = null;
+        _locationError = null;
+        _pickingStart = false;
         await LoadSelectedAsync();
     }
 
     private async Task BuildAsync()
     {
-        var result = await Sender.Send(new BuildTripPlanCommand(State.CityId, State.PlanPlaceIds, State.Profile, State.Mode, DateTime.Now));
-        if (result.IsFailure)
-        {
-            _error = result.Error;
-            _plan = null;
+        if (_building)
             return;
-        }
 
+        _building = true;
+        _plan = null;
         _error = null;
-        _plan = result.Value;
-        _markers = _plan.Stops
-            .Select(s => new MapMarker(s.Place.Id, s.Place.Name, s.Place.Lat, s.Place.Lon, Labels.Color(s.Assessment.Status), s.Order.ToString()))
-            .ToList();
-        _route = _plan.Legs.SelectMany(l => l.Geometry).ToList();
+        await Task.Yield();     // pokaż loader, zanim zaczną się obliczenia
+        try
+        {
+            var result = await Sender.Send(new BuildTripPlanCommand(
+                State.CityId, State.PlanPlaceIds, State.Profile, State.Mode, DateTime.Now, State.StartLocation, State.OptimizeOrder));
+            if (result.IsFailure)
+            {
+                _error = result.Error;
+                return;
+            }
+
+            _plan = result.Value;
+            var count = _plan.Stops.Count;
+            _markers = _plan.Stops
+                .Select((s, i) => new MapMarker(s.IsUserLocation ? "" : s.Place.Id,
+                    StopRole(i, count) is { } role ? $"{s.Place.Name} ({role.ToLowerInvariant()})" : s.Place.Name,
+                    s.Place.Lat, s.Place.Lon, StopColor(i, count), s.Order.ToString()))
+                .ToList();
+            _route = RouteSegments(_plan);
+        }
+        finally
+        {
+            _building = false;
+        }
     }
+
+    /// <summary>Najpierw dojścia piesze, potem proponowane przejazdy, żeby linie komunikacji były na wierzchu.</summary>
+    private static List<MapRouteSegment> RouteSegments(TripPlan plan)
+    {
+        var walks = plan.Legs.Select(l => new MapRouteSegment(l.Geometry));
+        var rides = plan.Legs
+            .Where(l => l.Transit is { Status: TransitStatus.Found })
+            .SelectMany(l => l.Transit!.Journeys[0].Rides)
+            .Select(r => new MapRouteSegment(r.Path, IsTransit: true, $"{Labels.Of(r.Kind)} {r.LineName}"));
+        return walks.Concat(rides).ToList();
+    }
+
+    private static string StopColor(int index, int count) => index == 0 ? StartColor : index == count - 1 ? EndColor : MiddleColor;
+
+    private static string StopCss(int index, int count) => index == 0 ? "stop-start" : index == count - 1 ? "stop-end" : "";
+
+    // Rola jest też tekstem, żeby start i cel nie były rozróżniane samym kolorem.
+    private static string? StopRole(int index, int count) => index == 0 ? "Start" : index == count - 1 ? "Cel" : null;
+
+    private sealed record Position(bool Ok, double Lat, double Lon, string? Reason);
 }

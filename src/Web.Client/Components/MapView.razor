@@ -19,8 +19,8 @@
     private bool _fullscreen;
 
     [Parameter] public string Label { get; set; } = "Mapa miejsc";
-    [Parameter] public GeoPoint Center { get; set; } = new(50.0614, 19.9366);
-    [Parameter] public int Zoom { get; set; } = 14;
+    [Parameter] public GeoPoint Center { get; set; } = AppState.DefaultCenter;
+    [Parameter] public int Zoom { get; set; } = AppState.DefaultZoom;
     [Parameter] public IReadOnlyList<MapMarker> Markers { get; set; } = [];
     [Parameter] public IReadOnlyList<MapRouteSegment> Route { get; set; } = [];
     [Parameter] public bool FitToMarkers { get; set; }

@@ -40,4 +40,11 @@ public sealed class MongoCollections(MongoOptions options, IServiceProvider serv
             throw new DatabaseUnavailableException("Baza danych nie odpowiada.", ex);
         }
     }
+
+    /// <summary>Operacja bez wyniku, np. zapis nowego dokumentu.</summary>
+    public static Task RunAsync(Func<Task> action) => RunAsync(async () =>
+    {
+        await action();
+        return true;
+    });
 }

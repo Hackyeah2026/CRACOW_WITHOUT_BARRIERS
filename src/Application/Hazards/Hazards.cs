@@ -8,13 +8,8 @@ public sealed record SubmitHazardCommand(HazardDraft Draft) : ICommand<HazardRec
 
 internal sealed class SubmitHazardCommandHandler(IHazardsClient client) : ICommandHandler<SubmitHazardCommand, HazardReceipt>
 {
-    public Task<Result<HazardReceipt>> Handle(SubmitHazardCommand command, CancellationToken ct)
-    {
-        var errors = command.Draft.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<HazardReceipt>(string.Join(" ", errors)))
-            : client.SubmitAsync(command.Draft, ct);
-    }
+    public Task<Result<HazardReceipt>> Handle(SubmitHazardCommand command, CancellationToken ct) =>
+        command.Draft.Validate().IfValidAsync(() => client.SubmitAsync(command.Draft, ct));
 }
 
 /// <summary>Punkty zalogowanego mieszkańca, od najnowszych, ze stanem weryfikacji.</summary>
@@ -48,11 +43,6 @@ public sealed record ReviewHazardCommand(string HazardId, HazardReview Review) :
 
 internal sealed class ReviewHazardCommandHandler(IOfficialClient client) : ICommandHandler<ReviewHazardCommand, Hazard>
 {
-    public Task<Result<Hazard>> Handle(ReviewHazardCommand command, CancellationToken ct)
-    {
-        var errors = command.Review.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<Hazard>(string.Join(" ", errors)))
-            : client.ReviewHazardAsync(command.HazardId, command.Review, ct);
-    }
+    public Task<Result<Hazard>> Handle(ReviewHazardCommand command, CancellationToken ct) =>
+        command.Review.Validate().IfValidAsync(() => client.ReviewHazardAsync(command.HazardId, command.Review, ct));
 }

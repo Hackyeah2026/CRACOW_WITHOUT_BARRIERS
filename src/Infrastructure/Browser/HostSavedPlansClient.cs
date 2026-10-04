@@ -25,23 +25,9 @@ internal sealed class HostSavedPlansClient(HttpClient http) : ISavedPlansClient
     public Task<Result<SavedPlan>> CloseAsync(string id, SavedPlanRoute route, CancellationToken ct) =>
         HostApi.SendAsync<SavedPlan>(() => http.PostAsJsonAsync($"{Url(id)}/close", route, DomainJson.Options, ct), ct, unavailable: Unavailable);
 
-    public async Task<Result> DeleteAsync(string id, CancellationToken ct)
-    {
-        try
-        {
-            using var response = await http.DeleteAsync(Url(id), ct);
-            // Plan usunięty wcześniej (np. na innym urządzeniu) też uznajemy za usunięty.
-            return response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound
-                ? Result.Success()
-                : Result.Failure(response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable
-                    ? Unavailable
-                    : "Nie udało się usunąć planu. Spróbuj ponownie.");
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            return Result.Failure("Brak połączenia z serwerem.");
-        }
-    }
+    // Plan usunięty wcześniej (np. na innym urządzeniu) też uznajemy za usunięty.
+    public Task<Result> DeleteAsync(string id, CancellationToken ct) =>
+        HostApi.SendAsync(() => http.DeleteAsync(Url(id), ct), ct, unavailable: Unavailable, missingIsSuccess: true);
 
     private static string Url(string id) => $"api/plans/{Uri.EscapeDataString(id)}";
 }

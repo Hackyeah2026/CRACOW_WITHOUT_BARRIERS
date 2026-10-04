@@ -15,11 +15,8 @@ internal sealed class HostAccountClient(HttpClient http) : IAccountClient
         HostApi.SendAsync<UserProfile>(() => http.PostAsJsonAsync("api/account/login", credentials, DomainJson.Options, ct), ct,
             unauthorized: "Nieprawidłowy login lub hasło.");
 
-    public async Task LogoutAsync(CancellationToken ct)
-    {
-        try { (await http.PostAsync("api/account/logout", null, ct)).Dispose(); }
-        catch (HttpRequestException) { }
-    }
+    // Wylogowanie bez odpowiedzi hosta i tak czyści konto w aplikacji: sesja wygaśnie sama.
+    public Task LogoutAsync(CancellationToken ct) => HostApi.SendAsync(() => http.PostAsync("api/account/logout", null, ct), ct);
 
     public async Task<UserProfile?> GetCurrentAsync(CancellationToken ct)
     {

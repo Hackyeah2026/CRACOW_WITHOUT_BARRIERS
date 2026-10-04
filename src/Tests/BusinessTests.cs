@@ -8,7 +8,7 @@ using Domain.Needs;
 using Domain.Places;
 using Infrastructure.Catalog;
 using Infrastructure.Mongo;
-using Infrastructure.Mongo.Reports;
+using Infrastructure.Mongo.Accounts;
 using Infrastructure.Server;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -113,6 +113,10 @@ public class BusinessTests
         Assert.Empty(new BusinessReview(BusinessStatus.Rejected, "NIP należy do innej firmy.").Validate());
         Assert.NotEmpty(new BusinessReview(BusinessStatus.Approved, new string('x', BusinessAccount.MaxNoteLength + 1)).Validate());
     }
+
+    [Fact]
+    public void Decision_outside_the_known_statuses_is_rejected() =>
+        Assert.NotEmpty(new BusinessReview((BusinessStatus)99, "Powód").Validate());
 
     [Fact]
     public void Only_an_approved_account_can_be_revoked_and_it_cannot_be_rejected()
@@ -317,7 +321,7 @@ public class BusinessTests
     [Fact]
     public async Task Repository_reports_database_unavailable_without_connection_string()
     {
-        var repository = new ServiceCollection().AddMongo(new MongoOptions()).AddMongoReports(new OfficialsOptions())
+        var repository = new ServiceCollection().AddMongo(new MongoOptions()).AddMongoRepositories(new OfficialsOptions())
             .AddLogging().BuildServiceProvider().GetRequiredService<IBusinessRepository>();
 
         await Assert.ThrowsAsync<DatabaseUnavailableException>(() => repository.FindAsync("lipa", CancellationToken.None));

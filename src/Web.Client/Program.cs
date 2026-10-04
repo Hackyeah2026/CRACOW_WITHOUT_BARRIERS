@@ -10,6 +10,7 @@ builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.H
 builder.Services.AddApplication();
 builder.Services.AddBrowserInfrastructure();
 builder.Services.AddScoped<AppState>();
+builder.Services.AddScoped<BrowserLocation>();
 builder.Services.RegisterDriverJs();
 
 await builder.Build().RunAsync();

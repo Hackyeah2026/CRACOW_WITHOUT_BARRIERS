@@ -23,10 +23,10 @@ public static class BusinessEndpoints
     {
         app.MapGet("/api/businesses", async (string cityId, IBusinessRepository repository, CancellationToken ct) =>
                 Results.Ok((await repository.ListAsync(cityId, BusinessStatus.Approved, MaxCertified, ct)).Select(b => b.ToCertified())))
-            .AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter);
+            .AddEndpointFilter(Api.DatabaseUnavailableFilter);
 
         var business = app.MapGroup("/api/business")
-            .AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter)
+            .AddEndpointFilter(Api.DatabaseUnavailableFilter)
             .RequireAuthorization(AccountEndpoints.UserPolicy);
 
         business.MapGet("/mine", async (ClaimsPrincipal user, IBusinessRepository repository, CancellationToken ct) =>
@@ -36,32 +36,32 @@ public static class BusinessEndpoints
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid(errors);
 
             var login = AccountEndpoints.LoginOf(user);
             if (await repository.IsPlaceTakenAsync(draft.CityId, draft.PlaceId, login, ct))
-                return Conflict("To miejsce ma już zatwierdzone konto firmowe.");
+                return Api.Conflict("To miejsce ma już zatwierdzone konto firmowe.");
 
             var account = BusinessAccount.Create(draft, login, DateTime.UtcNow);
             return await repository.SubmitAsync(account, ct)
                 ? Results.Ok(account.ToView())
-                : Conflict("Twoje konto firmowe jest już zatwierdzone.");
-        }).RequireRateLimiting(ReportEndpoints.SubmitLimit);
+                : Api.Conflict("Twoje konto firmowe jest już zatwierdzone.");
+        }).RequireRateLimiting(Api.SubmitLimit);
 
         business.MapPut("/features", async (BusinessFeaturesUpdate update, ClaimsPrincipal user, IBusinessRepository repository, CancellationToken ct) =>
         {
             var errors = update.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid(errors);
 
             var account = await repository.FindAsync(AccountEndpoints.LoginOf(user), ct);
             if (account is not { IsApproved: true })
-                return Conflict(NotApproved);
+                return Api.Conflict(NotApproved);
 
             var updated = account.WithFeatures(update, DateTime.UtcNow);
             return await repository.ReplaceAsync(updated, account.UpdatedAt, ct) == BusinessSaveResult.Saved
                 ? Results.Ok(updated.ToView())
-                : Conflict("Konto firmowe zmieniło się w międzyczasie. Odśwież stronę i spróbuj ponownie.");
+                : Api.Conflict("Konto firmowe zmieniło się w międzyczasie. Odśwież stronę i spróbuj ponownie.");
         });
 
         business.MapGet("/certificate", async (bool? inline, ClaimsPrincipal user, IBusinessRepository repository,
@@ -69,7 +69,7 @@ public static class BusinessEndpoints
         {
             var account = await repository.FindAsync(AccountEndpoints.LoginOf(user), ct);
             if (account is not { IsApproved: true, CertificateId: not null, CertifiedAt: not null })
-                return Conflict(NotApproved);
+                return Api.Conflict(NotApproved);
 
             var baseUrl = configuration[PublicBaseUrlSetting] is { Length: > 0 } configured
                 ? configured
@@ -86,8 +86,8 @@ public static class BusinessEndpoints
         });
 
         var official = app.MapGroup("/api/official/businesses")
-            .AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter)
-            .RequireAuthorization(ReportEndpoints.OfficialPolicy);
+            .AddEndpointFilter(Api.DatabaseUnavailableFilter)
+            .RequireAuthorization(OfficialEndpoints.OfficialPolicy);
 
         official.MapGet("/", async (string? cityId, IBusinessRepository repository, CancellationToken ct) =>
             Results.Ok(await repository.ListAsync(cityId, null, MaxListed, ct)));
@@ -97,7 +97,7 @@ public static class BusinessEndpoints
         {
             var errors = review.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid(errors);
             if (!UserCredentials.IsValidLogin(login))
                 return Results.NotFound();
 
@@ -105,14 +105,14 @@ public static class BusinessEndpoints
             if (account is null)
                 return Results.NotFound();
             if (account.TransitionError(review) is { } transition)
-                return Conflict(transition);
+                return Api.Conflict(transition);
 
-            var updated = account.Review(review, ReportEndpoints.ProfileOf(user).Login, DateTime.UtcNow);
+            var updated = account.Review(review, OfficialEndpoints.ProfileOf(user).Login, DateTime.UtcNow);
             return await repository.ReplaceAsync(updated, account.UpdatedAt, ct) switch
             {
                 BusinessSaveResult.Saved => Results.Ok(updated),
-                BusinessSaveResult.PlaceTaken => Conflict("To miejsce ma już zatwierdzone konto firmowe innego właściciela."),
-                _ => Conflict("Wniosek zmienił się w międzyczasie. Odśwież listę i spróbuj ponownie.")
+                BusinessSaveResult.PlaceTaken => Api.Conflict("To miejsce ma już zatwierdzone konto firmowe innego właściciela."),
+                _ => Api.Conflict("Wniosek zmienił się w międzyczasie. Odśwież listę i spróbuj ponownie.")
             };
         });
 
@@ -120,6 +120,4 @@ public static class BusinessEndpoints
     }
 
     private const string NotApproved = "Konto firmowe nie jest zatwierdzone przez urząd.";
-
-    private static IResult Conflict(string detail) => Results.Problem(detail, statusCode: StatusCodes.Status409Conflict);
 }

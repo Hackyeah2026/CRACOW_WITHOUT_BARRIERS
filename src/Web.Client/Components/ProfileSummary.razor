@@ -29,6 +29,5 @@ else
 
     private NeedsProfile Shown => Profile ?? State.Profile;
 
-    private List<string> Names => NeedsProfilePresets.All
-        .Where(p => Shown.Presets.Contains(p.Id)).Select(p => p.Name).ToList();
+    private IReadOnlyList<string> Names => Labels.PresetNames(Shown);
 }

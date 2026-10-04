@@ -1,4 +1,3 @@
-using Domain.Hazards;
 using Domain.Places;
 
 namespace Domain.Trips;
@@ -37,7 +36,7 @@ public static class RestStopRules
 
         var candidates = benches
             .Where(b => b.Lat >= minLat && b.Lat <= maxLat && b.Lon >= minLon && b.Lon <= maxLon)
-            .Select(b => (Bench: b, At: HazardRules.Locate(b.Location, route)))
+            .Select(b => (Bench: b, At: RouteGeometry.Locate(b.Location, route)))
             .Where(x => x.At.DistanceM <= RouteCorridorM)
             .Select(x => (x.Bench, WalkedM: (starts[x.At.Segment] + x.At.Along * (starts[x.At.Segment + 1] - starts[x.At.Segment])) / length * routeDistanceM))
             .Where(x => x.WalkedM < routeDistanceM - MinSpacingM)

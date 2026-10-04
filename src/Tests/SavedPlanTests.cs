@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Application.Trips;
+using Domain;
 using Domain.Assessments;
 using Domain.Hazards;
 using Domain.Needs;
@@ -48,6 +50,8 @@ public class SavedPlanTests
         Assert.NotEmpty(Draft(placeIds: ["a", "a"]).Validate());
         Assert.NotEmpty(Draft(placeIds: Enumerable.Range(0, SavedPlanDraft.MaxPlaces + 1).Select(i => $"p{i}").ToArray()).Validate());
         Assert.NotEmpty(new SavedPlanDraft("", "Plan", []).Validate());
+        // Żądanie spoza aplikacji bez listy miejsc.
+        Assert.NotEmpty(JsonSerializer.Deserialize<SavedPlanDraft>("""{"cityId":"krakow","name":"Plan"}""", DomainJson.Options)!.Validate());
     }
 
     [Fact]
@@ -107,6 +111,21 @@ public class SavedPlanTests
 
         // Ta sama trasa otwarta z innym profilem dostaje ocenę dla tego profilu.
         Assert.NotEqual(AssessmentStatus.Inaccessible, SavedRoutes.Read(json, NeedsProfile.Empty)!.Stops[0].Assessment.Status);
+    }
+
+    [Fact]
+    public void Saved_route_keeps_the_detour_around_a_verified_hazard()
+    {
+        var route = Route(NeedsProfile.Empty);
+        var stairs = new VerifiedHazard("h1", HazardKind.Stairs, 50.057, 19.938, "trzy stopnie", new DateOnly(2026, 10, 3));
+        var detour = new RouteDetour([stairs], 104.5, [new GeoPoint(50.061, 19.937), new GeoPoint(50.054, 19.935)]);
+        route = route with { Legs = [route.Legs[0] with { Detour = detour }, .. route.Legs.Skip(1)] };
+
+        var saved = SavedRoutes.Read(SavedRoutes.Write(route), NeedsProfile.Empty)!.Legs[0].Detour!;
+
+        Assert.Equal(detour.Avoided, saved.Avoided);
+        Assert.Equal(detour.ExtraDistanceM, saved.ExtraDistanceM);
+        Assert.Equal(detour.DirectGeometry, saved.DirectGeometry);
     }
 
     [Fact]

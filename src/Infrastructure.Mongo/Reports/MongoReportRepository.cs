@@ -10,11 +10,7 @@ internal sealed class MongoReportRepository(MongoCollections collections) : IRep
     private IMongoCollection<Report> Reports => collections.Get<Report>(MongoCollections.Reports);
 
     public Task AddAsync(Report report, CancellationToken ct) =>
-        MongoCollections.RunAsync(async () =>
-        {
-            await Reports.InsertOneAsync(report, cancellationToken: ct);
-            return true;
-        });
+        MongoCollections.RunAsync(() => Reports.InsertOneAsync(report, cancellationToken: ct));
 
     public Task<IReadOnlyList<Report>> ListByReporterAsync(string login, int limit, CancellationToken ct) =>
         MongoCollections.RunAsync<IReadOnlyList<Report>>(async () =>

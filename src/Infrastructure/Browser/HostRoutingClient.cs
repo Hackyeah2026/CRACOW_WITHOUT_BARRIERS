@@ -53,6 +53,9 @@ internal sealed class HostRoutingClient(HttpClient http, ILocalStore store) : IR
         catch (Exception) { return null; }
     }
 
+    // Omijane punkty są częścią klucza: po potwierdzeniu albo zdjęciu utrudnienia ten sam odcinek ma inną trasę.
     private static string CacheKey(RouteQuery q) => string.Create(CultureInfo.InvariantCulture,
-        $"{q.From.Lat:F5},{q.From.Lon:F5}>{q.To.Lat:F5},{q.To.Lon:F5}|w{(q.Wheelchair ? 1 : 0)}s{(q.AvoidSteps ? 1 : 0)}k{q.MaxKerbCm}");
+        $"{q.From.Lat:F5},{q.From.Lon:F5}>{q.To.Lat:F5},{q.To.Lon:F5}|w{(q.Wheelchair ? 1 : 0)}s{(q.AvoidSteps ? 1 : 0)}k{q.MaxKerbCm}")
+        + (q.Avoid is null ? "" : "|a" + string.Join(';', q.Avoid
+            .Select(p => string.Create(CultureInfo.InvariantCulture, $"{p.Lat:F5},{p.Lon:F5}")).Order(StringComparer.Ordinal)));
 }

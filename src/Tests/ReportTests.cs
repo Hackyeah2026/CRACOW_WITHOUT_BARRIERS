@@ -4,8 +4,11 @@ using Application.Reports;
 using Domain.Accounts;
 using Domain.Places;
 using Domain.Reports;
+using System.Text.Json;
+using Domain;
+using Domain.Hazards;
 using Infrastructure.Mongo;
-using Infrastructure.Mongo.Reports;
+using Infrastructure.Mongo.Accounts;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MediatR;
@@ -49,6 +52,52 @@ public class ReportTests
     }
 
     [Fact]
+    public void Request_with_missing_fields_or_unknown_values_is_invalid_instead_of_crashing_the_host()
+    {
+        // Tak wygląda żądanie spoza aplikacji: bez listy udogodnień i bez opisu.
+        var bare = JsonSerializer.Deserialize<ReportDraft>(
+            """{"cityId":"krakow","placeId":"osm-node-1","placeName":"Sukiennice","category":"Museum","lat":50.06,"lon":19.93,"kind":"Barrier"}""",
+            DomainJson.Options)!;
+
+        Assert.NotEmpty(bare.Validate());
+        Assert.NotEmpty((Draft() with { Kind = (ReportKind)99 }).Validate());
+        Assert.NotEmpty((Draft() with { Category = (PlaceCategory)99 }).Validate());
+        Assert.NotEmpty(Draft(features: [(FeatureKey)99]).Validate());
+        Assert.NotEmpty(new ReportStatusChange((ReportStatus)99, null).Validate());
+        Assert.Empty(new ReportStatusChange(ReportStatus.Planned, "Remont w 2027 r.").Validate());
+    }
+
+    [Fact]
+    public void Description_is_optional_in_requests_from_outside_the_app()
+    {
+        var report = JsonSerializer.Deserialize<ReportDraft>(
+            """{"cityId":"krakow","placeId":"osm-node-1","placeName":"Sukiennice","category":"Museum","lat":50.06,"lon":19.93,"kind":"MissingAmenity","features":["Elevator"]}""",
+            DomainJson.Options)!;
+        var hazard = JsonSerializer.Deserialize<HazardDraft>(
+            """{"cityId":"krakow","lat":50.06,"lon":19.93,"kind":"Stairs"}""", DomainJson.Options)!;
+
+        Assert.Empty(report.Validate());
+        Assert.Empty(hazard.Validate());
+        Assert.Equal("", Report.Create(report, Now).Description);
+        Assert.Equal("", Hazard.Create(hazard, Now).Description);
+    }
+
+    [Fact]
+    public void My_reports_summary_counts_places_and_map_points_by_stage()
+    {
+        ReportStatusView Place(ReportStatus status, string? note = null) =>
+            new("r", "p", "Miejsce", ReportKind.Barrier, [], status, Now, Now, note);
+        HazardStatusView Point(HazardStatus status, string? note = null) =>
+            new("h", HazardKind.Stairs, 50.06, 19.93, "", status, Now, Now, note);
+
+        var summary = MyReportsSummary.From(
+            [Place(ReportStatus.New), Place(ReportStatus.InReview), Place(ReportStatus.Planned, "W planie"), Place(ReportStatus.Resolved), Place(ReportStatus.Rejected, "Nie nasz teren")],
+            [Point(HazardStatus.Pending), Point(HazardStatus.Verified), Point(HazardStatus.Removed, "Naprawione")]);
+
+        Assert.Equal(new MyReportsSummary(Total: 8, Waiting: 2, InProgress: 2, Done: 3, Answered: 3), summary);
+    }
+
+    [Fact]
     public void New_report_starts_as_new_and_status_view_hides_the_official()
     {
         var report = Report.Create(Draft(description: "  winda nie działa  "), Now) with { HandledBy = "jan" };
@@ -83,6 +132,11 @@ public class ReportTests
         Assert.False(PasswordHashing.Verify("inne-haslo", hash));
         Assert.False(PasswordHashing.Verify("tajne-haslo", "zepsuty$zapis"));
         Assert.NotEqual(hash, PasswordHashing.Hash("tajne-haslo"));
+
+        // Konto odczytane z bazy: brak konta nigdy nie daje dostępu, niezależnie od hasła.
+        Assert.True(PasswordHashing.VerifyAccount("tajne-haslo", hash));
+        Assert.False(PasswordHashing.VerifyAccount("inne-haslo", hash));
+        Assert.False(PasswordHashing.VerifyAccount("tajne-haslo", null));
     }
 
     [Fact]
@@ -110,7 +164,7 @@ public class ReportTests
     [Fact]
     public async Task Repository_reports_database_unavailable_without_connection_string()
     {
-        var services = new ServiceCollection().AddMongo(new MongoOptions()).AddMongoReports(new OfficialsOptions())
+        var services = new ServiceCollection().AddMongo(new MongoOptions()).AddMongoRepositories(new OfficialsOptions())
             .AddLogging().BuildServiceProvider();
 
         var repository = services.GetRequiredService<IReportRepository>();

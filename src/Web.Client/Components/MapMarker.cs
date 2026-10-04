@@ -8,5 +8,8 @@ namespace Web.Client.Components;
 public sealed record MapMarker(
     string Id, string Name, double Lat, double Lon, string Color, string? Label = null, string? Icon = null, bool Certified = false);
 
-/// <summary>Odcinek trasy na mapie: pieszo (linia przerywana) albo komunikacją miejską (linia ciągła z nazwą linii).</summary>
-public sealed record MapRouteSegment(IReadOnlyList<GeoPoint> Points, bool IsTransit = false, string? Label = null);
+/// <summary>
+/// Odcinek trasy na mapie: pieszo (linia przerywana), komunikacją miejską (linia ciągła z nazwą linii)
+/// albo najkrótsza droga, którą trasa omija z powodu utrudnienia (cienka linia kropkowana).
+/// </summary>
+public sealed record MapRouteSegment(IReadOnlyList<GeoPoint> Points, bool IsTransit = false, string? Label = null, bool IsBypassed = false);

@@ -645,6 +645,13 @@ legend {
     color: var(--md-sys-color-on-error-container);
 }
 
+/* Trasa poprowadzona inną drogą, żeby ominąć potwierdzone utrudnienie. */
+.hazard-avoided {
+    border-color: var(--kbb-color-ok);
+    background: var(--kbb-color-ok-container);
+    color: var(--kbb-color-on-ok-container);
+}
+
 .photo-verdict-likely {
     border-color: var(--kbb-color-limited);
     background: var(--kbb-color-limited-container);
@@ -1124,6 +1131,10 @@ legend {
     border-top: 4px dashed var(--kbb-color-map-walk);
 }
 
+.map-legend-bypassed {
+    border-top: 3px dotted var(--kbb-color-map-end);
+}
+
 .map-legend-pin.stop-start { background: var(--kbb-color-map-start); }
 .map-legend-pin.stop-end { background: var(--kbb-color-map-end); }
 
@@ -1131,7 +1142,8 @@ legend {
 @media (prefers-color-scheme: dark) {
     .map-legend-pin { border-color: var(--md-sys-color-on-surface); }
     .map-legend-walk { border-top-color: var(--md-sys-color-primary); }
-    .map-legend-line:not(.map-legend-walk) { border-top-color: var(--md-sys-color-on-surface); }
+    .map-legend-line:not(.map-legend-walk):not(.map-legend-bypassed) { border-top-color: var(--md-sys-color-on-surface); }
+    .map-legend-bypassed { border-top-color: var(--md-sys-color-error); }
 }
 
 /* ---------- Tryb wymuszonych kolorów (Windows High Contrast) ---------- */

@@ -24,10 +24,14 @@ public sealed record ObstacleAnalysis(double Probability, HazardKind? SuggestedK
         : ObstacleVerdict.Uncertain;
 
     /// <summary>Ocena doprowadzona do dozwolonych zakresów; potrzebne, gdy wraca do hosta z przeglądarki razem ze zgłoszeniem.</summary>
-    public ObstacleAnalysis Sanitized() => new(
-        double.IsFinite(Probability) ? Math.Clamp(Probability, 0, 1) : 0,
-        SuggestedKind is { } kind && Enum.IsDefined(kind) ? kind : null,
-        (Summary ?? "").Trim() is { Length: > MaxSummaryLength } text ? text[..MaxSummaryLength] : (Summary ?? "").Trim());
+    public ObstacleAnalysis Sanitized()
+    {
+        var summary = (Summary ?? "").Trim();
+        return new(
+            double.IsFinite(Probability) ? Math.Clamp(Probability, 0, 1) : 0,
+            SuggestedKind is { } kind && Enum.IsDefined(kind) ? kind : null,
+            summary.Length > MaxSummaryLength ? summary[..MaxSummaryLength] : summary);
+    }
 
     public int Percent => (int)Math.Round(Math.Clamp(Probability, 0, 1) * 100);
 }

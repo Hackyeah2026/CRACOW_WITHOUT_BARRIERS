@@ -104,9 +104,6 @@
 
     [Parameter, EditorRequired] public Place Place { get; set; } = default!;
 
-    /// <summary>Wywoływane po przyjęciu zgłoszenia, np. żeby odświeżyć listę zgłoszeń miejsca.</summary>
-    [Parameter] public EventCallback<ReportReceipt> OnSubmitted { get; set; }
-
     /// <summary>Dokąd wrócić po zalogowaniu, gdy formularz jest poza kartą miejsca.</summary>
     [Parameter] public string? ReturnTo { get; set; }
 
@@ -150,7 +147,6 @@
         }
 
         _receipt = result.Value;
-        await OnSubmitted.InvokeAsync(result.Value);
     }
 
     private void Reset()

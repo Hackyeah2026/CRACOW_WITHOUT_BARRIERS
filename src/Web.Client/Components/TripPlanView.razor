@@ -1,0 +1,209 @@
+@* Ułożony plan: przystanki z oceną, odcinki z ostrzeżeniami, ławkami i komunikacją oraz mapa z legendą. *@
+<section aria-labelledby="plan-heading">
+    <h2 id="plan-heading" class="h4" tabindex="-1">@(Saved ? "Zapisana trasa" : "Twój plan")</h2>
+    <p role="status">
+        @Plan.Stops.Count @Labels.Plural(Plan.Stops.Count, "przystanek", "przystanki", "przystanków"), około @Labels.Distance(Plan.TotalDistanceM) drogi,
+        około @Math.Ceiling(Plan.TotalDurationMin) min w ruchu (bez czasu na miejscu).
+        @if (_hazards.Count > 0)
+        {
+            <text>Przy trasie: @_hazards.Count @Labels.Plural(_hazards.Count, "utrudnienie potwierdzone", "utrudnienia potwierdzone", "utrudnień potwierdzonych") przez urząd, z tego dla Twojego profilu: @_hazards.Count(h => h.ConcernsProfile).</text>
+        }
+        @if (_avoided.Count > 0)
+        {
+            <text> Trasa omija @_avoided.Count @Labels.Plural(_avoided.Count, "utrudnienie potwierdzone", "utrudnienia potwierdzone", "utrudnień potwierdzonych") przez urząd.</text>
+        }
+    </p>
+    <div class="mb-3">
+        <ReadAloud Parts="_narration" Label="Czytaj plan na głos" />
+    </div>
+    @Actions
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <ol class="list-unstyled">
+                @for (var i = 0; i < Plan.Stops.Count; i++)
+                {
+                    var stop = Plan.Stops[i];
+                    <li class="card card-body mb-2">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="stop-number @StopCss(i, Plan.Stops.Count)" aria-hidden="true">@stop.Order</span>
+                            @if (stop.IsUserLocation)
+                            {
+                                <span class="place-name"><span class="visually-hidden">Przystanek @stop.Order: </span><span class="msym" aria-hidden="true">location_on</span> @stop.Place.Name</span>
+                            }
+                            else
+                            {
+                                <a class="place-name" href="miejsca/@stop.Place.Id"><span class="visually-hidden">Przystanek @stop.Order: </span>@stop.Place.Name</a>
+                            }
+                            @if (StopRole(i, Plan.Stops.Count) is { } role)
+                            {
+                                <span class="badge text-bg-light border">@role</span>
+                            }
+                            @if (!stop.IsUserLocation)
+                            {
+                                <AssessmentBadge Status="stop.Assessment.Status" />
+                            }
+                        </div>
+                        @foreach (var barrier in stop.IsUserLocation ? [] : stop.Assessment.Barriers)
+                        {
+                            <div class="small mt-1"><span class="msym msym-fill reason-icon-cancel" aria-hidden="true">cancel</span> @barrier.Message</div>
+                        }
+                        @if (!stop.IsUserLocation && stop.Assessment.Status == AssessmentStatus.Unknown)
+                        {
+                            <div class="small mt-1"><span class="msym reason-icon-help" aria-hidden="true">help</span> Nie mamy danych, żeby ocenić to miejsce dla Twojego profilu.</div>
+                        }
+                    </li>
+                    @if (i < Plan.Legs.Count)
+                    {
+                        var leg = Plan.Legs[i];
+                        <li class="leg">
+                            <span class="msym" aria-hidden="true">directions_walk</span> @(leg.IsEstimated ? "około " : "")@Labels.Distance(leg.DistanceM), około @Math.Ceiling(leg.DurationMin) min
+                            @foreach (var warning in leg.Warnings)
+                            {
+                                <div class="text-warning-emphasis"><span class="msym" aria-hidden="true">warning</span> @warning</div>
+                            }
+                            @if (leg.Detour is { } detour)
+                            {
+                                <div class="hazard-note hazard-avoided">
+                                    <span class="msym" aria-hidden="true">route</span>
+                                    <strong>Trasa omija @(detour.Avoided.Count == 1 ? "utrudnienie potwierdzone" : "utrudnienia potwierdzone") przez urząd:</strong>
+                                    @Labels.Kinds(detour.Avoided).
+                                    @Labels.DetourCost(detour.ExtraDistanceM)
+                                </div>
+                            }
+                            @foreach (var hazard in leg.Hazards ?? [])
+                            {
+                                <div class="hazard-note @(hazard.ConcernsProfile ? "hazard-concerns" : "")">
+                                    <span class="msym" aria-hidden="true">@Labels.Icon(hazard.Hazard.Kind)</span>
+                                    W tym miejscu jest @Labels.Verified(hazard.Hazard).ToLowerInvariant()
+                                    (@(hazard.DistanceM < 10 ? "na trasie" : $"około {Labels.Distance(hazard.DistanceM)} od trasy"), potwierdzone @hazard.Hazard.VerifiedOn.ToString("dd.MM.yyyy")).
+                                    @if (hazard.ConcernsProfile)
+                                    {
+                                        <strong>Dotyczy Twojego profilu.</strong>
+                                    }
+                                    @if (!string.IsNullOrEmpty(hazard.Hazard.Description))
+                                    {
+                                        <div class="report-description">„@hazard.Hazard.Description”</div>
+                                    }
+                                </div>
+                            }
+                            @if (leg.RestStops is { Count: > 0 } rests)
+                            {
+                                <div class="hazard-note">
+                                    <span class="msym" aria-hidden="true">chair</span>
+                                    @(rests.Count == 1 ? "Ławka na przerwę" : "Ławki na przerwę") przy trasie:
+                                    @string.Join(", ", rests.Select(r => $"po około {Labels.Distance(r.DistanceFromStartM)}")) marszu od początku odcinka.
+                                </div>
+                            }
+                            @if (leg.Transit is not null)
+                            {
+                                <TransitPanel Advice="leg.Transit" />
+                            }
+                        </li>
+                    }
+                }
+            </ol>
+            @if (Plan.Legs.Any(l => l.IsEstimated))
+            {
+                <div class="alert alert-info" role="note">
+                    Nie udało się pobrać trasy po ulicach dla części odcinków. Ich dystans jest szacowany w linii prostej, a bariery po drodze nie są sprawdzone.
+                </div>
+            }
+        </div>
+        <div class="col-lg-6">
+            <MapView Label="Mapa planu" Markers="_markers" Route="_route" FitToMarkers="true" />
+            <ul class="map-legend list-unstyled small mt-2" aria-label="Legenda mapy">
+                <li><span class="map-legend-pin stop-start" aria-hidden="true"></span> start</li>
+                <li><span class="map-legend-pin" aria-hidden="true"></span> przystanek po drodze</li>
+                <li><span class="map-legend-pin stop-end" aria-hidden="true"></span> cel</li>
+                <li><span class="map-legend-line map-legend-walk" aria-hidden="true"></span> pieszo</li>
+                @if (_hazards.Count > 0 || _avoided.Count > 0)
+                {
+                    <li><span class="msym" aria-hidden="true">warning</span> utrudnienie potwierdzone przez urząd</li>
+                }
+                @if (_avoided.Count > 0)
+                {
+                    <li><span class="map-legend-line map-legend-bypassed" aria-hidden="true"></span> najkrótsza droga, którą trasa omija</li>
+                }
+                @if (Plan.Legs.Any(l => l.RestStops is { Count: > 0 }))
+                {
+                    <li><span class="msym" aria-hidden="true">chair</span> ławka na przerwę w marszu</li>
+                }
+                @if (_route.Any(r => r.IsTransit))
+                {
+                    <li><span class="map-legend-line map-legend-transit" aria-hidden="true"></span> propozycja przejazdu komunikacją miejską</li>
+                }
+            </ul>
+        </div>
+    </div>
+</section>
+
+@code {
+    // Te same kolory co --kbb-color-map-* w tokens.css (legenda pod mapą).
+    private const string StartColor = "#146C2E";
+    private const string MiddleColor = "#0B4F8A";
+    private const string EndColor = "#BA1A1A";
+    private const string RestColor = "#5C5F66";
+
+    private TripPlan? _shown;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private IReadOnlyList<MapRouteSegment> _route = [];
+    private IReadOnlyList<HazardOnRoute> _hazards = [];
+    private IReadOnlyList<VerifiedHazard> _avoided = [];
+    private IReadOnlyList<string> _narration = [];
+
+    [Parameter, EditorRequired] public TripPlan Plan { get; set; } = default!;
+
+    /// <summary>Trasa zapisana w zamkniętym planie konta, a nie plan ułożony przed chwilą.</summary>
+    [Parameter] public bool Saved { get; set; }
+
+    /// <summary>Akcje pod podsumowaniem, np. zapis trasy na koncie.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // Mapa rysuje pinezki od nowa przy każdej nowej liście, więc przeliczamy je tylko dla nowego planu.
+        if (ReferenceEquals(_shown, Plan))
+            return;
+
+        _shown = Plan;
+        var count = Plan.Stops.Count;
+        // Ten sam punkt może leżeć przy dwóch odcinkach; na mapie i w podsumowaniu liczymy go raz.
+        _hazards = Plan.Legs.SelectMany(l => l.Hazards ?? []).DistinctBy(h => h.Hazard.Id).ToList();
+        _avoided = Plan.Legs.SelectMany(l => l.Detour?.Avoided ?? []).DistinctBy(h => h.Id).ToList();
+        _markers = Plan.Stops
+            .Select((s, i) => new MapMarker(s.IsUserLocation ? "" : s.Place.Id,
+                StopRole(i, count) is { } role ? $"{s.Place.Name} ({role.ToLowerInvariant()})" : s.Place.Name,
+                s.Place.Lat, s.Place.Lon, StopColor(i, count), s.Order.ToString()))
+            .Concat(_hazards.Select(h => Labels.Marker(h.Hazard) with { Id = "" }))
+            .Concat(_avoided.Select(h => Labels.Marker(h) with { Id = "", Name = $"Ominięte przez trasę: {Labels.Verified(h)}" }))
+            .Concat(Plan.Legs.SelectMany(l => l.RestStops ?? []).DistinctBy(r => r.PlaceId).Select(r => new MapMarker(
+                "", $"Ławka na przerwę (po około {Labels.Distance(r.DistanceFromStartM)} marszu)", r.Lat, r.Lon, RestColor,
+                Icon: Labels.MapIcon(PlaceCategory.Bench))))
+            .ToList();
+        _route = RouteSegments(Plan);
+        _narration = Narration.Of(Plan);
+    }
+
+    /// <summary>
+    /// Najpierw droga, którą trasa omija, potem dojścia piesze, na końcu proponowane przejazdy,
+    /// żeby linie komunikacji były na wierzchu.
+    /// </summary>
+    private static List<MapRouteSegment> RouteSegments(TripPlan plan)
+    {
+        var bypassed = plan.Legs.Where(l => l.Detour is not null).Select(l => new MapRouteSegment(l.Detour!.DirectGeometry, IsBypassed: true));
+        var walks = plan.Legs.Select(l => new MapRouteSegment(l.Geometry));
+        var rides = plan.Legs
+            .Where(l => l.Transit is { Status: TransitStatus.Found })
+            .SelectMany(l => l.Transit!.Journeys[0].Rides)
+            .Select(r => new MapRouteSegment(r.Path, IsTransit: true, $"{Labels.Of(r.Kind)} {r.LineName}"));
+        return bypassed.Concat(walks).Concat(rides).ToList();
+    }
+
+    private static string StopColor(int index, int count) => index == 0 ? StartColor : index == count - 1 ? EndColor : MiddleColor;
+
+    private static string StopCss(int index, int count) => index == 0 ? "stop-start" : index == count - 1 ? "stop-end" : "";
+
+    // Rola jest też tekstem, żeby start i cel nie były rozróżniane samym kolorem.
+    private static string? StopRole(int index, int count) => index == 0 ? "Start" : index == count - 1 ? "Cel" : null;
+}

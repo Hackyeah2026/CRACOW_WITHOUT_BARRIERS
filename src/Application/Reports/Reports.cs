@@ -1,4 +1,5 @@
 using Application.Abstractions;
+using Domain.Hazards;
 using Domain.Places;
 using Domain.Reports;
 
@@ -9,13 +10,8 @@ public sealed record SubmitReportCommand(ReportDraft Draft) : ICommand<ReportRec
 
 internal sealed class SubmitReportCommandHandler(IReportsClient client) : ICommandHandler<SubmitReportCommand, ReportReceipt>
 {
-    public Task<Result<ReportReceipt>> Handle(SubmitReportCommand command, CancellationToken ct)
-    {
-        var errors = command.Draft.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<ReportReceipt>(string.Join(" ", errors)))
-            : client.SubmitAsync(command.Draft, ct);
-    }
+    public Task<Result<ReportReceipt>> Handle(SubmitReportCommand command, CancellationToken ct) =>
+        command.Draft.Validate().IfValidAsync(() => client.SubmitAsync(command.Draft, ct));
 }
 
 /// <summary>Zgłoszenia zalogowanego mieszkańca, od najnowszych, ze stanem obsługi.</summary>
@@ -70,13 +66,22 @@ public sealed record UpdateReportStatusCommand(string ReportId, ReportStatusChan
 
 internal sealed class UpdateReportStatusCommandHandler(IOfficialClient client) : ICommandHandler<UpdateReportStatusCommand, Report>
 {
-    public Task<Result<Report>> Handle(UpdateReportStatusCommand command, CancellationToken ct)
-    {
-        var errors = command.Change.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<Report>(string.Join(" ", errors)))
-            : client.UpdateStatusAsync(command.ReportId, command.Change, ct);
-    }
+    public Task<Result<Report>> Handle(UpdateReportStatusCommand command, CancellationToken ct) =>
+        command.Change.Validate().IfValidAsync(() => client.UpdateStatusAsync(command.ReportId, command.Change, ct));
+}
+
+/// <summary>Zgłoszenia konta na pulpicie strony głównej: zgłoszenia miejsc i punkty na mapie razem, według etapu obsługi.</summary>
+/// <param name="Waiting">Bez żadnej decyzji urzędu.</param>
+/// <param name="Done">Rozwiązane zgłoszenia miejsc oraz punkty potwierdzone (także te, których już nie ma).</param>
+/// <param name="Answered">Z odpowiedzią urzędu dla zgłaszającego.</param>
+public sealed record MyReportsSummary(int Total, int Waiting, int InProgress, int Done, int Answered)
+{
+    public static MyReportsSummary From(IReadOnlyList<ReportStatusView> reports, IReadOnlyList<HazardStatusView> hazards) => new(
+        reports.Count + hazards.Count,
+        reports.Count(r => r.Status == ReportStatus.New) + hazards.Count(h => h.Status == HazardStatus.Pending),
+        reports.Count(r => r.Status is ReportStatus.InReview or ReportStatus.Planned),
+        reports.Count(r => r.Status == ReportStatus.Resolved) + hazards.Count(h => h.Status is HazardStatus.Verified or HazardStatus.Removed),
+        reports.Count(r => r.OfficialNote is not null) + hazards.Count(h => h.OfficialNote is not null));
 }
 
 public sealed record FeatureCount(FeatureKey Feature, int Count);

@@ -1,6 +1,5 @@
 using Application.Abstractions;
 using Domain.Accounts;
-using Infrastructure.Mongo.Reports;
 using MongoDB.Driver;
 
 namespace Infrastructure.Mongo.Accounts;
@@ -13,9 +12,6 @@ public sealed record UserAccount(string Id, string PasswordHash, DateTime Create
 
 internal sealed class MongoUserDirectory(MongoCollections collections) : IUserDirectory
 {
-    // Porównanie z hasłem do nieistniejącego konta trwa tyle samo, więc czas odpowiedzi nie zdradza, które loginy istnieją.
-    private static readonly string DummyHash = PasswordHashing.Hash(Guid.NewGuid().ToString());
-
     private IMongoCollection<UserAccount> Users => collections.Get<UserAccount>(MongoCollections.Users);
 
     public Task<UserProfile?> RegisterAsync(UserCredentials credentials, DateTime now, CancellationToken ct) =>
@@ -39,7 +35,6 @@ internal sealed class MongoUserDirectory(MongoCollections collections) : IUserDi
             var id = UserCredentials.NormalizeLogin(credentials.Login);
             var account = await Users.Find(a => a.Id == id).FirstOrDefaultAsync(ct);
 
-            var valid = PasswordHashing.Verify(credentials.Password, account?.PasswordHash ?? DummyHash);
-            return valid && account is not null ? account.ToProfile() : null;
+            return PasswordHashing.VerifyAccount(credentials.Password, account?.PasswordHash) ? account?.ToProfile() : null;
         });
 }

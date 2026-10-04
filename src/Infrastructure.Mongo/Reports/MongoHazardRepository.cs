@@ -10,11 +10,7 @@ internal sealed class MongoHazardRepository(MongoCollections collections) : IHaz
     private IMongoCollection<Hazard> Hazards => collections.Get<Hazard>(MongoCollections.Hazards);
 
     public Task AddAsync(Hazard hazard, CancellationToken ct) =>
-        MongoCollections.RunAsync(async () =>
-        {
-            await Hazards.InsertOneAsync(hazard, cancellationToken: ct);
-            return true;
-        });
+        MongoCollections.RunAsync(() => Hazards.InsertOneAsync(hazard, cancellationToken: ct));
 
     public Task<IReadOnlyList<Hazard>> ListByReporterAsync(string login, int limit, CancellationToken ct) =>
         MongoCollections.RunAsync<IReadOnlyList<Hazard>>(async () =>

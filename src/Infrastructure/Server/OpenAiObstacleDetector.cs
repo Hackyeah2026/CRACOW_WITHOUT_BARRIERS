@@ -140,8 +140,9 @@ public static class OpenAiObstacleResponse
                 ? k
                 : (HazardKind?)null;
             var summary = (result.GetProperty("summary").GetString() ?? "").Trim();
+            // Skrót razem z wielokropkiem mieści się w limicie, którego host pilnuje przy zapisie zgłoszenia.
             if (summary.Length > ObstacleAnalysis.MaxSummaryLength)
-                summary = summary[..ObstacleAnalysis.MaxSummaryLength].TrimEnd() + "…";
+                summary = summary[..(ObstacleAnalysis.MaxSummaryLength - 1)].TrimEnd() + "…";
 
             return Result.Success(new ObstacleAnalysis(Math.Clamp(probability, 0, 1), kind, summary));
         }

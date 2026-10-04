@@ -1,4 +1,5 @@
 using Application.Abstractions;
+using Domain.Hazards;
 
 namespace Web.Endpoints;
 
@@ -9,8 +10,11 @@ public static class RouteEndpoints
     {
         app.MapPost("/api/route", async (RouteQuery query, IRouteProvider routing, ILoggerFactory loggers, CancellationToken ct) =>
         {
-            if (!IsValid(query.From.Lat, query.From.Lon) || !IsValid(query.To.Lat, query.To.Lon))
-                return Results.Problem("Nieprawidłowe współrzędne.", statusCode: StatusCodes.Status400BadRequest);
+            if (!IsValid(query.From.Lat, query.From.Lon) || !IsValid(query.To.Lat, query.To.Lon)
+                || query.Avoid is { } avoid && avoid.Any(p => !IsValid(p.Lat, p.Lon)))
+                return Api.Invalid("Nieprawidłowe współrzędne.");
+            if (query.Avoid is { Count: > HazardRules.MaxAvoided })
+                return Api.Invalid($"Trasa może omijać najwyżej {HazardRules.MaxAvoided} punktów.");
 
             var result = await routing.GetRouteAsync(query, ct);
             if (result.IsSuccess)

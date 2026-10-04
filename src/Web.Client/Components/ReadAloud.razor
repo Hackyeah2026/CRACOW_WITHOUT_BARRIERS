@@ -1,0 +1,84 @@
+@* Przycisk „Czytaj na głos”: czyta tekst syntezatorem mowy przeglądarki (wwwroot/js/speech.js).
+   Bez polskiego głosu na urządzeniu przycisku nie ma. *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (_available)
+{
+    <button type="button" class="btn btn-outline-primary" @onclick="ToggleAsync">
+        <span class="msym" aria-hidden="true">@(_speaking ? "close" : "volume_up")</span>
+        @(_speaking ? "Zatrzymaj czytanie" : Label)
+    </button>
+}
+
+@code {
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ReadAloud>? _self;
+    private IReadOnlyList<string>? _parts;
+    private bool _available;
+    private bool _speaking;
+
+    /// <summary>Fragmenty czytane po kolei, np. podsumowanie, a potem każdy przystanek i odcinek.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<string> Parts { get; set; } = [];
+
+    [Parameter] public string Label { get; set; } = "Czytaj na głos";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Nowa treść (inny plan, inne miejsce): czytanie poprzedniej nie ma już sensu.
+        if (_parts is not null && !ReferenceEquals(_parts, Parts))
+            await StopAsync();
+        _parts = Parts;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        _self = DotNetObjectReference.Create(this);
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/speech.js");
+        _available = await _module.InvokeAsync<bool>("isAvailable");
+        if (_available)
+            StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void SpeechFinished()
+    {
+        _speaking = false;
+        StateHasChanged();
+    }
+
+    private async Task ToggleAsync()
+    {
+        if (_speaking)
+            await StopAsync();
+        else if (_module is not null)
+            _speaking = await _module.InvokeAsync<bool>("speak", Parts, _self);
+    }
+
+    private async Task StopAsync()
+    {
+        if (!_speaking || _module is null)
+            return;
+
+        _speaking = false;
+        await _module.InvokeVoidAsync("stop");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null)
+            {
+                // Czytanie nie może trwać po przejściu na inną stronę.
+                await _module.InvokeVoidAsync("stop");
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}

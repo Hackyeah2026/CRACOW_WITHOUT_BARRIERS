@@ -3,6 +3,8 @@ const maps = {};
 
 const WALK_STYLE = { color: '#0B4F8A', weight: 5, opacity: 0.8, dashArray: '6 6' };
 const TRANSIT_STYLE = { color: '#7A2E8F', weight: 6, opacity: 0.9 };
+// Najkrótsza droga, którą trasa omija z powodu potwierdzonego utrudnienia.
+const BYPASSED_STYLE = { color: '#BA1A1A', weight: 4, opacity: 0.9, dashArray: '2 8' };
 
 // Kolejność prób ustawienia stałej etykiety względem pinezki.
 const LABEL_OFFSETS = { top: [0, -16], right: [16, 0], left: [-16, 0], bottom: [0, 16] };
@@ -174,7 +176,7 @@ function pickChanged(entry) {
     entry.dotnet.invokeMethodAsync('PointPicked', latlng.lat, latlng.lng);
 }
 
-// segments: [{ points: [{lat, lon}], isTransit, label }]
+// segments: [{ points: [{lat, lon}], isTransit, label, isBypassed }]
 export function setRoute(id, segments) {
     const entry = maps[id];
     if (!entry) return;
@@ -183,8 +185,8 @@ export function setRoute(id, segments) {
 
     for (const segment of segments) {
         if (segment.points.length < 2) continue;
-        const line = L.polyline(segment.points.map(p => [p.lat, p.lon]), segment.isTransit ? TRANSIT_STYLE : WALK_STYLE)
-            .addTo(entry.route);
+        const style = segment.isBypassed ? BYPASSED_STYLE : segment.isTransit ? TRANSIT_STYLE : WALK_STYLE;
+        const line = L.polyline(segment.points.map(p => [p.lat, p.lon]), style).addTo(entry.route);
         if (segment.label) {
             line.bindTooltip(text(segment.label), { permanent: true, direction: 'center', className: 'map-label-transit' });
             entry.routeLabels.push(line);

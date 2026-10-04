@@ -12,14 +12,14 @@ public static class PlanEndpoints
     public static IEndpointRouteBuilder MapPlanEndpoints(this IEndpointRouteBuilder app)
     {
         var plans = app.MapGroup("/api/plans")
-            .AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter)
+            .AddEndpointFilter(Api.DatabaseUnavailableFilter)
             .RequireAuthorization(AccountEndpoints.UserPolicy);
 
         plans.MapGet("/", async (ClaimsPrincipal user, ISavedPlanRepository repository, CancellationToken ct) =>
             Results.Ok(await repository.ListAsync(AccountEndpoints.LoginOf(user), SavedPlan.MaxPerAccount, ct)));
 
         plans.MapGet("/{id}", async (string id, ClaimsPrincipal user, ISavedPlanRepository repository, CancellationToken ct) =>
-            ReportEndpoints.IsReportId(id) && await repository.FindAsync(AccountEndpoints.LoginOf(user), id, ct) is { } plan
+            Api.IsId(id) && await repository.FindAsync(AccountEndpoints.LoginOf(user), id, ct) is { } plan
                 ? Results.Ok(plan)
                 : Results.NotFound());
 
@@ -27,12 +27,11 @@ public static class PlanEndpoints
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid(errors);
 
             var login = AccountEndpoints.LoginOf(user);
             if (await repository.CountAsync(login, ct) >= SavedPlan.MaxPerAccount)
-                return Results.Problem($"Możesz mieć najwyżej {SavedPlan.MaxPerAccount} planów. Usuń któryś, żeby dodać nowy.",
-                    statusCode: StatusCodes.Status409Conflict);
+                return Api.Conflict($"Możesz mieć najwyżej {SavedPlan.MaxPerAccount} planów. Usuń któryś, żeby dodać nowy.");
 
             var plan = SavedPlan.Create(draft, login, DateTime.UtcNow);
             await repository.AddAsync(plan, ct);
@@ -43,8 +42,8 @@ public static class PlanEndpoints
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
-            if (!ReportEndpoints.IsReportId(id))
+                return Api.Invalid(errors);
+            if (!Api.IsId(id))
                 return Results.NotFound();
 
             var login = AccountEndpoints.LoginOf(user);
@@ -56,8 +55,8 @@ public static class PlanEndpoints
         plans.MapPost("/{id}/close", async (string id, SavedPlanRoute route, ClaimsPrincipal user, ISavedPlanRepository repository, CancellationToken ct) =>
         {
             if (!IsRoute(route.RouteJson))
-                return Results.Problem("Nieprawidłowa trasa.", statusCode: StatusCodes.Status400BadRequest);
-            if (!ReportEndpoints.IsReportId(id))
+                return Api.Invalid("Nieprawidłowa trasa.");
+            if (!Api.IsId(id))
                 return Results.NotFound();
 
             var login = AccountEndpoints.LoginOf(user);
@@ -67,7 +66,7 @@ public static class PlanEndpoints
         });
 
         plans.MapDelete("/{id}", async (string id, ClaimsPrincipal user, ISavedPlanRepository repository, CancellationToken ct) =>
-            ReportEndpoints.IsReportId(id) && await repository.DeleteAsync(AccountEndpoints.LoginOf(user), id, ct)
+            Api.IsId(id) && await repository.DeleteAsync(AccountEndpoints.LoginOf(user), id, ct)
                 ? Results.NoContent()
                 : Results.NotFound());
 
@@ -77,8 +76,7 @@ public static class PlanEndpoints
     private static async Task<IResult> ClosedOrMissingAsync(ISavedPlanRepository repository, string login, string id, CancellationToken ct) =>
         await repository.FindAsync(login, id, ct) is null
             ? Results.NotFound()
-            : Results.Problem("Ten plan jest zamknięty: trasa została zapisana i nie można go już zmienić.",
-                statusCode: StatusCodes.Status409Conflict);
+            : Api.Conflict("Ten plan jest zamknięty: trasa została zapisana i nie można go już zmienić.");
 
     /// <summary>Host przechowuje trasę jako tekst, ale przyjmuje tylko taki, który da się odczytać jako plan z przystankami.</summary>
     private static bool IsRoute(string? json)

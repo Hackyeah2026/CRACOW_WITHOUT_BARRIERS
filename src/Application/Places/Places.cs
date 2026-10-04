@@ -94,6 +94,9 @@ public sealed class PlaceSearch(string? text)
     /// <summary>Fraza jest w nazwie albo adresie, a nie tylko w nazwie kategorii: takie wyniki idą na początek listy.</summary>
     public bool MatchesText(Place place)
     {
+        // Bez frazy lista ma tysiące miejsc: nie ma czego porównywać, więc nie normalizujemy ich nazw.
+        if (IsEmpty)
+            return true;
         var content = Content(place);
         return _words.All(content.Contains);
     }
@@ -140,11 +143,16 @@ public static class SuggestionRanker
 }
 
 /// <summary>Miejsca z katalogu z oceną pod podany profil, posortowane od najlepiej dopasowanych.</summary>
+/// <param name="OnlyCertified">
+/// Tylko miejsca z certyfikatem konta firmowego. Bez wybranej kategorii obejmuje wszystkie kategorie, w których są
+/// takie miejsca, także spoza bieżącego trybu: hotel z certyfikatem ma być na liście również w trybie "Zwiedzam".
+/// </param>
 public sealed record GetPlacesQuery(
-    string CityId, AppMode Mode, NeedsProfile Profile, PlaceCategory? Category = null, string? Search = null)
+    string CityId, AppMode Mode, NeedsProfile Profile, PlaceCategory? Category = null, string? Search = null,
+    bool OnlyCertified = false)
     : IQuery<IReadOnlyList<AssessedPlace>>;
 
-internal sealed class GetPlacesQueryHandler(IPlaceCatalog catalog)
+internal sealed class GetPlacesQueryHandler(IPlaceCatalog catalog, IBusinessClient businesses)
     : IQueryHandler<GetPlacesQuery, IReadOnlyList<AssessedPlace>>
 {
     public async Task<Result<IReadOnlyList<AssessedPlace>>> Handle(GetPlacesQuery query, CancellationToken ct)
@@ -155,10 +163,11 @@ internal sealed class GetPlacesQueryHandler(IPlaceCatalog catalog)
             return Result.Failure<IReadOnlyList<AssessedPlace>>($"Nieznane miasto: {query.CityId}.");
 
         var search = new PlaceSearch(query.Search);
-        var places = await catalog.GetAsync(query.CityId, ModeCategories.Scope(query.Mode, query.Category, search), ct);
+        var places = await catalog.GetAsync(query.CityId, await ScopeAsync(query, search, ct), ct);
         var origin = new GeoPoint(city.Lat, city.Lon);
 
         IReadOnlyList<AssessedPlace> result = places
+            .Where(p => !query.OnlyCertified || p.Certificate is not null)
             .Where(search.Matches)
             .Select(p =>
             {
@@ -170,6 +179,16 @@ internal sealed class GetPlacesQueryHandler(IPlaceCatalog catalog)
             .ToList();
 
         return Result.Success(result);
+    }
+
+    private async Task<IReadOnlyList<PlaceCategory>> ScopeAsync(GetPlacesQuery query, PlaceSearch search, CancellationToken ct)
+    {
+        if (!query.OnlyCertified || query.Category is not null)
+            return ModeCategories.Scope(query.Mode, query.Category, search);
+
+        // Bez listy firm z hosta nie wiadomo, które miejsca mają certyfikat: lista jest wtedy pusta.
+        var certified = await businesses.GetCertifiedAsync(query.CityId, ct);
+        return certified.IsSuccess ? certified.Value.Select(c => c.Category).Distinct().ToList() : [];
     }
 }
 
@@ -198,6 +217,32 @@ internal sealed class GetPlaceDetailsQueryHandler(IPlaceCatalog catalog) : IQuer
         return place is null
             ? Result.Failure<AssessedPlace>("Nie znaleziono miejsca.")
             : Result.Success(new AssessedPlace(place, AssessmentEngine.Assess(query.Profile, place), 0));
+    }
+}
+
+/// <param name="MissingIds">Identyfikatory z planu, których nie ma już w katalogu.</param>
+public sealed record PlanPlaces(IReadOnlyList<AssessedPlace> Places, IReadOnlyList<string> MissingIds);
+
+/// <summary>
+/// Miejsca wybrane do planu, w kolejności z planu. Identyfikator zapisany w planie może zniknąć z katalogu
+/// po ponownym imporcie: taki wraca osobno, żeby strona usunęła go z planu i powiedziała o tym użytkownikowi.
+/// </summary>
+public sealed record GetPlanPlacesQuery(string CityId, IReadOnlyList<string> PlaceIds, NeedsProfile Profile) : IQuery<PlanPlaces>;
+
+internal sealed class GetPlanPlacesQueryHandler(IPlaceCatalog catalog) : IQueryHandler<GetPlanPlacesQuery, PlanPlaces>
+{
+    public async Task<Result<PlanPlaces>> Handle(GetPlanPlacesQuery query, CancellationToken ct)
+    {
+        var places = new List<AssessedPlace>();
+        var missing = new List<string>();
+        foreach (var id in query.PlaceIds)
+        {
+            if (await catalog.FindAsync(query.CityId, id, ct) is { } place)
+                places.Add(new AssessedPlace(place, AssessmentEngine.Assess(query.Profile, place), 0));
+            else
+                missing.Add(id);
+        }
+        return Result.Success(new PlanPlaces(places, missing));
     }
 }
 

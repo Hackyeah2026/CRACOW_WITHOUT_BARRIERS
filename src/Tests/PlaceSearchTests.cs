@@ -1,6 +1,7 @@
 using Application;
 using Application.Abstractions;
 using Application.Places;
+using Domain.Businesses;
 using Domain.Needs;
 using Domain.Places;
 using MediatR;
@@ -12,7 +13,7 @@ public class PlaceSearchTests
 {
     private static readonly Place[] Places =
     [
-        Place("pod-roza", "Hotel Pod Różą", PlaceCategory.Hotel),
+        Place("pod-roza", "Hotel Pod Różą", PlaceCategory.Hotel) with { Certificate = new PlaceCertificate("Pod Różą sp. z o.o.", "KBB-2026-0000AAAA", CertifiedOn) },
         Place("hostel", "Mundo Hostel", PlaceCategory.Hotel),
         Place("restauracja", "Restauracja Hotel Stary", PlaceCategory.Food),
         Place("pizzeria", "Pizzeria Roma", PlaceCategory.Food),
@@ -24,14 +25,19 @@ public class PlaceSearchTests
     private static Place Place(string id, string name, PlaceCategory category, string? address = null) =>
         new(id, "krakow", name, category, 50.06, 19.94, address, null, []);
 
-    private static readonly ISender Sender = new ServiceCollection()
+    private static readonly ISender Sender = SenderWith(new FakeBusinesses(hostAnswers: true));
+
+    private static ISender SenderWith(IBusinessClient businesses) => new ServiceCollection()
         .AddApplication()
         .AddSingleton<IPlaceCatalog, FakeCatalog>()
+        .AddSingleton(businesses)
         .BuildServiceProvider()
         .GetRequiredService<ISender>();
 
-    private static async Task<string[]> SearchAsync(string? search, PlaceCategory? category = null, AppMode mode = AppMode.Sightseeing) =>
-        (await Sender.Send(new GetPlacesQuery("krakow", mode, NeedsProfile.Empty, category, search))).Value.Select(p => p.Place.Id).ToArray();
+    private static async Task<string[]> SearchAsync(string? search, PlaceCategory? category = null, AppMode mode = AppMode.Sightseeing,
+        bool onlyCertified = false, ISender? sender = null) =>
+        (await (sender ?? Sender).Send(new GetPlacesQuery("krakow", mode, NeedsProfile.Empty, category, search, onlyCertified)))
+            .Value.Select(p => p.Place.Id).ToArray();
 
     [Fact]
     public async Task Without_search_all_categories_means_mode_categories() =>
@@ -78,6 +84,20 @@ public class PlaceSearchTests
         Assert.Equal(["urzad"], await SearchAsync("urząd", mode: AppMode.Errand));
 
     [Fact]
+    public async Task Certified_filter_reaches_outside_the_mode_and_keeps_only_certified_places()
+    {
+        // Hotel nie należy do trybu "Zwiedzam", ale ma certyfikat.
+        Assert.Equal(["pod-roza"], await SearchAsync(null, onlyCertified: true));
+        Assert.Equal(["pod-roza"], await SearchAsync(null, PlaceCategory.Hotel, onlyCertified: true));
+        Assert.Empty(await SearchAsync(null, PlaceCategory.Food, onlyCertified: true));
+        Assert.Empty(await SearchAsync("mundo", onlyCertified: true));
+    }
+
+    [Fact]
+    public async Task Certified_filter_is_empty_when_the_host_does_not_answer() =>
+        Assert.Empty(await SearchAsync(null, onlyCertified: true, sender: SenderWith(new FakeBusinesses(hostAnswers: false))));
+
+    [Fact]
     public async Task Counts_follow_the_search()
     {
         var counts = (await Sender.Send(new GetPlaceSearchCountsQuery("krakow", AppMode.Sightseeing, "hotel"))).Value
@@ -87,6 +107,23 @@ public class PlaceSearchTests
         Assert.Equal(1, counts[PlaceCategory.Food]);
         Assert.Equal(0, counts[PlaceCategory.Worship]);
         Assert.DoesNotContain(PlaceCategory.Bench, counts.Keys);
+    }
+
+    private static readonly DateTime CertifiedOn = new(2026, 10, 3, 18, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>Publiczna lista firm z hosta: jeden certyfikowany hotel albo brak odpowiedzi.</summary>
+    private sealed class FakeBusinesses(bool hostAnswers) : IBusinessClient
+    {
+        public Task<Result<BusinessAccountView>> ApplyAsync(BusinessApplicationDraft draft, CancellationToken ct) => throw new NotSupportedException();
+
+        public Task<Result<MyBusiness>> GetMineAsync(CancellationToken ct) => throw new NotSupportedException();
+
+        public Task<Result<BusinessAccountView>> SaveFeaturesAsync(BusinessFeaturesUpdate update, CancellationToken ct) => throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<CertifiedPlace>>> GetCertifiedAsync(string cityId, CancellationToken ct) => Task.FromResult(hostAnswers
+            ? Result.Success<IReadOnlyList<CertifiedPlace>>(
+                [new CertifiedPlace("krakow", "pod-roza", "Hotel Pod Różą", PlaceCategory.Hotel, 50.06, 19.94, "Pod Różą sp. z o.o.", "KBB-2026-0000AAAA", CertifiedOn, [], null)])
+            : Result.Failure<IReadOnlyList<CertifiedPlace>>("Brak połączenia z serwerem."));
     }
 
     private sealed class FakeCatalog : IPlaceCatalog

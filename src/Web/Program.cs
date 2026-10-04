@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Infrastructure;
 using Infrastructure.Mongo;
-using Infrastructure.Mongo.Reports;
+using Infrastructure.Mongo.Accounts;
 using Infrastructure.Server;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Web.Components;
@@ -23,7 +23,7 @@ builder.Services.AddObstacleDetection(
 // Baza działa tylko na hoście: adres połączenia z hasłem nie może trafić do przeglądarki.
 builder.Services.AddMongo(
     builder.Configuration.GetSection(MongoOptions.Section).Get<MongoOptions>() ?? new());
-builder.Services.AddMongoReports(
+builder.Services.AddMongoRepositories(
     builder.Configuration.GetSection(OfficialsOptions.Section).Get<OfficialsOptions>() ?? new());
 
 // Enumy jako tekst, tak jak w DomainJson po stronie przeglądarki.
@@ -60,17 +60,17 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
     });
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(ReportEndpoints.OfficialPolicy, policy => policy.RequireRole(ReportEndpoints.OfficialPolicy))
+    .AddPolicy(OfficialEndpoints.OfficialPolicy, policy => policy.RequireRole(OfficialEndpoints.OfficialPolicy))
     .AddPolicy(AccountEndpoints.UserPolicy, policy => policy.AddAuthenticationSchemes(AccountEndpoints.UserScheme).RequireAuthenticatedUser());
 
 // Limity per adres IP: zgłoszenia, logowanie (przeciw zgadywaniu haseł) i zakładanie kont (przeciw masowej rejestracji).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy(ReportEndpoints.SubmitLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+    options.AddPolicy(Api.SubmitLimit, context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10) }));
-    options.AddPolicy(ReportEndpoints.LoginLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+    options.AddPolicy(Api.LoginLimit, context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
     options.AddPolicy(AccountEndpoints.RegisterLimit, context => RateLimitPartition.GetFixedWindowLimiter(
@@ -108,6 +108,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRouteEndpoints();
 app.MapHealthEndpoints();
+app.MapOfficialEndpoints();
 app.MapReportEndpoints();
 app.MapHazardEndpoints();
 app.MapAccountEndpoints();

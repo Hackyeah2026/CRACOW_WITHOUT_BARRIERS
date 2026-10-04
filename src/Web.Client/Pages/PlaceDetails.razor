@@ -51,6 +51,7 @@ else
             <span class="msym" aria-hidden="true">@(State.IsInPlan(place.Id) ? "check" : "add")</span>
             @(!State.IsInPlan(place.Id) ? "Dodaj do planu" : State.User is null ? "W planie (usuń)" : "W planie (zmień)")
         </button>
+        <ReadAloud Parts="_narration" />
     </div>
 
     <div class="row g-3">
@@ -123,6 +124,7 @@ else
 @code {
     private AssessedPlace? _item;
     private IReadOnlyList<MapMarker> _markers = [];
+    private IReadOnlyList<string> _narration = [];
     private string? _error;
     private Snackbar? _snackbar;
     private PlanPicker? _planPicker;
@@ -137,13 +139,13 @@ else
         await State.EnsureLoadedAsync();
         var cityId = State.Cities.Any(c => c.Id == CityFromLink) ? CityFromLink! : State.CityId;
         var result = await Sender.Send(new GetPlaceDetailsQuery(cityId, Id, State.Profile));
+        // Ten sam komponent obsługuje kolejne karty: błąd poprzedniej nie może zostać przy następnej.
+        _error = result.Error;
         if (result.IsFailure)
-        {
-            _error = result.Error;
             return;
-        }
 
         _item = result.Value;
+        _narration = Narration.Of(_item);
         _markers = [new MapMarker(_item.Place.Id, _item.Place.Name, _item.Place.Lat, _item.Place.Lon, Labels.Color(_item.Assessment.Status),
             Icon: Labels.MapIcon(_item.Place.Category), Certified: _item.Place.Certificate is not null)];
     }

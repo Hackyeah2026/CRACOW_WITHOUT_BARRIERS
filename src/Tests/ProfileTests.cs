@@ -71,13 +71,5 @@ public class ProfileTests
             return Task.CompletedTask;
         }
 
-        public Task DeleteAsync(string store, string key)
-        {
-            _items.Remove((store, key));
-            return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyList<T>> ListAsync<T>(string store) =>
-            Task.FromResult<IReadOnlyList<T>>(_items.Where(i => i.Key.Item1 == store).Select(i => (T)i.Value).ToList());
     }
 }

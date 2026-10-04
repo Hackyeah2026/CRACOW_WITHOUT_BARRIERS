@@ -36,7 +36,8 @@ public sealed record HazardDraft(string CityId, double Lat, double Lon, HazardKi
             errors.Add("Nieznany rodzaj utrudnienia.");
         if (Kind == HazardKind.Other && string.IsNullOrWhiteSpace(Description))
             errors.Add("Opisz krótko, na czym polega utrudnienie.");
-        if (Description.Length > MaxDescriptionLength)
+        // Opis jest opcjonalny, więc żądanie spoza aplikacji może go pominąć.
+        if (Description is { Length: > MaxDescriptionLength })
             errors.Add($"Opis może mieć najwyżej {MaxDescriptionLength} znaków.");
         if (Photo is not null)
             errors.AddRange(Photo.Validate());
@@ -62,7 +63,7 @@ public sealed record Hazard(
     public GeoPoint Location => new(Lat, Lon);
 
     public static Hazard Create(HazardDraft draft, DateTime now) => new(
-        Guid.NewGuid().ToString("N"), draft.CityId, draft.Lat, draft.Lon, draft.Kind, draft.Description.Trim(),
+        Guid.NewGuid().ToString("N"), draft.CityId, draft.Lat, draft.Lon, draft.Kind, (draft.Description ?? "").Trim(),
         HazardStatus.Pending, now, now, null, null);
 
     public HazardReceipt ToReceipt() => new(Id, Kind, Lat, Lon, CreatedAt);
@@ -124,6 +125,36 @@ public static class HazardRules
         _ => true
     };
 
+    /// <summary>Bliżej trasy punkt uznajemy za leżący na niej: wtedy szukamy drogi, która go omija.</summary>
+    public const double OnRouteM = 15;
+
+    /// <summary>Punktu tuż przy początku albo końcu odcinka nie da się ominąć, bo tam trzeba dojść.</summary>
+    public const double EndpointMarginM = 40;
+
+    /// <summary>Najwięcej punktów omijanych na jednym odcinku; tyle przyjmuje host.</summary>
+    public const int MaxAvoided = 20;
+
+    /// <summary>Przeszkoda w konkretnym miejscu, którą da się obejść inną ulicą. Hałas, tłum i światło obejmują obszar.</summary>
+    public static bool IsPhysical(HazardKind kind) => kind is HazardKind.Stairs or HazardKind.HighKerb
+        or HazardKind.UnevenSurface or HazardKind.SteepSlope or HazardKind.NarrowPassage or HazardKind.Roadworks;
+
+    /// <summary>
+    /// Punkty, które trasa ma ominąć: przeszkody fizyczne istotne dla profilu, leżące na trasie (do <see cref="OnRouteM"/>),
+    /// poza otoczeniem początku i końca odcinka.
+    /// </summary>
+    public static IReadOnlyList<VerifiedHazard> Blocking(
+        IReadOnlyList<VerifiedHazard> hazards, IReadOnlyList<GeoPoint> route, NeedsProfile profile)
+    {
+        if (hazards.Count == 0 || route.Count < 2)
+            return [];
+
+        return hazards
+            .Where(h => IsPhysical(h.Kind) && Concerns(h.Kind, profile))
+            .Where(h => h.Location.DistanceTo(route[0]) > EndpointMarginM && h.Location.DistanceTo(route[^1]) > EndpointMarginM)
+            .Where(h => RouteGeometry.Locate(h.Location, route).DistanceM <= OnRouteM)
+            .ToList();
+    }
+
     /// <summary>
     /// Potwierdzone punkty w pasie <see cref="RouteCorridorM"/> wokół trasy, od najbliższych początku odcinka.
     /// </summary>
@@ -134,38 +165,10 @@ public static class HazardRules
             return [];
 
         return hazards
-            .Select(h => (Hazard: h, At: Locate(h.Location, route)))
+            .Select(h => (Hazard: h, At: RouteGeometry.Locate(h.Location, route)))
             .Where(x => x.At.DistanceM <= RouteCorridorM)
             .OrderBy(x => x.At.Segment).ThenBy(x => x.At.Along)
             .Select(x => new HazardOnRoute(x.Hazard, Math.Round(x.At.DistanceM), Concerns(x.Hazard.Kind, profile)))
             .ToList();
-    }
-
-    /// <summary>Odległość punktu od łamanej w metrach.</summary>
-    public static double DistanceToRouteM(GeoPoint point, IReadOnlyList<GeoPoint> route) => Locate(point, route).DistanceM;
-
-    internal static (double DistanceM, int Segment, double Along) Locate(GeoPoint point, IReadOnlyList<GeoPoint> route)
-    {
-        if (route.Count == 1)
-            return (point.DistanceTo(route[0]), 0, 0);
-
-        // Na odległościach rzędu kilometra wystarcza płaskie przybliżenie wokół badanego punktu.
-        const double metersPerDegree = 111_320;
-        var lonScale = Math.Cos(point.Lat * Math.PI / 180) * metersPerDegree;
-        (double X, double Y) Local(GeoPoint p) => ((p.Lon - point.Lon) * lonScale, (p.Lat - point.Lat) * metersPerDegree);
-
-        var best = (DistanceM: double.MaxValue, Segment: 0, Along: 0.0);
-        for (var i = 0; i < route.Count - 1; i++)
-        {
-            var a = Local(route[i]);
-            var b = Local(route[i + 1]);
-            var (dx, dy) = (b.X - a.X, b.Y - a.Y);
-            var length2 = dx * dx + dy * dy;
-            var t = length2 == 0 ? 0 : Math.Clamp(-(a.X * dx + a.Y * dy) / length2, 0, 1);
-            var distance = Math.Sqrt(Math.Pow(a.X + t * dx, 2) + Math.Pow(a.Y + t * dy, 2));
-            if (distance < best.DistanceM)
-                best = (distance, i, t);
-        }
-        return best;
     }
 }

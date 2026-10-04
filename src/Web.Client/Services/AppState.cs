@@ -21,12 +21,20 @@ public sealed class AppState(ISender sender, ILocalStore store)
     private Task? _loading;
 
     public const string DefaultCityId = "krakow";
+    public const int DefaultZoom = 14;
+
+    /// <summary>Środek mapy, zanim wczyta się lista miast: Rynek Główny w Krakowie.</summary>
+    public static readonly GeoPoint DefaultCenter = new(50.0614, 19.9366);
 
     public string CityId { get; private set; } = DefaultCityId;
     public IReadOnlyList<City> Cities { get; private set; } = [];
 
     /// <summary>Wybrane miasto; null do czasu wczytania listy miast.</summary>
     public City? City => Cities.FirstOrDefault(c => c.Id == CityId);
+
+    /// <summary>Początkowy widok map dla wybranego miasta.</summary>
+    public GeoPoint CityCenter => City is { } city ? new GeoPoint(city.Lat, city.Lon) : DefaultCenter;
+    public int CityZoom => City?.Zoom ?? DefaultZoom;
     public AppMode Mode { get; private set; } = AppMode.Sightseeing;
     /// <summary>Profil zalogowanego konta albo, bez konta, konfiguracja tymczasowa tej przeglądarki. Zawsze tylko na urządzeniu.</summary>
     public NeedsProfile Profile { get; private set; } = NeedsProfile.Empty;
@@ -149,6 +157,16 @@ public sealed class AppState(ISender sender, ILocalStore store)
         if (!ids.Remove(placeId))
             ids.Add(placeId);
         return SavePlaceIdsAsync(ids);
+    }
+
+    /// <summary>
+    /// Usuwa z bieżącego planu miejsca, których nie ma już w katalogu (np. po ponownym imporcie): bez konta z wyboru
+    /// na urządzeniu, z kontem z planu na hoście. Gdy host nie zapisze zmiany, plan konta zostaje, jaki był.
+    /// </summary>
+    public Task<Result> RemovePlacesAsync(IReadOnlyCollection<string> placeIds)
+    {
+        var ids = PlanPlaceIds.Where(id => !placeIds.Contains(id)).ToList();
+        return ids.Count == PlanPlaceIds.Count ? Task.FromResult(Result.Success()) : SavePlaceIdsAsync(ids);
     }
 
     public Task<Result> MovePlaceUpAsync(string placeId) => MovePlaceAsync(placeId, -1);

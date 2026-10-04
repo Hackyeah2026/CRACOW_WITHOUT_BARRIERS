@@ -1,5 +1,4 @@
 @page "/miejsca"
-@using Application.Abstractions
 @inject AppState State
 @inject ISender Sender
 @inject NavigationManager Navigation
@@ -222,8 +221,8 @@
     private IReadOnlyList<AssessedPlace> _visible = [];
     private MapView? _map;
     private GeoBounds? _bounds;
-    private GeoPoint _center = new(50.0614, 19.9366);
-    private int _zoom = 14;
+    private GeoPoint _center = AppState.DefaultCenter;
+    private int _zoom = AppState.DefaultZoom;
     private bool _fitToResults;
     private IReadOnlyList<MapMarker> _markers = [];
     private IReadOnlyList<MapMarker> _hazardMarkers = [];
@@ -246,11 +245,7 @@
         await State.EnsureLoadedAsync();
         _search = State.PlacesSearch;
         _category = State.PlacesCategory;
-        if (State.City is { } city)
-        {
-            _center = new GeoPoint(city.Lat, city.Lon);
-            _zoom = city.Zoom;
-        }
+        (_center, _zoom) = (State.CityCenter, State.CityZoom);
 
         var counts = await Sender.Send(new GetPlaceCategoriesQuery(State.CityId));
         if (counts.IsSuccess)
@@ -308,9 +303,7 @@
         State.PlacesCategory = _category;
         PlaceCategory? category = Enum.TryParse<PlaceCategory>(_category, out var parsed) ? parsed : null;
         var request = ++_request;
-        var result = _onlyCertified && category is null
-            ? await LoadCertifiedAsync()
-            : await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
+        var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search, _onlyCertified));
         var counts = string.IsNullOrWhiteSpace(_search) ? null : await Sender.Send(new GetPlaceSearchCountsQuery(State.CityId, State.Mode, _search));
         // Odpowiedź na starsze filtry nie może nadpisać wyników nowszych.
         if (request != _request)
@@ -325,7 +318,7 @@
 
         _error = null;
         _shown = PageSize;
-        _places = _onlyCertified ? result.Value.Where(p => p.Place.Certificate is not null).ToList() : result.Value;
+        _places = result.Value;
         // Tysiące symboli (np. wszystkie ławki) zatrzymałyby mapę, więc duże zbiory rysujemy kółkami.
         var icons = _places.Count <= Labels.MaxIconMarkers;
         _markers = _places
@@ -354,25 +347,6 @@
             .Where(c => !listed.Contains(c.PlaceId))
             .Select(c => new MapMarker(c.PlaceId, $"{c.PlaceName} ({Labels.Of(c.Category)}, {Labels.CertifiedSuffix})", c.Lat, c.Lon,
                 Labels.Color(AssessmentStatus.Unknown), Certified: true));
-    }
-
-    /// <summary>
-    /// Filtr "tylko z certyfikatem" bez wybranej kategorii obejmuje wszystkie kategorie, w których są takie miejsca,
-    /// także spoza bieżącego trybu: hotel z certyfikatem ma być na liście również w trybie "Zwiedzam".
-    /// </summary>
-    private async Task<Result<IReadOnlyList<AssessedPlace>>> LoadCertifiedAsync()
-    {
-        var places = new List<AssessedPlace>();
-        foreach (var category in _certified.Select(c => c.Category).Distinct())
-        {
-            var result = await Sender.Send(new GetPlacesQuery(State.CityId, State.Mode, State.Profile, category, _search));
-            if (result.IsFailure)
-                return result;
-            places.AddRange(result.Value);
-        }
-        var search = new PlaceSearch(_search);
-        return Result.Success<IReadOnlyList<AssessedPlace>>(
-            places.OrderByDescending(p => search.MatchesText(p.Place)).ThenByDescending(p => p.Score).ToList());
     }
 
     /// <summary>Lista i statystyki pokazują tylko to, co widać na mapie.</summary>

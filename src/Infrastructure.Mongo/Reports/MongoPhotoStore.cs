@@ -13,11 +13,7 @@ internal sealed class MongoPhotoStore(MongoCollections collections) : IPhotoStor
     private IMongoCollection<StoredPhoto> Photos => collections.Get<StoredPhoto>(MongoCollections.Photos);
 
     public Task SaveAsync(StoredPhoto photo, CancellationToken ct) =>
-        MongoCollections.RunAsync(async () =>
-        {
-            await Photos.InsertOneAsync(photo, cancellationToken: ct);
-            return true;
-        });
+        MongoCollections.RunAsync(() => Photos.InsertOneAsync(photo, cancellationToken: ct));
 
     public Task<StoredPhoto?> FindAsync(string id, CancellationToken ct) =>
         MongoCollections.RunAsync<StoredPhoto?>(async () => await Photos.Find(p => p.Id == id).FirstOrDefaultAsync(ct));

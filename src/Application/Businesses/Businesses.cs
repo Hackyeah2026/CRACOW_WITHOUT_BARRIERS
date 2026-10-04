@@ -9,13 +9,8 @@ public sealed record SubmitBusinessApplicationCommand(BusinessApplicationDraft D
 internal sealed class SubmitBusinessApplicationCommandHandler(IBusinessClient client)
     : ICommandHandler<SubmitBusinessApplicationCommand, BusinessAccountView>
 {
-    public Task<Result<BusinessAccountView>> Handle(SubmitBusinessApplicationCommand command, CancellationToken ct)
-    {
-        var errors = command.Draft.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<BusinessAccountView>(string.Join(" ", errors)))
-            : client.ApplyAsync(command.Draft, ct);
-    }
+    public Task<Result<BusinessAccountView>> Handle(SubmitBusinessApplicationCommand command, CancellationToken ct) =>
+        command.Draft.Validate().IfValidAsync(() => client.ApplyAsync(command.Draft, ct));
 }
 
 /// <summary>Wniosek albo konto firmowe zalogowanego użytkownika.</summary>
@@ -32,13 +27,8 @@ public sealed record SaveBusinessFeaturesCommand(BusinessFeaturesUpdate Update) 
 internal sealed class SaveBusinessFeaturesCommandHandler(IBusinessClient client)
     : ICommandHandler<SaveBusinessFeaturesCommand, BusinessAccountView>
 {
-    public Task<Result<BusinessAccountView>> Handle(SaveBusinessFeaturesCommand command, CancellationToken ct)
-    {
-        var errors = command.Update.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<BusinessAccountView>(string.Join(" ", errors)))
-            : client.SaveFeaturesAsync(command.Update, ct);
-    }
+    public Task<Result<BusinessAccountView>> Handle(SaveBusinessFeaturesCommand command, CancellationToken ct) =>
+        command.Update.Validate().IfValidAsync(() => client.SaveFeaturesAsync(command.Update, ct));
 }
 
 /// <summary>Miejsca z certyfikatem w mieście, widoczne dla wszystkich.</summary>
@@ -64,11 +54,6 @@ public sealed record ReviewBusinessCommand(string Login, BusinessReview Review) 
 
 internal sealed class ReviewBusinessCommandHandler(IOfficialClient client) : ICommandHandler<ReviewBusinessCommand, BusinessAccount>
 {
-    public Task<Result<BusinessAccount>> Handle(ReviewBusinessCommand command, CancellationToken ct)
-    {
-        var errors = command.Review.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<BusinessAccount>(string.Join(" ", errors)))
-            : client.ReviewBusinessAsync(command.Login, command.Review, ct);
-    }
+    public Task<Result<BusinessAccount>> Handle(ReviewBusinessCommand command, CancellationToken ct) =>
+        command.Review.Validate().IfValidAsync(() => client.ReviewBusinessAsync(command.Login, command.Review, ct));
 }

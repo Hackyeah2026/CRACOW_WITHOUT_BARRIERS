@@ -72,6 +72,36 @@ public class OpenRouteServiceTests
     }
 
     [Fact]
+    public void Avoided_points_become_closed_squares_next_to_profile_restrictions()
+    {
+        var hazard = new GeoPoint(50.0580, 19.9360);
+
+        var options = OpenRouteServiceRequest.Options(new RouteQuery(From, To, false, true, null, [hazard, From]));
+
+        Assert.Equal("steps", (string)options!["avoid_features"]![0]!);
+        Assert.Equal("MultiPolygon", (string)options["avoid_polygons"]!["type"]!);
+        var polygons = options["avoid_polygons"]!["coordinates"]!.AsArray();
+        Assert.Equal(2, polygons.Count);
+
+        var ring = polygons[0]![0]!.AsArray();
+        Assert.Equal(5, ring.Count);
+        Assert.Equal((double)ring[0]![0]!, (double)ring[4]![0]!);
+        Assert.Equal((double)ring[0]![1]!, (double)ring[4]![1]!);
+        // Współrzędne lon, lat; róg leży o połowę boku od punktu w obu kierunkach.
+        var corner = new GeoPoint((double)ring[0]![1]!, (double)ring[0]![0]!);
+        Assert.InRange(corner.DistanceTo(hazard), 27, 29.5);
+    }
+
+    [Fact]
+    public void Avoided_points_alone_are_enough_for_options()
+    {
+        var options = OpenRouteServiceRequest.Options(new RouteQuery(From, To, false, false, null, [new GeoPoint(50.058, 19.936)]));
+
+        Assert.NotNull(options!["avoid_polygons"]);
+        Assert.Null(options["avoid_features"]);
+    }
+
+    [Fact]
     public void Body_sends_coordinates_as_lon_lat()
     {
         var body = OpenRouteServiceRequest.Body(new RouteQuery(From, To, false, false, null), null);

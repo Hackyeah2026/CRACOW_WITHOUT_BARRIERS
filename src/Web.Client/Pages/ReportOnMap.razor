@@ -1,7 +1,7 @@
 @page "/zglos"
 @inject AppState State
 @inject ISender Sender
-@inject IJSRuntime JS
+@inject BrowserLocation Location
 
 <PageTitle>Zgłoś na mapie</PageTitle>
 
@@ -28,7 +28,7 @@
 {
     <div class="row g-3">
         <div class="col-lg-7">
-            <MapView @key="Target.Point" Label="Mapa: wskaż punkt z utrudnieniem" Center="CityCenter" Zoom="@(State.City?.Zoom ?? 14)"
+            <MapView @key="Target.Point" Label="Mapa: wskaż punkt z utrudnieniem" Center="State.CityCenter" Zoom="State.CityZoom"
                      Markers="_hazardMarkers" PickPoint="_point" PickLabel="Zgłaszany punkt"
                      OnPointPicked="SetPoint" OnMarkerSelected="SelectHazard" />
             <p class="small mt-2 mb-1" role="status">
@@ -143,7 +143,7 @@ else
                 <input id="report-place-search" class="form-control" type="search" placeholder="np. Muzeum, urząd…"
                        @bind="_search" @bind:after="LoadPlacesAsync" />
             </div>
-            <MapView @key="Target.Place" Label="Mapa: wybierz miejsce, którego dotyczy zgłoszenie" Center="CityCenter" Zoom="@(State.City?.Zoom ?? 14)"
+            <MapView @key="Target.Place" Label="Mapa: wybierz miejsce, którego dotyczy zgłoszenie" Center="State.CityCenter" Zoom="State.CityZoom"
                      Markers="_placeMarkers" FitToMarkers="_fitPlaces" OnMarkerSelected="SelectPlace" />
             <p class="small text-body-secondary mt-2" role="status">
                 @(_places is null ? "Wczytuję miejsca…" : $"Na mapie: {_places.Count} miejsc w trybie „{Labels.Of(State.Mode)}”. Kliknij pinezkę albo wybierz miejsce z listy.")
@@ -203,8 +203,6 @@ else
     private string? _search;
     private Place? _place;
 
-    private GeoPoint CityCenter => State.City is { } city ? new GeoPoint(city.Lat, city.Lon) : new GeoPoint(50.0614, 19.9366);
-
     protected override async Task OnInitializedAsync()
     {
         await State.EnsureLoadedAsync();
@@ -233,14 +231,11 @@ else
         _locationError = null;
         try
         {
-            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/geolocation.js");
-            var position = await module.InvokeAsync<Position>("getCurrentPosition");
-            if (position.Ok)
-                SetPoint(new GeoPoint(position.Lat, position.Lon));
+            var location = await Location.GetAsync();
+            if (location.Point is { } point)
+                SetPoint(point);
             else
-                _locationError = position.Reason == "denied"
-                    ? "Przeglądarka nie ma zgody na lokalizację. Włącz ją w ustawieniach strony albo wskaż punkt na mapie."
-                    : "Nie udało się ustalić lokalizacji. Wskaż punkt na mapie.";
+                _locationError = Labels.Of(location.Failure ?? LocationFailure.Unavailable, "wskaż punkt na mapie");
         }
         finally
         {
@@ -309,6 +304,4 @@ else
     }
 
     private void SelectPlace(string id) => _place = _places?.FirstOrDefault(p => p.Place.Id == id)?.Place ?? _place;
-
-    private sealed record Position(bool Ok, double Lat, double Lon, string? Reason);
 }

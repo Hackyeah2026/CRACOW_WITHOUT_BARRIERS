@@ -15,17 +15,17 @@ public static class AccountEndpoints
     /// <summary>Konta mieszkańców: sam login i hasło. Konto jest potrzebne do wysyłania zgłoszeń.</summary>
     public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder app)
     {
-        var account = app.MapGroup("/api/account").AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter);
+        var account = app.MapGroup("/api/account").AddEndpointFilter(Api.DatabaseUnavailableFilter);
 
         account.MapPost("/register", async (UserCredentials credentials, IUserDirectory directory, HttpContext http, CancellationToken ct) =>
         {
             var errors = credentials.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid(errors);
 
             var profile = await directory.RegisterAsync(credentials, DateTime.UtcNow, ct);
             if (profile is null)
-                return Results.Problem("Ten login jest już zajęty. Wybierz inny.", statusCode: StatusCodes.Status409Conflict);
+                return Api.Conflict("Ten login jest już zajęty. Wybierz inny.");
 
             await SignInAsync(http, profile);
             return Results.Ok(profile);
@@ -43,7 +43,7 @@ public static class AccountEndpoints
 
             await SignInAsync(http, profile);
             return Results.Ok(profile);
-        }).RequireRateLimiting(ReportEndpoints.LoginLimit);
+        }).RequireRateLimiting(Api.LoginLimit);
 
         account.MapPost("/logout", async (HttpContext http) =>
         {

@@ -20,15 +20,6 @@ internal sealed class IndexedDbLocalStore(IJSRuntime js) : ILocalStore, IAsyncDi
     public async Task PutAsync<T>(string store, string key, T value) =>
         await (await _module.Value).InvokeVoidAsync("put", store, key, JsonSerializer.Serialize(value, DomainJson.Options));
 
-    public async Task DeleteAsync(string store, string key) =>
-        await (await _module.Value).InvokeVoidAsync("remove", store, key);
-
-    public async Task<IReadOnlyList<T>> ListAsync<T>(string store)
-    {
-        var items = await (await _module.Value).InvokeAsync<string[]>("list", store);
-        return items.Select(json => JsonSerializer.Deserialize<T>(json, DomainJson.Options)!).ToList();
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (_module.IsValueCreated)

@@ -22,21 +22,28 @@ public sealed record ReportDraft(
     /// <summary>Zmniejszone zdjęcie z formularza; host zapisuje je w bazie i dopina do zgłoszenia.</summary>
     public PhotoAttachment? Photo { get; init; }
 
-    /// <summary>Błędy do pokazania użytkownikowi; pusta lista oznacza poprawne zgłoszenie.</summary>
+    /// <summary>
+    /// Błędy do pokazania użytkownikowi; pusta lista oznacza poprawne zgłoszenie. Żądanie spoza aplikacji może
+    /// pominąć pola albo podać nieznane wartości: to też ma być błąd danych, a nie awaria hosta.
+    /// </summary>
     public IReadOnlyList<string> Validate()
     {
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(CityId) || string.IsNullOrWhiteSpace(PlaceId) || string.IsNullOrWhiteSpace(PlaceName))
+        if (string.IsNullOrWhiteSpace(CityId) || string.IsNullOrWhiteSpace(PlaceId) || string.IsNullOrWhiteSpace(PlaceName)
+            || !Enum.IsDefined(Category))
             errors.Add("Zgłoszenie musi dotyczyć miejsca z katalogu.");
         if (Lat is < -90 or > 90 || Lon is < -180 or > 180)
             errors.Add("Nieprawidłowe położenie miejsca.");
-        if (Features.Count > MaxFeatures || Features.Distinct().Count() != Features.Count)
+        if (!Enum.IsDefined(Kind))
+            errors.Add("Nieznany rodzaj zgłoszenia.");
+        if (Features is null || Features.Count > MaxFeatures || Features.Distinct().Count() != Features.Count
+            || Features.Any(f => !Enum.IsDefined(f)))
             errors.Add("Nieprawidłowa lista udogodnień.");
-        if (Kind == ReportKind.MissingAmenity && Features.Count == 0)
+        else if (Kind == ReportKind.MissingAmenity && Features.Count == 0)
             errors.Add("Zaznacz, jakiego udogodnienia brakuje.");
         if (Kind != ReportKind.MissingAmenity && string.IsNullOrWhiteSpace(Description))
             errors.Add("Opisz krótko, co jest nie tak.");
-        if (Description.Length > MaxDescriptionLength)
+        if (Description is { Length: > MaxDescriptionLength })
             errors.Add($"Opis może mieć najwyżej {MaxDescriptionLength} znaków.");
         if (Photo is not null)
             errors.AddRange(Photo.Validate());
@@ -70,7 +77,7 @@ public sealed record Report(
 
     public static Report Create(ReportDraft draft, DateTime now) => new(
         Guid.NewGuid().ToString("N"), draft.CityId, draft.PlaceId, draft.PlaceName.Trim(), draft.Category, draft.Lat, draft.Lon,
-        draft.Kind, draft.Features, draft.Description.Trim(), ReportStatus.New, now, now, null, null);
+        draft.Kind, draft.Features, (draft.Description ?? "").Trim(), ReportStatus.New, now, now, null, null);
 
     public ReportReceipt ToReceipt() => new(Id, PlaceId, PlaceName, CreatedAt);
 
@@ -95,5 +102,7 @@ public sealed record ReportFilter(string? CityId = null, ReportStatus? Status = 
 public sealed record ReportStatusChange(ReportStatus Status, string? Note)
 {
     public IReadOnlyList<string> Validate() =>
-        Note is { Length: > Report.MaxNoteLength } ? [$"Odpowiedź może mieć najwyżej {Report.MaxNoteLength} znaków."] : [];
+        Note is { Length: > Report.MaxNoteLength } ? [$"Odpowiedź może mieć najwyżej {Report.MaxNoteLength} znaków."]
+        : !Enum.IsDefined(Status) ? ["Nieznany status."]
+        : [];
 }

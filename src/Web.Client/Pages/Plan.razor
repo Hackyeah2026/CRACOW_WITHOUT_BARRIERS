@@ -1,7 +1,7 @@
 @page "/plan"
 @inject AppState State
 @inject ISender Sender
-@inject IJSRuntime JS
+@inject BrowserLocation Location
 
 <PageTitle>Plan</PageTitle>
 
@@ -66,6 +66,14 @@
         }
     </section>
 }
+
+@* Region role="status" jest w DOM stale, żeby czytnik ekranu odczytał informację, gdy się pojawi. *@
+<div role="status">
+    @if (_notice is not null)
+    {
+        <div class="alert alert-info">@_notice</div>
+    }
+</div>
 
 @if (_selected is null)
 {
@@ -193,7 +201,7 @@ else
                     : "Sprawdź, czy pinezka stoi tam, gdzie jesteś. Żeby ją poprawić albo wybrać inny punkt, przeciągnij ją lub kliknij w inne miejsce mapy.")
                 Z klawiatury: przejdź do pinezki klawiszem Tab i przesuwaj ją strzałkami.
             </p>
-            <MapView Label="Mapa wyboru punktu startu" Center="CityCenter" Zoom="@(State.City?.Zoom ?? 14)" Markers="_pickerMarkers" FitToMarkers="true"
+            <MapView Label="Mapa wyboru punktu startu" Center="State.CityCenter" Zoom="State.CityZoom" Markers="_pickerMarkers" FitToMarkers="true"
                      PickPoint="State.StartLocation" OnPointPicked="SetStartPoint" />
             <p class="small mt-2 mb-0" role="status">
                 @(State.StartLocation is { } start
@@ -240,152 +248,31 @@ else
 
 @if (_plan is not null)
 {
-    <section aria-labelledby="plan-heading">
-        <h2 id="plan-heading" class="h4" tabindex="-1">@(IsClosed ? "Zapisana trasa" : "Twój plan")</h2>
-        <p role="status">
-            @_plan.Stops.Count przystanków, około @Labels.Distance(_plan.TotalDistanceM) drogi,
-            około @Math.Ceiling(_plan.TotalDurationMin) min w ruchu (bez czasu na miejscu).
-            @if (_hazards.Count > 0)
+    <TripPlanView Plan="_plan" Saved="IsClosed">
+        <Actions>
+            @if (State.ActivePlan is { IsClosed: false })
             {
-                <text>Przy trasie: @_hazards.Count @(_hazards.Count == 1 ? "utrudnienie potwierdzone" : "utrudnień potwierdzonych") przez urząd, z tego dla Twojego profilu: @_hazards.Count(h => h.ConcernsProfile).</text>
-            }
-        </p>
-        @if (State.ActivePlan is { IsClosed: false })
-        {
-            <div class="card card-body mb-3">
-                <p class="mb-2">
-                    Trasa jest gotowa? Zapisz ją na koncie. <strong>Zapis zamyka plan: potem nie można go już edytować.</strong>
-                </p>
-                <div>
-                    <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="() => _confirmClose!.ShowAsync()">
-                        <span class="msym" aria-hidden="true">save</span> Zapisz trasę i zamknij plan
-                    </button>
-                </div>
-            </div>
-        }
-
-        <div class="row g-3">
-            <div class="col-lg-6">
-                <ol class="list-unstyled">
-                    @for (var i = 0; i < _plan.Stops.Count; i++)
-                    {
-                        var stop = _plan.Stops[i];
-                        <li class="card card-body mb-2">
-                            <div class="d-flex flex-wrap align-items-center gap-2">
-                                <span class="stop-number @StopCss(i, _plan.Stops.Count)" aria-hidden="true">@stop.Order</span>
-                                @if (stop.IsUserLocation)
-                                {
-                                    <span class="place-name"><span class="visually-hidden">Przystanek @stop.Order: </span><span class="msym" aria-hidden="true">location_on</span> @stop.Place.Name</span>
-                                }
-                                else
-                                {
-                                    <a class="place-name" href="miejsca/@stop.Place.Id"><span class="visually-hidden">Przystanek @stop.Order: </span>@stop.Place.Name</a>
-                                }
-                                @if (StopRole(i, _plan.Stops.Count) is { } role)
-                                {
-                                    <span class="badge text-bg-light border">@role</span>
-                                }
-                                @if (!stop.IsUserLocation)
-                                {
-                                    <AssessmentBadge Status="stop.Assessment.Status" />
-                                }
-                            </div>
-                            @foreach (var barrier in stop.IsUserLocation ? [] : stop.Assessment.Barriers)
-                            {
-                                <div class="small mt-1"><span class="msym msym-fill reason-icon-cancel" aria-hidden="true">cancel</span> @barrier.Message</div>
-                            }
-                            @if (!stop.IsUserLocation && stop.Assessment.Status == AssessmentStatus.Unknown)
-                            {
-                                <div class="small mt-1"><span class="msym reason-icon-help" aria-hidden="true">help</span> Nie mamy danych, żeby ocenić to miejsce dla Twojego profilu.</div>
-                            }
-                        </li>
-                        @if (i < _plan.Legs.Count)
-                        {
-                            var leg = _plan.Legs[i];
-                            <li class="leg">
-                                <span class="msym" aria-hidden="true">directions_walk</span> @(leg.IsEstimated ? "około " : "")@Labels.Distance(leg.DistanceM), około @Math.Ceiling(leg.DurationMin) min
-                                @foreach (var warning in leg.Warnings.Where(w => !w.StartsWith("Dystans szacowany")))
-                                {
-                                    <div class="text-warning-emphasis"><span class="msym" aria-hidden="true">warning</span> @warning</div>
-                                }
-                                @foreach (var hazard in leg.Hazards ?? [])
-                                {
-                                    <div class="hazard-note @(hazard.ConcernsProfile ? "hazard-concerns" : "")">
-                                        <span class="msym" aria-hidden="true">@Labels.Icon(hazard.Hazard.Kind)</span>
-                                        W tym miejscu jest @Labels.Verified(hazard.Hazard).ToLowerInvariant()
-                                        (@(hazard.DistanceM < 10 ? "na trasie" : $"około {Labels.Distance(hazard.DistanceM)} od trasy"), potwierdzone @hazard.Hazard.VerifiedOn.ToString("dd.MM.yyyy")).
-                                        @if (hazard.ConcernsProfile)
-                                        {
-                                            <strong>Dotyczy Twojego profilu.</strong>
-                                        }
-                                        @if (!string.IsNullOrEmpty(hazard.Hazard.Description))
-                                        {
-                                            <div class="report-description">„@hazard.Hazard.Description”</div>
-                                        }
-                                    </div>
-                                }
-                                @if (leg.RestStops is { Count: > 0 } rests)
-                                {
-                                    <div class="hazard-note">
-                                        <span class="msym" aria-hidden="true">chair</span>
-                                        @(rests.Count == 1 ? "Ławka na przerwę" : "Ławki na przerwę") przy trasie:
-                                        @string.Join(", ", rests.Select(r => $"po około {Labels.Distance(r.DistanceFromStartM)}")) marszu od początku odcinka.
-                                    </div>
-                                }
-                                @if (leg.Transit is not null)
-                                {
-                                    <TransitPanel Advice="leg.Transit" />
-                                }
-                            </li>
-                        }
-                    }
-                </ol>
-                @if (_plan.Legs.Any(l => l.IsEstimated))
-                {
-                    <div class="alert alert-info" role="note">
-                        Nie udało się pobrać trasy po ulicach dla części odcinków. Ich dystans jest szacowany w linii prostej, a bariery po drodze nie są sprawdzone.
+                <div class="card card-body mb-3">
+                    <p class="mb-2">
+                        Trasa jest gotowa? Zapisz ją na koncie. <strong>Zapis zamyka plan: potem nie można go już edytować.</strong>
+                    </p>
+                    <div>
+                        <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="() => _confirmClose!.ShowAsync()">
+                            <span class="msym" aria-hidden="true">save</span> Zapisz trasę i zamknij plan
+                        </button>
                     </div>
-                }
-            </div>
-            <div class="col-lg-6">
-                <MapView Label="Mapa planu" Markers="_markers" Route="_route" FitToMarkers="true" />
-                <ul class="map-legend list-unstyled small mt-2" aria-label="Legenda mapy">
-                    <li><span class="map-legend-pin stop-start" aria-hidden="true"></span> start</li>
-                    <li><span class="map-legend-pin" aria-hidden="true"></span> przystanek po drodze</li>
-                    <li><span class="map-legend-pin stop-end" aria-hidden="true"></span> cel</li>
-                    <li><span class="map-legend-line map-legend-walk" aria-hidden="true"></span> pieszo</li>
-                    @if (_hazards.Count > 0)
-                    {
-                        <li><span class="msym" aria-hidden="true">warning</span> utrudnienie potwierdzone przez urząd</li>
-                    }
-                    @if (_plan.Legs.Any(l => l.RestStops is { Count: > 0 }))
-                    {
-                        <li><span class="msym" aria-hidden="true">chair</span> ławka na przerwę w marszu</li>
-                    }
-                    @if (_route.Any(r => r.IsTransit))
-                    {
-                        <li><span class="map-legend-line map-legend-transit" aria-hidden="true"></span> propozycja przejazdu komunikacją miejską</li>
-                    }
-                </ul>
-            </div>
-        </div>
-    </section>
+                </div>
+            }
+        </Actions>
+    </TripPlanView>
 }
 
 @code {
-    // Te same kolory co --kbb-color-map-* w tokens.css (legenda pod mapą).
-    private const string StartColor = "#146C2E";
-    private const string MiddleColor = "#0B4F8A";
-    private const string EndColor = "#BA1A1A";
-    private const string RestColor = "#5C5F66";
-
     private List<AssessedPlace>? _selected;
     private TripPlan? _plan;
-    private IReadOnlyList<MapMarker> _markers = [];
-    private IReadOnlyList<MapRouteSegment> _route = [];
-    private IReadOnlyList<HazardOnRoute> _hazards = [];
     private string? _error;
     private string? _locationError;
+    private string? _notice;
     private string? _moveStatus;
     private bool _building;
     private bool _locating;
@@ -403,8 +290,6 @@ else
 
     private bool ShowStartPicker => _pickingStart || State.StartLocation is not null;
 
-    private GeoPoint CityCenter => State.City is { } city ? new GeoPoint(city.Lat, city.Lon) : new GeoPoint(50.0614, 19.9366);
-
     private bool IsClosed => State.ActivePlan is { IsClosed: true };
 
     private bool CanBuild => _selected is not null && _selected.Count >= (State.StartLocation is null ? 2 : 1);
@@ -418,7 +303,7 @@ else
     /// <summary>Po zmianie otwartego planu: miejsca planu w przygotowaniu albo zapisana trasa planu zamkniętego.</summary>
     private async Task ReloadAsync()
     {
-        (_plan, _error, _locationError, _pickingStart) = (null, null, null, false);
+        (_plan, _error, _locationError, _notice, _pickingStart) = (null, null, null, null, false);
         await LoadSelectedAsync();
         if (State.ActivePlan is not { IsClosed: true } closed)
             return;
@@ -428,7 +313,7 @@ else
         var route = await Sender.Send(new GetSavedRouteQuery(closed.Id, State.Profile));
         _loadingRoute = false;
         if (route.IsSuccess)
-            ShowPlan(route.Value);
+            _plan = route.Value;
         else
             _error = route.Error;
     }
@@ -491,16 +376,17 @@ else
 
     private async Task LoadSelectedAsync()
     {
-        var selected = new List<AssessedPlace>();
         // Zamknięty plan pokazuje zapisaną trasę, a nie listę do edycji.
-        foreach (var id in IsClosed ? [] : State.PlanPlaceIds)
+        var places = (await Sender.Send(new GetPlanPlacesQuery(State.CityId, IsClosed ? [] : State.PlanPlaceIds, State.Profile))).Value;
+        if (places.MissingIds.Count > 0)
         {
-            var result = await Sender.Send(new GetPlaceDetailsQuery(State.CityId, id, State.Profile));
-            if (result.IsSuccess)
-                selected.Add(result.Value);
+            // Miejsca sprzed ponownego importu katalogu: zostawione w planie zawyżałyby licznik i przy każdym
+            // otwarciu planu byłyby szukane od nowa.
+            var removed = await State.RemovePlacesAsync(places.MissingIds);
+            _notice = Labels.MissingPlaces(places.MissingIds.Count, removed.IsSuccess);
         }
-        _selected = selected;
-        _pickerMarkers = selected
+        _selected = places.Places.ToList();
+        _pickerMarkers = _selected
             .Select(p => new MapMarker(p.Place.Id, p.Place.Name, p.Place.Lat, p.Place.Lon, Labels.Color(p.Assessment.Status)))
             .ToList();
     }
@@ -542,22 +428,15 @@ else
         _locationError = null;
         try
         {
-            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/geolocation.js");
-            var position = await module.InvokeAsync<Position>("getCurrentPosition");
-            if (position.Ok)
+            var location = await Location.GetAsync();
+            if (location.Point is { } point)
             {
-                State.SetStartLocation(new GeoPoint(position.Lat, position.Lon));
+                State.SetStartLocation(point);
                 _plan = null;
             }
             else
             {
-                _locationError = position.Reason switch
-                {
-                    "denied" => "Przeglądarka nie ma zgody na lokalizację. Włącz ją w ustawieniach strony albo wskaż start na mapie.",
-                    "timeout" => "Nie udało się ustalić lokalizacji na czas. Spróbuj ponownie albo wskaż start na mapie.",
-                    "unsupported" => "Ta przeglądarka nie udostępnia lokalizacji. Wskaż start na mapie.",
-                    _ => "Lokalizacja jest teraz niedostępna. Spróbuj ponownie albo wskaż start na mapie."
-                };
+                _locationError = Labels.Of(location.Failure ?? LocationFailure.Unavailable, "wskaż start na mapie");
             }
         }
         finally
@@ -603,49 +482,11 @@ else
                 return;
             }
 
-            ShowPlan(result.Value);
+            _plan = result.Value;
         }
         finally
         {
             _building = false;
         }
     }
-
-    private void ShowPlan(TripPlan plan)
-    {
-        _plan = plan;
-        var count = plan.Stops.Count;
-        // Ten sam punkt może leżeć przy dwóch odcinkach; na mapie i w podsumowaniu liczymy go raz.
-        _hazards = plan.Legs.SelectMany(l => l.Hazards ?? []).DistinctBy(h => h.Hazard.Id).ToList();
-        _markers = plan.Stops
-            .Select((s, i) => new MapMarker(s.IsUserLocation ? "" : s.Place.Id,
-                StopRole(i, count) is { } role ? $"{s.Place.Name} ({role.ToLowerInvariant()})" : s.Place.Name,
-                s.Place.Lat, s.Place.Lon, StopColor(i, count), s.Order.ToString()))
-            .Concat(_hazards.Select(h => Labels.Marker(h.Hazard) with { Id = "" }))
-            .Concat(plan.Legs.SelectMany(l => l.RestStops ?? []).DistinctBy(r => r.PlaceId).Select(r => new MapMarker(
-                "", $"Ławka na przerwę (po około {Labels.Distance(r.DistanceFromStartM)} marszu)", r.Lat, r.Lon, RestColor,
-                Icon: Labels.MapIcon(PlaceCategory.Bench))))
-            .ToList();
-        _route = RouteSegments(plan);
-    }
-
-    /// <summary>Najpierw dojścia piesze, potem proponowane przejazdy, żeby linie komunikacji były na wierzchu.</summary>
-    private static List<MapRouteSegment> RouteSegments(TripPlan plan)
-    {
-        var walks = plan.Legs.Select(l => new MapRouteSegment(l.Geometry));
-        var rides = plan.Legs
-            .Where(l => l.Transit is { Status: TransitStatus.Found })
-            .SelectMany(l => l.Transit!.Journeys[0].Rides)
-            .Select(r => new MapRouteSegment(r.Path, IsTransit: true, $"{Labels.Of(r.Kind)} {r.LineName}"));
-        return walks.Concat(rides).ToList();
-    }
-
-    private static string StopColor(int index, int count) => index == 0 ? StartColor : index == count - 1 ? EndColor : MiddleColor;
-
-    private static string StopCss(int index, int count) => index == 0 ? "stop-start" : index == count - 1 ? "stop-end" : "";
-
-    // Rola jest też tekstem, żeby start i cel nie były rozróżniane samym kolorem.
-    private static string? StopRole(int index, int count) => index == 0 ? "Start" : index == count - 1 ? "Cel" : null;
-
-    private sealed record Position(bool Ok, double Lat, double Lon, string? Reason);
 }

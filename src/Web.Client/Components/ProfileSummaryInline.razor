@@ -14,7 +14,7 @@
         {
             if (State.Profile.IsEmpty)
                 return "nieustawiony";
-            var names = NeedsProfilePresets.All.Where(p => State.Profile.Presets.Contains(p.Id)).Select(p => p.Name).ToList();
+            var names = Labels.PresetNames(State.Profile);
             return names.Count > 0 ? string.Join(", ", names) : "własny";
         }
     }

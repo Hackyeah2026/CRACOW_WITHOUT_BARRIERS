@@ -32,13 +32,14 @@ public class BuildTripPlanTests
 
     private static async Task<Result<Domain.Trips.TripPlan>> BuildAsync(
         IReadOnlyList<string> ids, GeoPoint? start = null, bool optimize = true,
-        NeedsProfile? profile = null, IReadOnlyList<VerifiedHazard>? hazards = null)
+        NeedsProfile? profile = null, IReadOnlyList<VerifiedHazard>? hazards = null, ITransitCatalog? transit = null,
+        IRoutingClient? routing = null)
     {
         var services = new ServiceCollection()
             .AddApplication()
             .AddSingleton<IPlaceCatalog, FakeCatalog>()
-            .AddSingleton<IRoutingClient, FakeRouting>()
-            .AddSingleton<ITransitCatalog, NoTransit>()
+            .AddSingleton(routing ?? new FakeRouting())
+            .AddSingleton(transit ?? new NoTransit())
             .AddSingleton<IHazardsClient>(new FakeHazards(hazards))
             .BuildServiceProvider();
 
@@ -140,6 +141,64 @@ public class BuildTripPlanTests
         Assert.Empty(result.Value.Legs[0].Hazards!);
     }
 
+    // Schody w połowie drogi a → c, kilka metrów od linii prostej między nimi.
+    private static readonly VerifiedHazard StairsOnAc = new("h1", HazardKind.Stairs, 50.0695, 19.9321, "", new DateOnly(2026, 10, 3));
+
+    [Fact]
+    public async Task Route_goes_around_a_verified_hazard_that_concerns_the_profile()
+    {
+        var routing = new DetourRouting(new GeoPoint(50.0705, 19.9320));
+
+        var result = await BuildAsync(["a", "c"], profile: new NeedsProfile { StepFreeRequired = true }, hazards: [StairsOnAc], routing: routing);
+
+        var leg = result.Value.Legs[0];
+        Assert.Equal([StairsOnAc], leg.Detour!.Avoided);
+        Assert.Equal(3, leg.Geometry.Count);
+        Assert.Equal(2, leg.Detour.DirectGeometry.Count);
+        Assert.InRange(leg.Detour.ExtraDistanceM, 1, 200);
+        // Ominięty punkt nie jest już ostrzeżeniem przy trasie, a zapytanie o objazd niosło jego położenie.
+        Assert.Empty(leg.Hazards!);
+        Assert.DoesNotContain(leg.Warnings, w => w.Contains("omija"));
+        Assert.Equal([StairsOnAc.Location], routing.Avoided);
+    }
+
+    [Fact]
+    public async Task Route_is_not_changed_for_a_profile_the_hazard_does_not_concern()
+    {
+        var routing = new DetourRouting(new GeoPoint(50.0705, 19.9320));
+
+        var result = await BuildAsync(["a", "c"], profile: new NeedsProfile { MaxNoiseLevel = 1 }, hazards: [StairsOnAc], routing: routing);
+
+        var leg = result.Value.Legs[0];
+        Assert.Null(leg.Detour);
+        Assert.Null(routing.Avoided);
+        Assert.False(Assert.Single(leg.Hazards!).ConcernsProfile);
+    }
+
+    [Fact]
+    public async Task Without_a_way_around_the_shortest_route_stays_and_the_leg_warns()
+    {
+        // FakeRouting zwraca tę samą linię prostą także dla zapytania o objazd.
+        var result = await BuildAsync(["a", "c"], profile: new NeedsProfile { StepFreeRequired = true }, hazards: [StairsOnAc]);
+
+        var leg = result.Value.Legs[0];
+        Assert.Null(leg.Detour);
+        Assert.Single(leg.Hazards!);
+        Assert.Contains(leg.Warnings, w => w.Contains("omija"));
+    }
+
+    [Fact]
+    public async Task Detour_much_longer_than_the_shortest_route_is_not_used()
+    {
+        // Objazd przez punkt ok. 1,5 km na północ.
+        var routing = new DetourRouting(new GeoPoint(50.0830, 19.9320));
+
+        var result = await BuildAsync(["a", "c"], profile: new NeedsProfile { StepFreeRequired = true }, hazards: [StairsOnAc], routing: routing);
+
+        Assert.Null(result.Value.Legs[0].Detour);
+        Assert.Equal(2, result.Value.Legs[0].Geometry.Count);
+    }
+
     [Fact]
     public async Task Leg_longer_than_the_walking_limit_gets_a_bench_to_rest_on()
     {
@@ -166,6 +225,20 @@ public class BuildTripPlanTests
         var result = await BuildAsync(["a", "c"]);
 
         Assert.Empty(result.Value.Legs[0].RestStops!);
+    }
+
+    [Fact]
+    public async Task Timetable_is_loaded_only_when_a_leg_is_long_enough_to_ride_and_then_only_once()
+    {
+        var transit = new NoTransit();
+
+        // a → c to ok. 300 m: poniżej progu, od którego proponujemy przejazd.
+        await BuildAsync(["a", "c"], optimize: false, transit: transit);
+        Assert.Equal(0, transit.Loads);
+
+        // a → b → c: dwa odcinki po blisko 3 km.
+        await BuildAsync(["a", "b", "c"], optimize: false, transit: transit);
+        Assert.Equal(1, transit.Loads);
     }
 
     /// <summary>Bez listy punktów udaje host, który nie odpowiada.</summary>
@@ -201,8 +274,30 @@ public class BuildTripPlanTests
             Task.FromResult(Result.Success(new RouteLeg(request.From.DistanceTo(request.To), 1, [request.From, request.To], false, [])));
     }
 
+    /// <summary>Silnik tras, który dla zapytania z punktami do ominięcia prowadzi przez podany punkt pośredni.</summary>
+    private sealed class DetourRouting(GeoPoint via) : IRoutingClient
+    {
+        public IReadOnlyList<GeoPoint>? Avoided { get; private set; }
+
+        public Task<Result<RouteLeg>> GetRouteAsync(RouteRequest request, CancellationToken ct)
+        {
+            if (request.Avoid is null)
+                return new FakeRouting().GetRouteAsync(request, ct);
+
+            Avoided = request.Avoid;
+            return Task.FromResult(Result.Success(new RouteLeg(
+                request.From.DistanceTo(via) + via.DistanceTo(request.To), 1, [request.From, via, request.To], false, [])));
+        }
+    }
+
     private sealed class NoTransit : ITransitCatalog
     {
-        public Task<TransitNetwork?> GetNetworkAsync(string cityId, CancellationToken ct) => Task.FromResult<TransitNetwork?>(null);
+        public int Loads { get; private set; }
+
+        public Task<TransitNetwork?> GetNetworkAsync(string cityId, CancellationToken ct)
+        {
+            Loads++;
+            return Task.FromResult<TransitNetwork?>(null);
+        }
     }
 }

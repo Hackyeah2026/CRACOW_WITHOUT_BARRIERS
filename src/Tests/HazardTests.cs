@@ -92,6 +92,22 @@ public class HazardTests
     }
 
     [Fact]
+    public void Route_is_blocked_only_by_physical_hazards_on_it_that_concern_the_profile()
+    {
+        var wheelchair = new NeedsProfile { StepFreeRequired = true };
+        var onRoute = Verified("on", HazardKind.Stairs, 50.0630, 19.94005);      // kilka metrów od trasy
+        var beside = Verified("beside", HazardKind.Stairs, 50.0640, 19.9404);    // ok. 30 m w bok: tylko ostrzeżenie
+        var noise = Verified("noise", HazardKind.Noise, 50.0635, 19.9400);       // obszar, a nie punkt do obejścia
+        var atStart = Verified("start", HazardKind.Stairs, 50.0602, 19.9400);    // ok. 20 m od początku odcinka
+        var atEnd = Verified("end", HazardKind.HighKerb, 50.0661, 19.9400);
+
+        var blocking = HazardRules.Blocking([onRoute, beside, noise, atStart, atEnd], Route, wheelchair);
+
+        Assert.Equal(["on"], blocking.Select(h => h.Id));
+        Assert.Empty(HazardRules.Blocking([onRoute], Route, new NeedsProfile { MaxNoiseLevel = 1 }));
+    }
+
+    [Fact]
     public void Analytics_cover_closed_reports_decision_time_and_daily_counts()
     {
         Report Sample(ReportStatus status, int createdDaysAgo, int decidedAfterHours, ReportKind kind = ReportKind.MissingAmenity) =>

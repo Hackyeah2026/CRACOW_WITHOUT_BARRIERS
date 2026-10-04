@@ -289,7 +289,7 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 dotnet test src/Tests
 ```
 
-170 testów jednostkowych obejmuje m.in.: plany konta i zapis trasy, scenariusz samouczka, silnik oceny dla person, łączenie profili, wyszukiwanie miejsc, kolejność przystanków, układanie planu, dobór ławek na przerwę, zapytania i odpowiedzi OpenRouteService, wyszukiwarkę połączeń komunikacji, zapis dokumentów w MongoDB, zachowanie bez bazy, walidację zgłoszeń, hasła urzędników i zestawienie zgłoszeń.
+215 testów jednostkowych obejmuje m.in.: plany konta i zapis trasy, scenariusz samouczka, silnik oceny dla person, łączenie profili, wyszukiwanie miejsc, kolejność przystanków, układanie planu, dobór ławek na przerwę, zapytania i odpowiedzi OpenRouteService, wyszukiwarkę połączeń komunikacji, zapis dokumentów w MongoDB, zachowanie bez bazy, walidację zgłoszeń, hasła urzędników i zestawienie zgłoszeń.
 
 ## Prywatność
 
@@ -327,4 +327,4 @@ Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).
 
 ---
 
-Dokumentacja projektu: [wymagania konkursu](doc/WYMAGANIA_KONKURSU.md) · [plan prac](doc/plan-prac.md) · [plan implementacji](doc/plan-implementacji.md) · [stan realizacji](doc/stan-realizacji.md)
+Dokumentacja projektu: [jak działa aplikacja](doc/jak-dziala-aplikacja.md) · [wymagania konkursu](doc/WYMAGANIA_KONKURSU.md) · [plan prac](doc/plan-prac.md) · [plan implementacji](doc/plan-implementacji.md) · [stan realizacji](doc/stan-realizacji.md)

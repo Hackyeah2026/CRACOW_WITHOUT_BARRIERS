@@ -16,7 +16,8 @@ public sealed class OpenRouteServiceOptions
 
 /// <summary>
 /// Trasy piesze i wózkowe z OpenRouteService. Jeśli zapytanie z ograniczeniami profilu się nie powiedzie,
-/// ponawia je bez ograniczeń i dodaje ostrzeżenie.
+/// ponawia je bez ograniczeń i dodaje ostrzeżenie. Zapytanie o objazd nie jest ponawiane: bez drogi omijającej
+/// wskazane punkty przeglądarka zostaje przy trasie, którą już ma.
 /// </summary>
 internal sealed class OpenRouteServiceClient(HttpClient http, OpenRouteServiceOptions options) : IRouteProvider
 {
@@ -29,7 +30,7 @@ internal sealed class OpenRouteServiceClient(HttpClient http, OpenRouteServiceOp
         var restrictions = OpenRouteServiceRequest.Options(query);
 
         var first = await SendAsync(profile, query, restrictions, ct);
-        if (first.IsSuccess || restrictions is null)
+        if (first.IsSuccess || restrictions is null || query.Avoid is { Count: > 0 })
             return first;
 
         var retry = await SendAsync(profile, query, null, ct);
@@ -82,8 +83,26 @@ public static class OpenRouteServiceRequest
         return body;
     }
 
-    /// <summary>Ograniczenia wynikające z profilu potrzeb; null, gdy nie ma żadnych.</summary>
+    /// <summary>Połowa boku kwadratu wokół omijanego punktu; większa niż odległość, przy której punkt leży "na trasie".</summary>
+    public const double AvoidHalfSideM = 20;
+
+    /// <summary>Ograniczenia wynikające z profilu potrzeb i punkty do ominięcia; null, gdy nie ma żadnych.</summary>
     public static JsonObject? Options(RouteQuery query)
+    {
+        var options = Restrictions(query);
+        if (query.Avoid is { Count: > 0 } avoid)
+        {
+            options ??= new JsonObject();
+            options["avoid_polygons"] = new JsonObject
+            {
+                ["type"] = "MultiPolygon",
+                ["coordinates"] = new JsonArray(avoid.Select(Square).ToArray<JsonNode?>())
+            };
+        }
+        return options;
+    }
+
+    private static JsonObject? Restrictions(RouteQuery query)
     {
         if (query.Wheelchair)
         {
@@ -99,6 +118,18 @@ public static class OpenRouteServiceRequest
         }
 
         return query.AvoidSteps ? new JsonObject { ["avoid_features"] = new JsonArray("steps") } : null;
+    }
+
+    /// <summary>Wielokąt GeoJSON (jeden zamknięty pierścień, współrzędne lon, lat): kwadrat wokół punktu.</summary>
+    private static JsonArray Square(GeoPoint center)
+    {
+        const double metersPerDegree = 111_320;
+        var dLat = AvoidHalfSideM / metersPerDegree;
+        var dLon = AvoidHalfSideM / (metersPerDegree * Math.Cos(center.Lat * Math.PI / 180));
+        JsonArray Corner(double lon, double lat) => new(center.Lon + lon, center.Lat + lat);
+
+        return new JsonArray(new JsonArray(
+            Corner(-dLon, -dLat), Corner(dLon, -dLat), Corner(dLon, dLat), Corner(-dLon, dLat), Corner(-dLon, -dLat)));
     }
 }
 

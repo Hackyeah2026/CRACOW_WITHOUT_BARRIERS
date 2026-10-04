@@ -8,11 +8,6 @@ public sealed record AnalyzePhotoCommand(PhotoUpload Photo) : ICommand<ObstacleA
 
 internal sealed class AnalyzePhotoCommandHandler(IPhotoAnalysisClient client) : ICommandHandler<AnalyzePhotoCommand, ObstacleAnalysis>
 {
-    public Task<Result<ObstacleAnalysis>> Handle(AnalyzePhotoCommand command, CancellationToken ct)
-    {
-        var errors = command.Photo.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<ObstacleAnalysis>(string.Join(" ", errors)))
-            : client.AnalyzeAsync(command.Photo, ct);
-    }
+    public Task<Result<ObstacleAnalysis>> Handle(AnalyzePhotoCommand command, CancellationToken ct) =>
+        command.Photo.Validate().IfValidAsync(() => client.AnalyzeAsync(command.Photo, ct));
 }

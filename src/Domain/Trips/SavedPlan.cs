@@ -23,9 +23,10 @@ public sealed record SavedPlanDraft(string CityId, string Name, IReadOnlyList<st
             errors.Add("Podaj nazwę planu.");
         else if (Name.Trim().Length > MaxNameLength)
             errors.Add($"Nazwa planu może mieć najwyżej {MaxNameLength} znaków.");
-        if (PlaceIds.Count > MaxPlaces)
+        if (PlaceIds is { Count: > MaxPlaces })
             errors.Add($"Plan może mieć najwyżej {MaxPlaces} miejsc.");
-        if (PlaceIds.Distinct().Count() != PlaceIds.Count
+        // Brak listy w żądaniu spoza aplikacji to błąd danych, a nie awaria hosta.
+        if (PlaceIds is null || PlaceIds.Distinct().Count() != PlaceIds.Count
             || PlaceIds.Any(id => string.IsNullOrWhiteSpace(id) || id.Length > MaxPlaceIdLength))
             errors.Add("Nieprawidłowa lista miejsc.");
         return errors;

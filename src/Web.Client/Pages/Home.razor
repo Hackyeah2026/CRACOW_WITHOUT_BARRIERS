@@ -77,34 +77,10 @@
                 </div>
             </div>
         </section>
-
-    <!-- Mode Selection -->
-    <section class="py-4 mt-4">
-        <h2 class="section-title">Co chcesz zrobić?</h2>
-        <div class="row g-4">
-            <div class="col-lg-6">
-                <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
-                    <span class="mode-icon"><span class="msym" aria-hidden="true">explore</span></span>
-                    <span class="mode-title">Zwiedzam</span>
-                    <span class="mode-subtitle">Atrakcje, muzea, kawiarnie i kultura</span>
-                    <span class="mode-description">Odkrywaj Kraków dostosowany do Twoich potrzeb</span>
-                </button>
-            </div>
-            <div class="col-lg-6">
-                <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Errand)">
-                    <span class="mode-icon"><span class="msym" aria-hidden="true">assignment_turned_in</span></span>
-                    <span class="mode-title">Załatwiam sprawę</span>
-                    <span class="mode-subtitle">Urzędy, przychodnie, biblioteki</span>
-                    <span class="mode-description">Zaplanuj sprawnie swój dzień</span>
-                </button>
-            </div>
-        </div>
-    </section>
     }
-    else
-    {
+
     <!-- Mode Selection -->
-    <section class="py-4">
+    <section class="py-4 @(State.User is null ? "" : "mt-4")">
         <h2 class="section-title">Co chcesz zrobić?</h2>
         <div class="row g-4">
             <div class="col-lg-6">
@@ -126,6 +102,8 @@
         </div>
     </section>
 
+    @if (State.User is null)
+    {
         <!-- Co daje aplikacja -->
         <section class="py-4 mt-4" aria-labelledby="features-heading">
             <h2 id="features-heading" class="section-title">Co tu znajdziesz</h2>
@@ -173,7 +151,7 @@
 </div>
 
 @code {
-    private ReportsSummary? _summary;
+    private MyReportsSummary? _summary;
     private string? _summaryError;
 
     protected override async Task OnInitializedAsync()
@@ -190,12 +168,7 @@
             return;
         }
 
-        _summary = new ReportsSummary(
-            reports.Value.Count + hazards.Value.Count,
-            reports.Value.Count(r => r.Status == ReportStatus.New) + hazards.Value.Count(h => h.Status == HazardStatus.Pending),
-            reports.Value.Count(r => r.Status is ReportStatus.InReview or ReportStatus.Planned),
-            reports.Value.Count(r => r.Status == ReportStatus.Resolved) + hazards.Value.Count(h => h.Status is HazardStatus.Verified or HazardStatus.Removed),
-            reports.Value.Count(r => r.OfficialNote is not null) + hazards.Value.Count(h => h.OfficialNote is not null));
+        _summary = MyReportsSummary.From(reports.Value, hazards.Value);
     }
 
     private async Task ChooseAsync(AppMode mode)
@@ -204,6 +177,4 @@
         // Ocena miejsc zależy od profilu, więc bez niego najpierw prowadzimy do jego ustawienia.
         Navigation.NavigateTo(State.Profile.IsEmpty ? "profil" : "miejsca");
     }
-
-    private sealed record ReportsSummary(int Total, int Waiting, int InProgress, int Done, int Answered);
 }

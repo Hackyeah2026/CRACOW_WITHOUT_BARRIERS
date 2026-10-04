@@ -30,11 +30,7 @@ internal sealed class MongoSavedPlanRepository(MongoCollections collections) : I
         MongoCollections.RunAsync<SavedPlan?>(async () => await Plans.Find(p => p.Id == id && p.Owner == owner).FirstOrDefaultAsync(ct));
 
     public Task AddAsync(SavedPlan plan, CancellationToken ct) =>
-        MongoCollections.RunAsync(async () =>
-        {
-            await Plans.InsertOneAsync(plan, cancellationToken: ct);
-            return true;
-        });
+        MongoCollections.RunAsync(() => Plans.InsertOneAsync(plan, cancellationToken: ct));
 
     public Task<SavedPlan?> UpdateDraftAsync(string owner, string id, SavedPlanDraft draft, DateTime now, CancellationToken ct) =>
         MongoCollections.RunAsync<SavedPlan?>(async () => await Plans.FindOneAndUpdateAsync<SavedPlan>(

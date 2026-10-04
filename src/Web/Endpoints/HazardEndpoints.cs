@@ -18,7 +18,7 @@ public static class HazardEndpoints
     /// </summary>
     public static IEndpointRouteBuilder MapHazardEndpoints(this IEndpointRouteBuilder app)
     {
-        var hazards = app.MapGroup("/api/hazards").AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter);
+        var hazards = app.MapGroup("/api/hazards").AddEndpointFilter(Api.DatabaseUnavailableFilter);
 
         hazards.MapGet("/", async (string cityId, IHazardRepository repository, CancellationToken ct) =>
             Results.Ok((await repository.ListAsync(cityId, HazardStatus.Verified, MaxVerified, ct)).Select(h => h.ToVerified())));
@@ -27,7 +27,7 @@ public static class HazardEndpoints
         {
             var errors = draft.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid(errors);
 
             var (now, login) = (DateTime.UtcNow, AccountEndpoints.LoginOf(user));
             var hazard = Hazard.Create(draft, now) with
@@ -37,15 +37,15 @@ public static class HazardEndpoints
             };
             await repository.AddAsync(hazard, ct);
             return Results.Created($"/api/hazards/{hazard.Id}", hazard.ToReceipt());
-        }).RequireAuthorization(AccountEndpoints.UserPolicy).RequireRateLimiting(ReportEndpoints.SubmitLimit);
+        }).RequireAuthorization(AccountEndpoints.UserPolicy).RequireRateLimiting(Api.SubmitLimit);
 
         hazards.MapGet("/mine", async (ClaimsPrincipal user, IHazardRepository repository, CancellationToken ct) =>
             Results.Ok((await repository.ListByReporterAsync(AccountEndpoints.LoginOf(user), MaxMine, ct)).Select(h => h.ToStatusView())))
             .RequireAuthorization(AccountEndpoints.UserPolicy);
 
         var official = app.MapGroup("/api/official/hazards")
-            .AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter)
-            .RequireAuthorization(ReportEndpoints.OfficialPolicy);
+            .AddEndpointFilter(Api.DatabaseUnavailableFilter)
+            .RequireAuthorization(OfficialEndpoints.OfficialPolicy);
 
         official.MapGet("/", async (string? cityId, IHazardRepository repository, CancellationToken ct) =>
             Results.Ok(await repository.ListAsync(cityId, null, MaxListed, ct)));
@@ -55,11 +55,11 @@ public static class HazardEndpoints
         {
             var errors = review.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
-            if (!ReportEndpoints.IsReportId(id))
+                return Api.Invalid(errors);
+            if (!Api.IsId(id))
                 return Results.NotFound();
 
-            var updated = await repository.ReviewAsync(id, review, ReportEndpoints.ProfileOf(user).Login, DateTime.UtcNow, ct);
+            var updated = await repository.ReviewAsync(id, review, OfficialEndpoints.ProfileOf(user).Login, DateTime.UtcNow, ct);
             return updated is null ? Results.NotFound() : Results.Ok(updated);
         });
 

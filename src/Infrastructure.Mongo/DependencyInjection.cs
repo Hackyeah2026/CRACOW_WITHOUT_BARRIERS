@@ -38,8 +38,11 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>Zgłoszenia mieszkańców, punkty z utrudnieniami, konta mieszkańców, firm i urzędników. Wymaga <see cref="AddMongo"/>.</summary>
-    public static IServiceCollection AddMongoReports(this IServiceCollection services, OfficialsOptions officials) => services
+    /// <summary>
+    /// Repozytoria hosta: zgłoszenia, punkty z utrudnieniami, zdjęcia, plany oraz konta mieszkańców, firm i urzędników.
+    /// Wymaga <see cref="AddMongo"/>.
+    /// </summary>
+    public static IServiceCollection AddMongoRepositories(this IServiceCollection services, OfficialsOptions officials) => services
         .AddSingleton(officials)
         .AddSingleton<IReportRepository, MongoReportRepository>()
         .AddSingleton<IHazardRepository, MongoHazardRepository>()
@@ -48,5 +51,5 @@ public static class DependencyInjection
         .AddSingleton<IUserDirectory, MongoUserDirectory>()
         .AddSingleton<IBusinessRepository, MongoBusinessRepository>()
         .AddSingleton<ISavedPlanRepository, MongoSavedPlanRepository>()
-        .AddHostedService<ReportsStartup>();
+        .AddHostedService<MongoStartup>();
 }

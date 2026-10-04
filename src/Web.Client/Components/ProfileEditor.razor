@@ -153,7 +153,7 @@
                 </div>
                 <div class="stat">
                     <span class="stat-label">Ustawione potrzeby:</span>
-                    <span class="stat-value">@CountCustomParameters()</span>
+                    <span class="stat-value">@Labels.Needs(_draft).Count</span>
                 </div>
             </div>
             <button type="button" class="btn btn-primary w-100 mt-3" @onclick="SaveAsync">
@@ -214,29 +214,6 @@
     }
 
     private static int? ParseLevel(object? value) => int.TryParse(value?.ToString(), out var level) ? level : null;
-
-    private int CountCustomParameters()
-    {
-        var count = 0;
-        if (_draft.StepFreeRequired) count++;
-        if (_draft.AvoidStairs) count++;
-        if (_draft.AvoidCobblestone) count++;
-        if (_draft.NeedsAccessibleToilet) count++;
-        if (_draft.MaxNoiseLevel.HasValue) count++;
-        if (_draft.MaxCrowdLevel.HasValue) count++;
-        if (_draft.PrefersQuietRoom) count++;
-        if (_draft.NeedsSeating) count++;
-        if (_draft.MaxDistanceWithoutRestM.HasValue) count++;
-        if (_draft.NeedsTactilePaving) count++;
-        if (_draft.NeedsAudioDescription) count++;
-        if (_draft.NeedsAssistanceDog) count++;
-        if (_draft.NeedsInductionLoop) count++;
-        if (_draft.NeedsSignLanguage) count++;
-        if (_draft.NeedsVisualInformation) count++;
-        if (_draft.NeedsEasyToRead) count++;
-        if (_draft.NeedsPictograms) count++;
-        return count;
-    }
 
     private async Task SaveAsync()
     {

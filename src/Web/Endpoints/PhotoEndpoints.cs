@@ -19,7 +19,7 @@ public static class PhotoEndpoints
         app.MapPost("/api/photos/analyze", async (IFormFile photo, IObstacleDetector detector, ILoggerFactory loggers, CancellationToken ct) =>
         {
             if (photo.Length > PhotoUpload.MaxBytes)
-                return Results.Problem($"Zdjęcie może mieć najwyżej {PhotoUpload.MaxBytes / (1024 * 1024)} MB.", statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid($"Zdjęcie może mieć najwyżej {PhotoUpload.MaxBytes / (1024 * 1024)} MB.");
 
             var content = new byte[photo.Length];
             await using (var stream = photo.OpenReadStream())
@@ -28,7 +28,7 @@ public static class PhotoEndpoints
             var upload = new PhotoUpload(content, photo.ContentType);
             var errors = upload.Validate();
             if (errors.Count > 0)
-                return Results.Problem(string.Join(" ", errors), statusCode: StatusCodes.Status400BadRequest);
+                return Api.Invalid(errors);
 
             var result = await detector.AnalyzeAsync(upload, ct);
             if (result.IsFailure)
@@ -49,18 +49,18 @@ public static class PhotoEndpoints
             // Dwie niezależne sesje: urzędnik widzi każde zdjęcie, konto mieszkańca tylko własne.
             var official = await http.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             var user = await http.AuthenticateAsync(AccountEndpoints.UserScheme);
-            var isOfficial = official.Succeeded && official.Principal.IsInRole(ReportEndpoints.OfficialPolicy);
+            var isOfficial = official.Succeeded && official.Principal.IsInRole(OfficialEndpoints.OfficialPolicy);
             if (!isOfficial && !user.Succeeded)
                 return Results.Unauthorized();
 
-            var photo = ReportEndpoints.IsReportId(id) ? await photos.FindAsync(id, ct) : null;
+            var photo = Api.IsId(id) ? await photos.FindAsync(id, ct) : null;
             if (photo is null || !(isOfficial || photo.OwnerLogin == AccountEndpoints.LoginOf(user.Principal!)))
                 return Results.NotFound();
 
             http.Response.Headers.CacheControl = "private, max-age=86400";
             http.Response.Headers.XContentTypeOptions = "nosniff";
             return Results.File(photo.Content, photo.ContentType);
-        }).AddEndpointFilter(ReportEndpoints.DatabaseUnavailableFilter);
+        }).AddEndpointFilter(Api.DatabaseUnavailableFilter);
 
         return app;
     }

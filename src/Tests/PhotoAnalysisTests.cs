@@ -47,7 +47,10 @@ public class PhotoAnalysisTests
             $$"""{"obstacle_probability":0.5,"obstacle_kind":"Other","summary":"{{summary}}"}"""));
 
         Assert.True(result.IsSuccess);
-        Assert.True(result.Value.Summary.Length <= ObstacleAnalysis.MaxSummaryLength + 1);
+        // Skrót mieści się w limicie razem z wielokropkiem, więc host nie utnie go drugi raz przy zapisie zgłoszenia.
+        Assert.Equal(ObstacleAnalysis.MaxSummaryLength, result.Value.Summary.Length);
+        Assert.EndsWith("…", result.Value.Summary);
+        Assert.Equal(result.Value, result.Value.Sanitized());
         Assert.Equal(ObstacleVerdict.Uncertain, result.Value.Verdict);
     }
 

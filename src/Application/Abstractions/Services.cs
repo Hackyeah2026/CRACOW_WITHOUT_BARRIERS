@@ -28,20 +28,19 @@ public interface ILocalStore
 {
     Task<T?> GetAsync<T>(string store, string key);
     Task PutAsync<T>(string store, string key, T value);
-    Task DeleteAsync(string store, string key);
-    Task<IReadOnlyList<T>> ListAsync<T>(string store);
 }
 
+/// <summary>Magazyny w IndexedDB; te same nazwy są w wwwroot/js/localStore.js.</summary>
 public static class LocalStores
 {
+    /// <summary>Profil potrzeb (tymczasowy i profile kont) oraz stan sesji: tryb, plan bez konta, otwarty plan.</summary>
     public const string Profile = "profile";
-    public const string Plans = "plans";
-    public const string Reports = "reports";
     public const string RouteCache = "routeCache";
     public const string PlaceCache = "placeCache";
 }
 
-public sealed record RouteRequest(GeoPoint From, GeoPoint To, NeedsProfile Profile);
+/// <param name="Avoid">Punkty, których trasa ma nie przecinać: utrudnienia potwierdzone przez urząd.</param>
+public sealed record RouteRequest(GeoPoint From, GeoPoint To, NeedsProfile Profile, IReadOnlyList<GeoPoint>? Avoid = null);
 
 public sealed record RouteLeg(
     double DistanceM, double DurationMin, IReadOnlyList<GeoPoint> Geometry, bool IsEstimated, IReadOnlyList<string> Warnings);
@@ -53,12 +52,14 @@ public interface IRoutingClient
 
 /// <summary>
 /// Parametry trasy wysyłane poza urządzenie. Celowo nie zawierają całego profilu potrzeb,
-/// tylko to, czego wymaga silnik routingu.
+/// tylko to, czego wymaga silnik routingu. Punkty do ominięcia to położenia publicznych, potwierdzonych utrudnień.
 /// </summary>
-public sealed record RouteQuery(GeoPoint From, GeoPoint To, bool Wheelchair, bool AvoidSteps, double? MaxKerbCm)
+public sealed record RouteQuery(
+    GeoPoint From, GeoPoint To, bool Wheelchair, bool AvoidSteps, double? MaxKerbCm, IReadOnlyList<GeoPoint>? Avoid = null)
 {
     public static RouteQuery FromRequest(RouteRequest request) => new(
-        request.From, request.To, request.Profile.StepFreeRequired, request.Profile.AvoidStairs, request.Profile.MaxThresholdCm);
+        request.From, request.To, request.Profile.StepFreeRequired, request.Profile.AvoidStairs, request.Profile.MaxThresholdCm,
+        request.Avoid is { Count: > 0 } ? request.Avoid : null);
 }
 
 public sealed record RouteResponse(double DistanceM, IReadOnlyList<GeoPoint> Geometry, IReadOnlyList<string> Warnings);

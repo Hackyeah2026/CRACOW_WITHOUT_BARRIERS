@@ -36,13 +36,8 @@ public sealed record CreatePlanCommand(SavedPlanDraft Draft) : ICommand<SavedPla
 
 internal sealed class CreatePlanCommandHandler(ISavedPlansClient client) : ICommandHandler<CreatePlanCommand, SavedPlan>
 {
-    public Task<Result<SavedPlan>> Handle(CreatePlanCommand command, CancellationToken ct)
-    {
-        var errors = command.Draft.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<SavedPlan>(string.Join(" ", errors)))
-            : client.CreateAsync(command.Draft, ct);
-    }
+    public Task<Result<SavedPlan>> Handle(CreatePlanCommand command, CancellationToken ct) =>
+        command.Draft.Validate().IfValidAsync(() => client.CreateAsync(command.Draft, ct));
 }
 
 /// <summary>Zmienia nazwę i miejsca planu w przygotowaniu.</summary>
@@ -50,13 +45,8 @@ public sealed record UpdatePlanCommand(string PlanId, SavedPlanDraft Draft) : IC
 
 internal sealed class UpdatePlanCommandHandler(ISavedPlansClient client) : ICommandHandler<UpdatePlanCommand, SavedPlan>
 {
-    public Task<Result<SavedPlan>> Handle(UpdatePlanCommand command, CancellationToken ct)
-    {
-        var errors = command.Draft.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<SavedPlan>(string.Join(" ", errors)))
-            : client.UpdateAsync(command.PlanId, command.Draft, ct);
-    }
+    public Task<Result<SavedPlan>> Handle(UpdatePlanCommand command, CancellationToken ct) =>
+        command.Draft.Validate().IfValidAsync(() => client.UpdateAsync(command.PlanId, command.Draft, ct));
 }
 
 /// <summary>Zapisuje wyznaczoną trasę i zamyka plan: od tej chwili nie da się go edytować.</summary>

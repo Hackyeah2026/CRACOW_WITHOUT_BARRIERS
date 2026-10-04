@@ -8,13 +8,8 @@ public sealed record RegisterUserCommand(UserCredentials Credentials) : ICommand
 
 internal sealed class RegisterUserCommandHandler(IAccountClient client) : ICommandHandler<RegisterUserCommand, UserProfile>
 {
-    public Task<Result<UserProfile>> Handle(RegisterUserCommand command, CancellationToken ct)
-    {
-        var errors = command.Credentials.Validate();
-        return errors.Count > 0
-            ? Task.FromResult(Result.Failure<UserProfile>(string.Join(" ", errors)))
-            : client.RegisterAsync(command.Credentials, ct);
-    }
+    public Task<Result<UserProfile>> Handle(RegisterUserCommand command, CancellationToken ct) =>
+        command.Credentials.Validate().IfValidAsync(() => client.RegisterAsync(command.Credentials, ct));
 }
 
 public sealed record LoginUserCommand(UserCredentials Credentials) : ICommand<UserProfile>;

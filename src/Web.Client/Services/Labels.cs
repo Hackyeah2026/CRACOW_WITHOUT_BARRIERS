@@ -125,7 +125,11 @@ public static class Labels
     /// <summary>Minuta od północy jako godzina; czasy po północy zawijają się do następnej doby.</summary>
     public static string Time(int minute) => $"{minute / 60 % 24:00}:{minute % 60:00}";
 
-    public static string Stops(int count) => count == 1 ? "1 przystanek" : count is >= 2 and <= 4 ? $"{count} przystanki" : $"{count} przystanków";
+    /// <summary>Polska odmiana po liczbie: 1 miejsce, 2-4 miejsca, 5-21 miejsc, 22 miejsca.</summary>
+    public static string Plural(int count, string one, string few, string many) =>
+        count == 1 ? one : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? few : many;
+
+    public static string Stops(int count) => $"{count} {Plural(count, "przystanek", "przystanki", "przystanków")}";
 
     public static string Distance(double meters) => meters >= 1000 ? $"{meters / 1000:0.0} km" : $"{Math.Round(meters / 10) * 10:0} m";
 
@@ -198,11 +202,26 @@ public static class Labels
     public static string Verified(VerifiedHazard hazard) =>
         $"Zweryfikowane utrudnienie {AffectedGroup(hazard.Kind)}: {Of(hazard.Kind).ToLowerInvariant()}";
 
+    /// <summary>Rodzaje utrudnień po przecinku, bez powtórzeń, np. "schody lub stopnie, wysoki krawężnik".</summary>
+    public static string Kinds(IReadOnlyList<VerifiedHazard> hazards) =>
+        string.Join(", ", hazards.Select(h => Of(h.Kind).ToLowerInvariant()).Distinct());
+
+    /// <summary>Ile drogi kosztuje objazd utrudnienia.</summary>
+    public static string DetourCost(double extraM) => extraM >= 10
+        ? $"Droga jest przez to dłuższa o około {Distance(extraM)}."
+        : "Droga nie jest przez to dłuższa.";
+
     public static string Of(SavedPlanStatus status) => status == SavedPlanStatus.Closed ? "Zamknięty: trasa zapisana" : "W przygotowaniu";
 
     public static string Css(SavedPlanStatus status) => status == SavedPlanStatus.Closed ? "status-accessible" : "status-unknown";
 
-    public static string PlacesWord(int count) => count == 1 ? "miejsce" : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "miejsca" : "miejsc";
+    public static string PlacesWord(int count) => Plural(count, "miejsce", "miejsca", "miejsc");
+
+    /// <summary>Informacja na stronie planu o miejscach, których nie ma już w katalogu (np. po aktualizacji danych).</summary>
+    /// <param name="removed">Czy udało się usunąć je z planu; plan konta zapisuje host.</param>
+    public static string MissingPlaces(int count, bool removed) =>
+        $"{(removed ? "Usunęliśmy z planu" : "Pominęliśmy")} {count} {PlacesWord(count)}, {(count == 1 ? "którego" : "których")} nie ma już w katalogu."
+        + (removed ? "" : " Nie udało się zapisać tej zmiany w planie.");
 
     public static string Of(HazardStatus status) => status switch
     {
@@ -252,6 +271,20 @@ public static class Labels
 
     public static MapMarker Marker(VerifiedHazard hazard, string idPrefix = "") =>
         new(idPrefix + hazard.Id, Verified(hazard), hazard.Lat, hazard.Lon, Color(HazardStatus.Verified), Icon: Icon(hazard.Kind));
+
+    /// <summary>Nazwy gotowych profili wybranych w profilu potrzeb; pusta lista, gdy profil ustawiono samymi parametrami.</summary>
+    public static IReadOnlyList<string> PresetNames(NeedsProfile profile) =>
+        NeedsProfilePresets.All.Where(p => profile.Presets.Contains(p.Id)).Select(p => p.Name).ToList();
+
+    /// <summary>Komunikat, gdy przeglądarka nie podała lokalizacji.</summary>
+    /// <param name="instead">Co użytkownik może zrobić zamiast tego, np. "wskaż start na mapie".</param>
+    public static string Of(LocationFailure failure, string instead) => failure switch
+    {
+        LocationFailure.Denied => $"Przeglądarka nie ma zgody na lokalizację. Włącz ją w ustawieniach strony albo {instead}.",
+        LocationFailure.Timeout => $"Nie udało się ustalić lokalizacji na czas. Spróbuj ponownie albo {instead}.",
+        LocationFailure.Unsupported => $"Ta przeglądarka nie udostępnia lokalizacji: {instead}.",
+        _ => $"Lokalizacja jest teraz niedostępna. Spróbuj ponownie albo {instead}."
+    };
 
     /// <summary>Ustawione potrzeby jako krótka lista do podsumowania profilu.</summary>
     public static IReadOnlyList<string> Needs(NeedsProfile profile)

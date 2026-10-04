@@ -24,7 +24,7 @@ public sealed record BusinessApplicationDraft(
     private static readonly int[] TaxIdWeights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
 
     /// <summary>Firmę prowadzi się w obiekcie z wnętrzem, a nie w punkcie w terenie.</summary>
-    public static bool IsEligible(PlaceCategory category) => category is not
+    public static bool IsEligible(PlaceCategory category) => Enum.IsDefined(category) && category is not
         (PlaceCategory.Stop or PlaceCategory.Bench or PlaceCategory.DisabledParking or PlaceCategory.Park
             or PlaceCategory.Toilet or PlaceCategory.QuietSpot);
 
@@ -78,7 +78,7 @@ public sealed record BusinessReview(BusinessStatus Status, string? Note)
     public IReadOnlyList<string> Validate()
     {
         var errors = new List<string>();
-        if (Status == BusinessStatus.Pending)
+        if (Status == BusinessStatus.Pending || !Enum.IsDefined(Status))
             errors.Add("Wybierz decyzję: zatwierdzenie, odrzucenie albo cofnięcie zatwierdzenia.");
         if (Status is BusinessStatus.Rejected or BusinessStatus.Revoked && string.IsNullOrWhiteSpace(Note))
             errors.Add("Napisz, dlaczego wniosek jest odrzucony albo zatwierdzenie cofnięte: firma zobaczy to uzasadnienie.");

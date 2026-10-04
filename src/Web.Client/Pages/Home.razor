@@ -5,28 +5,24 @@
 
 <PageTitle>Kraków bez barier</PageTitle>
 
-<!-- Hero Section -->
-<div class="hero-section">
-    <div class="hero-content">
-        @if (State.User is { } user)
-        {
-            <h1 class="hero-title">Witaj, @user.Login</h1>
-            <p class="hero-subtitle">Twój Kraków bez barier: profil, plan i zgłoszenia w jednym miejscu.</p>
-        }
-        else
-        {
-            <h1 class="hero-title">Kraków bez barier</h1>
-            <p class="hero-subtitle">Miejsca i trasy ocenione pod Twoje potrzeby. Każdy ma prawo do dostępu.</p>
-        }
-        <div class="hero-divider"></div>
-    </div>
+<div class="page-header" data-tour="home-intro">
+    @if (State.User is { } user)
+    {
+        <h1>Witaj, @user.Login</h1>
+        <p>Twój Kraków bez barier: profil, plan i zgłoszenia w jednym miejscu.</p>
+    }
+    else
+    {
+        <h1>Kraków bez barier</h1>
+        <p>Miejsca i trasy ocenione pod Twoje potrzeby. Każdy ma prawo do dostępu.</p>
+    }
 </div>
 
-<div class="container py-5">
+<div>
     @if (State.User is not null)
     {
         <!-- Dashboard -->
-        <section aria-labelledby="dashboard-heading">
+        <section aria-labelledby="dashboard-heading" data-tour="home-dashboard">
             <h2 id="dashboard-heading" class="section-title">Twój pulpit</h2>
             <div class="row g-4">
                 <div class="col-lg-4">
@@ -87,30 +83,19 @@
         <h2 class="section-title">Co chcesz zrobić?</h2>
         <div class="row g-4">
             <div class="col-lg-6">
-                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
-                    <div class="mode-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M8 19a4 4 0 0 1-4-4v-3H1V6h6V1h4v5h6v6h-3v3a4 4 0 0 1-4 4Z"/></svg>
-                    </div>
-                    <h3 class="mode-title">Zwiedzam</h3>
-                    <p class="mode-subtitle">Atrakcje, muzea, kawiarnie i kultura</p>
-                    <small class="mode-description">Odkrywaj Kraków dostosowany do Twoich potrzeb</small>
+                <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
+                    <span class="mode-icon"><span class="msym" aria-hidden="true">explore</span></span>
+                    <span class="mode-title">Zwiedzam</span>
+                    <span class="mode-subtitle">Atrakcje, muzea, kawiarnie i kultura</span>
+                    <span class="mode-description">Odkrywaj Kraków dostosowany do Twoich potrzeb</span>
                 </button>
             </div>
             <div class="col-lg-6">
-                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Errand)"
-                        style="animation-delay: 0.1s;">
-                    <div class="mode-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M6 22V2m12 20V2M2 11h20" stroke-linecap="round" stroke-linejoin="round"/>
-                            <rect x="4" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
-                            <rect x="10" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
-                            <rect x="16" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
-                    <h3 class="mode-title">Załatwiam sprawę</h3>
-                    <p class="mode-subtitle">Urzędy, przychodnie, biblioteki</p>
-                    <small class="mode-description">Zaplanuj efektywnie swoją dzień</small>
+                <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Errand)">
+                    <span class="mode-icon"><span class="msym" aria-hidden="true">assignment_turned_in</span></span>
+                    <span class="mode-title">Załatwiam sprawę</span>
+                    <span class="mode-subtitle">Urzędy, przychodnie, biblioteki</span>
+                    <span class="mode-description">Zaplanuj sprawnie swój dzień</span>
                 </button>
             </div>
         </div>
@@ -123,30 +108,19 @@
         <h2 class="section-title">Co chcesz zrobić?</h2>
         <div class="row g-4">
             <div class="col-lg-6">
-                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
-                    <div class="mode-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M8 19a4 4 0 0 1-4-4v-3H1V6h6V1h4v5h6v6h-3v3a4 4 0 0 1-4 4Z"/></svg>
-                    </div>
-                    <h3 class="mode-title">Zwiedzam</h3>
-                    <p class="mode-subtitle">Atrakcje, muzea, kawiarnie i kultura</p>
-                    <small class="mode-description">Odkrywaj Kraków dostosowany do Twoich potrzeb</small>
+                <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Sightseeing)">
+                    <span class="mode-icon"><span class="msym" aria-hidden="true">explore</span></span>
+                    <span class="mode-title">Zwiedzam</span>
+                    <span class="mode-subtitle">Atrakcje, muzea, kawiarnie i kultura</span>
+                    <span class="mode-description">Odkrywaj Kraków dostosowany do Twoich potrzeb</span>
                 </button>
             </div>
             <div class="col-lg-6">
-                <button type="button" class="mode-card slide-in-up" @onclick="() => ChooseAsync(AppMode.Errand)"
-                        style="animation-delay: 0.1s;">
-                    <div class="mode-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M6 22V2m12 20V2M2 11h20" stroke-linecap="round" stroke-linejoin="round"/>
-                            <rect x="4" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
-                            <rect x="10" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
-                            <rect x="16" y="5" width="4" height="6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
-                    <h3 class="mode-title">Załatwiam sprawę</h3>
-                    <p class="mode-subtitle">Urzędy, przychodnie, biblioteki</p>
-                    <small class="mode-description">Zaplanuj efektywnie swoją dzień</small>
+                <button type="button" class="mode-card" @onclick="() => ChooseAsync(AppMode.Errand)">
+                    <span class="mode-icon"><span class="msym" aria-hidden="true">assignment_turned_in</span></span>
+                    <span class="mode-title">Załatwiam sprawę</span>
+                    <span class="mode-subtitle">Urzędy, przychodnie, biblioteki</span>
+                    <span class="mode-description">Zaplanuj sprawnie swój dzień</span>
                 </button>
             </div>
         </div>
@@ -158,24 +132,24 @@
             <div class="row g-4">
                 <div class="col-md-4">
                     <div class="card card-body h-100">
-                        <div class="feature-icon" aria-hidden="true">🧭</div>
-                        <h3 class="h5 mt-2">Miejsca ocenione pod Ciebie</h3>
+                        <div class="feature-icon" aria-hidden="true"><span class="msym">explore</span></div>
+                        <h3 class="h5 mt-3">Miejsca ocenione pod Ciebie</h3>
                         <p class="text-body-secondary">Ustaw profil potrzeb, a pokażemy, które miejsca są dostępne, a gdzie czeka bariera. Brak danych nigdy nie udaje dostępności.</p>
                         <a class="mt-auto" href="profil">@(State.Profile.IsEmpty ? "Ustaw profil potrzeb" : "Zmień profil potrzeb")</a>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="card card-body h-100">
-                        <div class="feature-icon" aria-hidden="true">🗺️</div>
-                        <h3 class="h5 mt-2">Plan trasy</h3>
+                        <div class="feature-icon" aria-hidden="true"><span class="msym">route</span></div>
+                        <h3 class="h5 mt-3">Plan trasy</h3>
                         <p class="text-body-secondary">Trasa po ulicach dobrana do profilu, podjazd komunikacją miejską i ostrzeżenia o utrudnieniach potwierdzonych przez urząd.</p>
                         <a class="mt-auto" href="miejsca">Wybierz miejsca do planu</a>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="card card-body h-100">
-                        <div class="feature-icon" aria-hidden="true">⚠️</div>
-                        <h3 class="h5 mt-2">Zgłoszenia do urzędu</h3>
+                        <div class="feature-icon" aria-hidden="true"><span class="msym">add_location_alt</span></div>
+                        <h3 class="h5 mt-3">Zgłoszenia do urzędu</h3>
                         <p class="text-body-secondary">Zaznacz na mapie przeszkodę, hałas albo tłum lub zgłoś brak udogodnienia w miejscu. Do wysłania potrzebne jest konto.</p>
                         <a class="mt-auto" href="zglos">Zobacz mapę zgłoszeń</a>
                     </div>
@@ -184,15 +158,15 @@
         </section>
 
         <!-- Zachęta do konta -->
-        <section class="py-6 mt-6 cta-section text-center" aria-labelledby="account-cta-heading">
+        <section class="mt-4 cta-section text-center" aria-labelledby="account-cta-heading">
             <h2 id="account-cta-heading" class="h3 mb-3">Załóż konto: wystarczy login i hasło</h2>
             <p class="mb-4">
                 Z kontem wysyłasz zgłoszenia, śledzisz odpowiedzi urzędu i masz zapisany profil potrzeb.
                 @(State.Profile.IsEmpty ? "" : "Profil ustawiony teraz przejdzie na Twoje konto.")
             </p>
             <div class="d-flex flex-wrap justify-content-center gap-2">
-                <a class="btn btn-light btn-lg px-5" href="konto?nowe=true">Załóż konto</a>
-                <a class="btn btn-outline-light btn-lg px-5" href="konto">Mam konto</a>
+                <a class="btn btn-primary btn-lg" href="konto?nowe=true">Załóż konto</a>
+                <a class="btn btn-outline-primary btn-lg" href="konto">Mam konto</a>
             </div>
         </section>
     }

@@ -24,6 +24,7 @@
     <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="..\Infrastructure.Mongo\Infrastructure.Mongo.csproj" />
     <ProjectReference Include="..\Tools\Tools.csproj" />
+    <ProjectReference Include="..\Web.Client\Web.Client.csproj" />
   </ItemGroup>
 
 </Project>

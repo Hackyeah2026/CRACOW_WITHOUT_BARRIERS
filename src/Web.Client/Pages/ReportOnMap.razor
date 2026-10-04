@@ -5,20 +5,22 @@
 
 <PageTitle>Zgłoś na mapie</PageTitle>
 
-<h1>Zgłoś na mapie</h1>
-<p class="text-body-secondary">
+<div class="page-header">
+    <h1>Zgłoś na mapie</h1>
+    <p>
     Zaznacz punkt z utrudnieniem w terenie (przeszkoda, hałas, tłum) albo wybierz miejsce z katalogu i zgłoś brak udogodnienia.
     Punkt trafia do urzędu; po potwierdzeniu przez urzędnika pojawia się na mapie i w planach innych osób.
 </p>
+</div>
 
-<div class="mode-selector mb-3" role="group" aria-label="Co chcesz zgłosić">
+<div class="mode-selector mb-3" role="group" aria-label="Co chcesz zgłosić" data-tour="report-target">
     <button type="button" class="btn @(_target == Target.Point ? "btn-primary" : "btn-outline-secondary")"
             aria-pressed="@(_target == Target.Point ? "true" : "false")" @onclick="() => _target = Target.Point">
-        <span aria-hidden="true">⚠️</span> Utrudnienie w terenie
+        <span class="msym" aria-hidden="true">warning</span> Utrudnienie w terenie
     </button>
     <button type="button" class="btn @(_target == Target.Place ? "btn-primary" : "btn-outline-secondary")"
             aria-pressed="@(_target == Target.Place ? "true" : "false")" @onclick="ShowPlacesAsync">
-        <span aria-hidden="true">🏛️</span> Miejsce z katalogu
+        <span class="msym" aria-hidden="true">domain</span> Miejsce z katalogu
     </button>
 </div>
 
@@ -36,7 +38,7 @@
                 Z klawiatury: przejdź do pinezki klawiszem Tab i przesuwaj ją strzałkami.
             </p>
             <button type="button" class="btn btn-outline-primary" disabled="@_locating" @onclick="UseMyLocationAsync">
-                <span aria-hidden="true">📍</span> @(_locating ? "Ustalam lokalizację…" : "Jestem tutaj: użyj mojej lokalizacji")
+                <span class="msym" aria-hidden="true">my_location</span> @(_locating ? "Ustalam lokalizację…" : "Jestem tutaj: użyj mojej lokalizacji")
             </button>
             @if (_locationError is not null)
             {
@@ -45,7 +47,7 @@
             @if (_selectedHazard is not null)
             {
                 <div class="hazard-note" role="status">
-                    <span aria-hidden="true">@Labels.Icon(_selectedHazard.Kind)</span> @Labels.Verified(_selectedHazard),
+                    <span class="msym" aria-hidden="true">@Labels.Icon(_selectedHazard.Kind)</span> @Labels.Verified(_selectedHazard),
                     potwierdzone @_selectedHazard.VerifiedOn.ToString("dd.MM.yyyy").
                     @if (!string.IsNullOrEmpty(_selectedHazard.Description))
                     {
@@ -62,7 +64,7 @@
         </div>
 
         <div class="col-lg-5">
-            <section class="card card-body" aria-labelledby="hazard-heading">
+            <section class="card card-body" aria-labelledby="hazard-heading" data-tour="report-form">
                 <h2 id="hazard-heading" class="h5">Utrudnienie w tym punkcie</h2>
 
                 @if (_receipt is not null)
@@ -89,7 +91,7 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="hazard-kind" id="@id"
                                                checked="@(_kind == kind)" @onchange="() => _kind = kind" />
-                                        <label class="form-check-label" for="@id"><span aria-hidden="true">@Labels.Icon(kind)</span> @Labels.Of(kind)</label>
+                                        <label class="form-check-label" for="@id"><span class="msym" aria-hidden="true">@Labels.Icon(kind)</span> @Labels.Of(kind)</label>
                                     </div>
                                 }
                             </div>
@@ -98,7 +100,7 @@
                         <PhotoAnalysis IdPrefix="hazard-photo" OnApply="ApplyPhoto" OnPhotoChanged="photo => _photo = photo" />
 
                         <div class="mb-3">
-                            <label class="form-label h6" for="hazard-description">
+                            <label class="form-label" for="hazard-description">
                                 Opis @(_kind == HazardKind.Other ? "" : "(opcjonalnie)")
                             </label>
                             <textarea id="hazard-description" class="form-control" rows="3" maxlength="@HazardDraft.MaxDescriptionLength"
@@ -148,7 +150,7 @@ else
             </p>
             @if (_places is { Count: > 0 and <= MaxListedPlaces })
             {
-                <ul class="list-unstyled">
+                <ul class="list-unstyled place-pick-list">
                     @foreach (var item in _places)
                     {
                         <li>

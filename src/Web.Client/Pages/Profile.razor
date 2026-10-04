@@ -4,14 +4,12 @@
 
 <PageTitle>Profil potrzeb</PageTitle>
 
-<div class="profile-hero">
-    <div class="container">
-        <h1>@(State.User is null ? "Dostosuj profil potrzeb" : "Twój profil potrzeb")</h1>
-        <p class="hero-subtext">Pytamy o to, czego potrzebujesz, a nie o diagnozę. Możesz wybrać kilka profili naraz, a potem zmienić każdy parametr.</p>
-    </div>
+<div class="page-header">
+    <h1>@(State.User is null ? "Dostosuj profil potrzeb" : "Twój profil potrzeb")</h1>
+    <p>Pytamy o to, czego potrzebujesz, a nie o diagnozę. Możesz wybrać kilka profili naraz, a potem zmienić każdy parametr.</p>
 </div>
 
-<div class="container py-5">
+<div>
     @if (!_loaded)
     {
         <p role="status">Wczytuję…</p>
@@ -40,7 +38,7 @@
             <a class="alert-link" href="konto?powrot=profil">Zaloguj się albo załóż konto</a>, żeby zapisać go dla konta
             i edytować ze strony Konto; ustawienia wybrane tutaj przejdą na nowe konto.
         </div>
-        <ProfileEditor SaveLabel="✓ Gotowe, pokaż miejsca" OnSaved="@(() => Navigation.NavigateTo("miejsca"))"
+        <ProfileEditor SaveLabel="Gotowe, pokaż miejsca" OnSaved="@(() => Navigation.NavigateTo("miejsca"))"
                        Note="Konfiguracja tymczasowa zostaje w tej przeglądarce. Nie wysyłamy jej na serwer." />
     }
 </div>

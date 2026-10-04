@@ -1,4 +1,5 @@
 using Application;
+using Blazor.DriverJs;
 using Infrastructure;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Web.Client.Services;
@@ -9,5 +10,6 @@ builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.H
 builder.Services.AddApplication();
 builder.Services.AddBrowserInfrastructure();
 builder.Services.AddScoped<AppState>();
+builder.Services.RegisterDriverJs();
 
 await builder.Build().RunAsync();

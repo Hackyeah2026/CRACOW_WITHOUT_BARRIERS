@@ -5,7 +5,7 @@
         @foreach (var reason in Items)
         {
             <li class="mb-1">
-                <span aria-hidden="true">@Symbol</span> @reason.Message
+                <span class="msym msym-fill reason-icon-@Symbol" aria-hidden="true">@Symbol</span> @reason.Message
                 @if (reason.IsDemoData)
                 {
                     <span class="badge text-bg-secondary ms-1">dane demonstracyjne</span>

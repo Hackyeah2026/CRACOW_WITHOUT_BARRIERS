@@ -42,10 +42,10 @@ public static class Labels
     /// <summary>Symbol na mapie dla punktów odpoczynku; pozostałe kategorie rysujemy kółkiem w kolorze oceny.</summary>
     public static string? MapIcon(PlaceCategory category) => category switch
     {
-        PlaceCategory.Toilet => "🚽",
-        PlaceCategory.Bench => "🪑",
-        PlaceCategory.QuietSpot => "🤫",
-        PlaceCategory.DisabledParking => "🅿️",
+        PlaceCategory.Toilet => "wc",
+        PlaceCategory.Bench => "chair",
+        PlaceCategory.QuietSpot => "volume_off",
+        PlaceCategory.DisabledParking => "local_parking",
         _ => null
     };
 
@@ -61,10 +61,10 @@ public static class Labels
 
     public static string Symbol(AssessmentStatus status) => status switch
     {
-        AssessmentStatus.Accessible => "✓",
-        AssessmentStatus.Limited => "!",
-        AssessmentStatus.Inaccessible => "✕",
-        _ => "?"
+        AssessmentStatus.Accessible => "check_circle",
+        AssessmentStatus.Limited => "warning",
+        AssessmentStatus.Inaccessible => "cancel",
+        _ => "help"
     };
 
     public static string Css(AssessmentStatus status) => status switch
@@ -77,10 +77,10 @@ public static class Labels
 
     public static string Color(AssessmentStatus status) => status switch
     {
-        AssessmentStatus.Accessible => "#198754",
-        AssessmentStatus.Limited => "#ffc107",
-        AssessmentStatus.Inaccessible => "#dc3545",
-        _ => "#adb5bd"
+        AssessmentStatus.Accessible => "#146C2E",
+        AssessmentStatus.Limited => "#B26A00",
+        AssessmentStatus.Inaccessible => "#BA1A1A",
+        _ => "#73777F"
     };
 
     public static string Of(FeatureKey key) => key switch
@@ -173,11 +173,12 @@ public static class Labels
     /// <summary>Symbol punktu na mapie; rodzaj jest zawsze także w nazwie pinezki.</summary>
     public static string Icon(HazardKind kind) => kind switch
     {
-        HazardKind.Roadworks => "🚧",
-        HazardKind.Noise => "🔊",
-        HazardKind.Crowd => "👥",
-        HazardKind.BrightLight => "💡",
-        _ => "⚠️"
+        HazardKind.Stairs => "stairs",
+        HazardKind.Roadworks => "construction",
+        HazardKind.Noise => "volume_up",
+        HazardKind.Crowd => "groups",
+        HazardKind.BrightLight => "light_mode",
+        _ => "warning"
     };
 
     /// <summary>Kogo utrudnienie dotyczy najbardziej, do zdania "utrudnienie dla ...".</summary>
@@ -215,9 +216,9 @@ public static class Labels
 
     public static string Color(HazardStatus status) => status switch
     {
-        HazardStatus.Pending => "#d97706",
-        HazardStatus.Verified => "#dc3545",
-        _ => "#adb5bd"
+        HazardStatus.Pending => "#B26A00",
+        HazardStatus.Verified => "#BA1A1A",
+        _ => "#73777F"
     };
 
     public static string Of(BusinessStatus status) => status switch

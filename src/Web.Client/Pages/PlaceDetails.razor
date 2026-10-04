@@ -17,8 +17,10 @@ else if (_item is null)
 else
 {
     var place = _item.Place;
-    <h1>@place.Name</h1>
-    <p class="text-body-secondary">@Labels.Of(place.Category)@(place.Address is null ? "" : $" · {place.Address}")</p>
+    <div class="page-header">
+        <h1>@place.Name</h1>
+        <p>@Labels.Of(place.Category)@(place.Address is null ? "" : $" · {place.Address}")</p>
+    </div>
 
     <CoverageNotice />
 
@@ -26,7 +28,7 @@ else
     {
         <section class="card card-body mb-3" aria-labelledby="place-certificate">
             <h2 id="place-certificate" class="h5">
-                <span class="certified-badge"><span aria-hidden="true">★</span> Certyfikat Kraków bez barier</span>
+                <span class="certified-badge"><span class="msym msym-fill" aria-hidden="true">verified</span> Certyfikat Kraków bez barier</span>
             </h2>
             <p class="mb-1">
                 To miejsce prowadzi firma <strong>@certificate.BusinessName</strong>, zatwierdzona przez urząd.
@@ -44,7 +46,8 @@ else
         <span>dla profilu: <ProfileSummaryInline /></span>
         <button type="button" class="btn @(State.IsInPlan(place.Id) ? "btn-success" : "btn-primary")"
                 aria-pressed="@(State.IsInPlan(place.Id) ? "true" : "false")" @onclick="() => TogglePlanAsync(place.Id)">
-            @(State.IsInPlan(place.Id) ? "✓ W planie (usuń)" : "+ Dodaj do planu")
+            <span class="msym" aria-hidden="true">@(State.IsInPlan(place.Id) ? "check" : "add")</span>
+            @(State.IsInPlan(place.Id) ? "W planie (usuń)" : "Dodaj do planu")
         </button>
     </div>
 
@@ -71,6 +74,7 @@ else
                 }
                 else
                 {
+                    <div class="table-responsive" tabindex="0" role="region" aria-label="Tabela cech miejsca">
                     <table class="table table-sm mb-0">
                         <thead>
                             <tr><th scope="col">Cecha</th><th scope="col">Wartość</th><th scope="col">Źródło</th><th scope="col">Stan na dzień</th></tr>
@@ -87,6 +91,7 @@ else
                             }
                         </tbody>
                     </table>
+                    </div>
                 }
             </section>
 
@@ -105,7 +110,7 @@ else
         </div>
     </div>
 
-    <p class="mt-3"><a href="miejsca">← Wróć do listy miejsc</a></p>
+    <p class="mt-3"><a class="back-link" href="miejsca"><span class="msym" aria-hidden="true">arrow_back</span>Wróć do listy miejsc</a></p>
 }
 
 @code {

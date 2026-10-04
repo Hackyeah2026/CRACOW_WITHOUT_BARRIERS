@@ -5,8 +5,10 @@
 
 <PageTitle>Plan</PageTitle>
 
-<h1>Plan: @Labels.Of(State.Mode)</h1>
-<p>Profil: <ProfileSummaryInline /> · <a href="profil">zmień</a></p>
+<div class="page-header" data-tour="plan-intro">
+    <h1>Plan: @Labels.Of(State.Mode)</h1>
+    <p>Profil: <ProfileSummaryInline /> · <a href="profil">zmień</a></p>
+</div>
 
 <CoverageNotice />
 
@@ -31,12 +33,12 @@ else
             : "Pozostałe miejsca odwiedzisz w kolejności z listy.")
         Strzałkami zmienisz kolejność.
     </p>
-    <ol class="list-unstyled place-list">
+    <ol class="list-unstyled place-list" data-tour="plan-list">
         @if (State.StartLocation is not null)
         {
             <li class="place-item">
                 <div>
-                    <span class="place-name"><span aria-hidden="true">📍</span> @StartLocationRules.Name</span>
+                    <span class="place-name"><span class="msym" aria-hidden="true">location_on</span> @StartLocationRules.Name</span>
                     <span class="badge text-bg-success ms-1">Start</span>
                     <div class="small text-body-secondary">Możesz go poprawić na mapie poniżej. Używamy go tylko do ułożenia tego planu i nie zapisujemy.</div>
                 </div>
@@ -58,9 +60,9 @@ else
                 </div>
                 <div class="d-flex flex-wrap gap-2 justify-content-end">
                     <button type="button" class="btn btn-outline-secondary btn-move" disabled="@(index == 0 || _building)"
-                            aria-label="Przesuń wyżej: @item.Place.Name" @onclick="() => MoveAsync(item, -1)"><span aria-hidden="true">⬆️</span></button>
+                            aria-label="Przesuń wyżej: @item.Place.Name" @onclick="() => MoveAsync(item, -1)"><span class="msym" aria-hidden="true">arrow_upward</span></button>
                     <button type="button" class="btn btn-outline-secondary btn-move" disabled="@(index == _selected.Count - 1 || _building)"
-                            aria-label="Przesuń niżej: @item.Place.Name" @onclick="() => MoveAsync(item, 1)"><span aria-hidden="true">⬇️</span></button>
+                            aria-label="Przesuń niżej: @item.Place.Name" @onclick="() => MoveAsync(item, 1)"><span class="msym" aria-hidden="true">arrow_downward</span></button>
                     <button type="button" class="btn btn-outline-danger" disabled="@_building" aria-label="Usuń z planu: @item.Place.Name" @onclick="() => RemoveAsync(item.Place.Id)">Usuń</button>
                 </div>
             </li>
@@ -73,7 +75,7 @@ else
         <label class="form-check-label" for="optimize-order">Ułóż kolejność automatycznie (najkrótsza droga)</label>
     </div>
 
-    <div class="d-flex flex-wrap gap-2 mb-3">
+    <div class="plan-actions mb-3" data-tour="plan-actions">
         <button type="button" class="btn btn-primary btn-lg" disabled="@(!CanBuild || _building)" @onclick="BuildAsync">
             @if (_building)
             {
@@ -93,16 +95,16 @@ else
             }
             else
             {
-                <span><span aria-hidden="true">📍</span> Użyj mojej lokalizacji jako start</span>
+                <span class="msym" aria-hidden="true">my_location</span><span>Użyj mojej lokalizacji jako start</span>
             }
         </button>
         @if (!ShowStartPicker)
         {
             <button type="button" class="btn btn-outline-primary btn-lg" disabled="@_building" @onclick="() => _pickingStart = true">
-                <span aria-hidden="true">🗺️</span> Wskaż start na mapie
+                <span class="msym" aria-hidden="true">map</span> Wskaż start na mapie
             </button>
         }
-        <button type="button" class="btn btn-outline-secondary btn-lg" disabled="@_building" @onclick="ClearAsync">Wyczyść plan</button>
+        <button type="button" class="btn btn-outline-secondary btn-lg" disabled="@_building" @onclick="() => _confirmClear!.ShowAsync()">Wyczyść plan</button>
     </div>
     @if (_locationError is not null)
     {
@@ -115,7 +117,7 @@ else
             <p class="small mb-2">
                 @(State.StartLocation is null
                     ? "Kliknij na mapie miejsce, z którego zaczynasz."
-                    : "Sprawdź, czy pinezka 📍 stoi tam, gdzie jesteś. Żeby ją poprawić albo wybrać inny punkt, przeciągnij ją lub kliknij w inne miejsce mapy.")
+                    : "Sprawdź, czy pinezka stoi tam, gdzie jesteś. Żeby ją poprawić albo wybrać inny punkt, przeciągnij ją lub kliknij w inne miejsce mapy.")
                 Z klawiatury: przejdź do pinezki klawiszem Tab i przesuwaj ją strzałkami.
             </p>
             <MapView Label="Mapa wyboru punktu startu" Center="CityCenter" Zoom="@(State.City?.Zoom ?? 14)" Markers="_pickerMarkers" FitToMarkers="true"
@@ -132,6 +134,10 @@ else
         <p>Dodaj co najmniej dwa miejsca albo ustaw punkt startu, żeby ułożyć plan.</p>
     }
 }
+
+<ConfirmDialog @ref="_confirmClear" Title="Wyczyścić plan?" ConfirmLabel="Wyczyść plan" OnConfirm="ClearAsync">
+    Usuniemy z planu wszystkie wybrane miejsca i punkt startu.
+</ConfirmDialog>
 
 @if (_building)
 {
@@ -170,7 +176,7 @@ else
                                 <span class="stop-number @StopCss(i, _plan.Stops.Count)" aria-hidden="true">@stop.Order</span>
                                 @if (stop.IsUserLocation)
                                 {
-                                    <span class="place-name"><span class="visually-hidden">Przystanek @stop.Order: </span><span aria-hidden="true">📍</span> @stop.Place.Name</span>
+                                    <span class="place-name"><span class="visually-hidden">Przystanek @stop.Order: </span><span class="msym" aria-hidden="true">location_on</span> @stop.Place.Name</span>
                                 }
                                 else
                                 {
@@ -187,26 +193,26 @@ else
                             </div>
                             @foreach (var barrier in stop.IsUserLocation ? [] : stop.Assessment.Barriers)
                             {
-                                <div class="small mt-1"><span aria-hidden="true">✕</span> @barrier.Message</div>
+                                <div class="small mt-1"><span class="msym msym-fill reason-icon-cancel" aria-hidden="true">cancel</span> @barrier.Message</div>
                             }
                             @if (!stop.IsUserLocation && stop.Assessment.Status == AssessmentStatus.Unknown)
                             {
-                                <div class="small mt-1"><span aria-hidden="true">?</span> Nie mamy danych, żeby ocenić to miejsce dla Twojego profilu.</div>
+                                <div class="small mt-1"><span class="msym reason-icon-help" aria-hidden="true">help</span> Nie mamy danych, żeby ocenić to miejsce dla Twojego profilu.</div>
                             }
                         </li>
                         @if (i < _plan.Legs.Count)
                         {
                             var leg = _plan.Legs[i];
                             <li class="leg">
-                                ↓ @(leg.IsEstimated ? "około " : "")@Labels.Distance(leg.DistanceM), około @Math.Ceiling(leg.DurationMin) min
+                                <span class="msym" aria-hidden="true">directions_walk</span> @(leg.IsEstimated ? "około " : "")@Labels.Distance(leg.DistanceM), około @Math.Ceiling(leg.DurationMin) min
                                 @foreach (var warning in leg.Warnings.Where(w => !w.StartsWith("Dystans szacowany")))
                                 {
-                                    <div class="text-warning-emphasis"><span aria-hidden="true">!</span> @warning</div>
+                                    <div class="text-warning-emphasis"><span class="msym" aria-hidden="true">warning</span> @warning</div>
                                 }
                                 @foreach (var hazard in leg.Hazards ?? [])
                                 {
                                     <div class="hazard-note @(hazard.ConcernsProfile ? "hazard-concerns" : "")">
-                                        <span aria-hidden="true">@Labels.Icon(hazard.Hazard.Kind)</span>
+                                        <span class="msym" aria-hidden="true">@Labels.Icon(hazard.Hazard.Kind)</span>
                                         W tym miejscu jest @Labels.Verified(hazard.Hazard).ToLowerInvariant()
                                         (@(hazard.DistanceM < 10 ? "na trasie" : $"około {Labels.Distance(hazard.DistanceM)} od trasy"), potwierdzone @hazard.Hazard.VerifiedOn.ToString("dd.MM.yyyy")).
                                         @if (hazard.ConcernsProfile)
@@ -222,7 +228,7 @@ else
                                 @if (leg.RestStops is { Count: > 0 } rests)
                                 {
                                     <div class="hazard-note">
-                                        <span aria-hidden="true">🪑</span>
+                                        <span class="msym" aria-hidden="true">chair</span>
                                         @(rests.Count == 1 ? "Ławka na przerwę" : "Ławki na przerwę") przy trasie:
                                         @string.Join(", ", rests.Select(r => $"po około {Labels.Distance(r.DistanceFromStartM)}")) marszu od początku odcinka.
                                     </div>
@@ -251,11 +257,11 @@ else
                     <li><span class="map-legend-line map-legend-walk" aria-hidden="true"></span> pieszo</li>
                     @if (_hazards.Count > 0)
                     {
-                        <li><span aria-hidden="true">⚠️</span> utrudnienie potwierdzone przez urząd</li>
+                        <li><span class="msym" aria-hidden="true">warning</span> utrudnienie potwierdzone przez urząd</li>
                     }
                     @if (_plan.Legs.Any(l => l.RestStops is { Count: > 0 }))
                     {
-                        <li><span aria-hidden="true">🪑</span> ławka na przerwę w marszu</li>
+                        <li><span class="msym" aria-hidden="true">chair</span> ławka na przerwę w marszu</li>
                     }
                     @if (_route.Any(r => r.IsTransit))
                     {
@@ -268,10 +274,11 @@ else
 }
 
 @code {
-    private const string StartColor = "#198754";
-    private const string MiddleColor = "#0d6efd";
-    private const string EndColor = "#dc3545";
-    private const string RestColor = "#6c757d";
+    // Te same kolory co --kbb-color-map-* w tokens.css (legenda pod mapą).
+    private const string StartColor = "#146C2E";
+    private const string MiddleColor = "#0B4F8A";
+    private const string EndColor = "#BA1A1A";
+    private const string RestColor = "#5C5F66";
 
     private List<AssessedPlace>? _selected;
     private TripPlan? _plan;
@@ -285,6 +292,7 @@ else
     private bool _locating;
 
     private bool _pickingStart;
+    private ConfirmDialog? _confirmClear;
     private IReadOnlyList<MapMarker> _pickerMarkers = [];
 
     private bool ShowStartPicker => _pickingStart || State.StartLocation is not null;

@@ -59,7 +59,7 @@
             <PhotoAnalysis IdPrefix="report-photo" OnApply="ApplyPhoto" OnPhotoChanged="photo => _photo = photo" />
 
             <div class="mb-3">
-                <label class="form-label h6" for="report-description">
+                <label class="form-label" for="report-description">
                     Opis @(_kind == ReportKind.MissingAmenity ? "(opcjonalnie)" : "")
                 </label>
                 <textarea id="report-description" class="form-control" rows="4" maxlength="@ReportDraft.MaxDescriptionLength"

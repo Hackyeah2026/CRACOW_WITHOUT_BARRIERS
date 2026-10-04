@@ -6,15 +6,13 @@
 
 <PageTitle>Miejsca</PageTitle>
 
-<div class="places-hero">
-    <div class="container">
-        <h1>@Labels.Of(State.Mode)</h1>
-        <p class="text-secondary">Przeglądaj dostępne dla Ciebie miejsca</p>
-    </div>
+<div class="page-header">
+    <h1>@Labels.Of(State.Mode)</h1>
+    <p>Miejsca ocenione pod Twój profil</p>
 </div>
 
-<div class="container py-4">
-    <div class="places-header mb-4">
+<div>
+    <div class="places-header">
         <div class="mode-selector">
             @foreach (var mode in Enum.GetValues<AppMode>())
             {
@@ -22,7 +20,7 @@
                         class="btn @(State.Mode == mode ? "btn-primary" : "btn-outline-secondary")"
                         aria-pressed="@(State.Mode == mode ? "true" : "false")"
                         @onclick="() => SetModeAsync(mode)">
-                    @(mode == AppMode.Sightseeing ? "🏛️" : "🏪")
+                    <span class="msym" aria-hidden="true">@(mode == AppMode.Sightseeing ? "explore" : "assignment_turned_in")</span>
                     @Labels.Of(mode)
                 </button>
             }
@@ -57,19 +55,19 @@
         <div class="places-stats mb-4">
             <div class="stat-card accessible">
                 <div class="stat-number">@Count(AssessmentStatus.Accessible)</div>
-                <div class="stat-label">dostępnych</div>
+                <div class="stat-label"><span class="msym msym-fill" aria-hidden="true">check_circle</span>dostępnych</div>
             </div>
             <div class="stat-card limited">
                 <div class="stat-number">@Count(AssessmentStatus.Limited)</div>
-                <div class="stat-label">ograniczone</div>
+                <div class="stat-label"><span class="msym msym-fill" aria-hidden="true">warning</span>ograniczone</div>
             </div>
             <div class="stat-card inaccessible">
                 <div class="stat-number">@Count(AssessmentStatus.Inaccessible)</div>
-                <div class="stat-label">niedostępne</div>
+                <div class="stat-label"><span class="msym msym-fill" aria-hidden="true">cancel</span>niedostępne</div>
             </div>
             <div class="stat-card unknown">
                 <div class="stat-number">@Count(AssessmentStatus.Unknown)</div>
-                <div class="stat-label">bez danych</div>
+                <div class="stat-label"><span class="msym" aria-hidden="true">help</span>bez danych</div>
             </div>
         </div>
 
@@ -77,7 +75,7 @@
         <div class="places-grid">
             <div class="places-sidebar">
                 <div class="filter-section">
-                    <h3 class="filter-title">Filtry</h3>
+                    <h2 class="filter-title">Filtry</h2>
                     <form class="form-group" role="search" @onsubmit="FilterChangedAsync">
                         <label class="form-label" for="search">Szukaj</label>
                         <div class="input-group">
@@ -115,20 +113,24 @@
                     @if (_certified.Count > 0)
                     {
                         <p class="small text-muted mt-3 mb-0">
-                            <span aria-hidden="true">★</span> Pinezka z gwiazdką w złotej obwódce to miejsce z certyfikatem:
+                            <span class="msym msym-fill" aria-hidden="true">star</span> Pinezka z gwiazdką w złotej obwódce to miejsce z certyfikatem:
                             firma zatwierdzona przez urząd sama podaje swoje udogodnienia.
                         </p>
                     }
                     <p class="small text-muted mt-3 mb-0">
                         @if (_hazardMarkers.Count > 0)
                         {
-                            <text><span aria-hidden="true">⚠️</span> Symbole na mapie to utrudnienia potwierdzone przez urząd (@_hazardMarkers.Count). </text>
+                            <text><span class="msym" aria-hidden="true">warning</span> Symbole na mapie to utrudnienia potwierdzone przez urząd (@_hazardMarkers.Count). </text>
                         }
                         Widzisz przeszkodę, hałas albo tłum? <a href="zglos">Zgłoś na mapie</a>.
                     </p>
                 </div>
             </div>
 
+            <div class="places-map">
+                <MapView @ref="_map" Markers="_markers" Center="_center" Zoom="_zoom" FitToMarkers="_fitToResults"
+                         OnMarkerSelected="OpenDetails" OnBoundsChanged="OnBoundsChanged" />
+            </div>
             <div class="places-content">
                 <div class="places-list" aria-busy="@(_loading ? "true" : "false")">
                     @if (_loading)
@@ -148,7 +150,7 @@
                     }
                     @foreach (var item in _loading ? [] : _visible.Take(_shown))
                     {
-                        <div class="place-card">
+                        <div class="place-card" data-tour="place-card">
                             <div class="place-card-header">
                                 <div>
                                     <a class="place-card-title" href="miejsca/@item.Place.Id">@item.Place.Name</a>
@@ -156,7 +158,7 @@
                                         <span class="place-category">@Labels.Of(item.Place.Category)</span>
                                         @if (item.Place.Certificate is not null)
                                         {
-                                            <span class="certified-badge"><span aria-hidden="true">★</span> Certyfikat</span>
+                                            <span class="certified-badge"><span class="msym msym-fill" aria-hidden="true">verified</span> Certyfikat</span>
                                         }
                                         @if (item.Place.Address is not null)
                                         {
@@ -175,17 +177,17 @@
                             }
 
                             <div class="place-card-footer">
-                                <button type="button"
+                                <button type="button" data-tour="place-add"
                                         class="btn btn-sm @(State.IsInPlan(item.Place.Id) ? "btn-success" : "btn-primary")"
                                         aria-label="@(State.IsInPlan(item.Place.Id) ? "Usuń z planu" : "Dodaj do planu"): @item.Place.Name"
-                                        @onclick="() => State.TogglePlaceAsync(item.Place.Id)">
+                                        @onclick="() => TogglePlanAsync(item.Place)">
                                     @if (State.IsInPlan(item.Place.Id))
                                     {
-                                        <span>✓ W planie</span>
+                                        <span class="msym" aria-hidden="true">check</span><span>W planie</span>
                                     }
                                     else
                                     {
-                                        <span>+ Do planu</span>
+                                        <span class="msym" aria-hidden="true">add</span><span>Do planu</span>
                                     }
                                 </button>
                                 <a class="btn btn-sm btn-outline-secondary" href="miejsca/@item.Place.Id">
@@ -206,13 +208,11 @@
                 }
             </div>
 
-            <div class="places-map">
-                <MapView @ref="_map" Markers="_markers" Center="_center" Zoom="_zoom" FitToMarkers="_fitToResults"
-                         OnMarkerSelected="OpenDetails" OnBoundsChanged="OnBoundsChanged" />
-            </div>
         </div>
     }
 </div>
+
+<Snackbar @ref="_snackbar" />
 
 @code {
     private const int PageSize = 20;
@@ -237,6 +237,7 @@
     private string? _search;
     private string _category = "";
     private int _shown = PageSize;
+    private Snackbar? _snackbar;
 
     protected override async Task OnInitializedAsync()
     {
@@ -388,6 +389,13 @@
     {
         if (_map is not null)
             await _map.ShowAllMarkersAsync();
+    }
+
+    private async Task TogglePlanAsync(Place place)
+    {
+        await State.TogglePlaceAsync(place.Id);
+        // Potwierdzenie nie wstrzymuje interfejsu: znika samo po kilku sekundach.
+        _ = _snackbar?.ShowAsync($"{(State.IsInPlan(place.Id) ? "Dodano do planu" : "Usunięto z planu")}: {place.Name}");
     }
 
     private int Count(AssessmentStatus status) => _visible.Count(p => p.Assessment.Status == status);

@@ -2,7 +2,7 @@
 
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
     <div>
-        <label class="form-label mb-1" for="business-status-filter">Status</label>
+        <label class="form-label" for="business-status-filter">Status</label>
         <select id="business-status-filter" class="form-select" @bind="_statusFilter">
             <option value="">Wszystkie</option>
             @foreach (var status in Enum.GetValues<BusinessStatus>())
@@ -90,7 +90,7 @@
                     @if (business.Status != BusinessStatus.Approved)
                     {
                         <button type="button" class="btn btn-primary btn-sm" disabled="@_busy" @onclick="() => SaveAsync(business.Id, BusinessStatus.Approved, null)">
-                            ✓ Zatwierdź <span class="visually-hidden">konto firmowe: @business.BusinessName</span>
+                            <span class="msym" aria-hidden="true">check</span> Zatwierdź <span class="visually-hidden">konto firmowe: @business.BusinessName</span>
                         </button>
                     }
                     @if (business.Status == BusinessStatus.Pending)

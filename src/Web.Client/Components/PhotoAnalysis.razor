@@ -12,9 +12,9 @@
     @* Pola wyboru pliku muszą zostać w DOM na czas analizy: Blazor czyta plik z elementu input, więc po jego usunięciu odczyt się wywala. *@
     <div class="photo-picker" hidden="@_busy">
         <InputFile id="@($"{IdPrefix}-camera")" class="visually-hidden" accept="image/*" capture="environment" OnChange="OnSelectedAsync" />
-        <label class="btn btn-outline-primary" for="@($"{IdPrefix}-camera")"><span aria-hidden="true">📷</span> Zrób zdjęcie</label>
+        <label class="btn btn-outline-primary" for="@($"{IdPrefix}-camera")"><span class="msym" aria-hidden="true">photo_camera</span> Zrób zdjęcie</label>
         <InputFile id="@($"{IdPrefix}-file")" class="visually-hidden" accept="image/*" OnChange="OnSelectedAsync" />
-        <label class="btn btn-outline-secondary" for="@($"{IdPrefix}-file")"><span aria-hidden="true">🖼️</span> Wybierz z urządzenia</label>
+        <label class="btn btn-outline-secondary" for="@($"{IdPrefix}-file")"><span class="msym" aria-hidden="true">image</span> Wybierz z urządzenia</label>
         @if (_preview is not null)
         {
             <button type="button" class="btn btn-link" @onclick="Clear">Usuń zdjęcie</button>
@@ -34,7 +34,7 @@
         else if (_analysis is { } analysis)
         {
             <div class="photo-verdict photo-verdict-@analysis.Verdict.ToString().ToLowerInvariant()">
-                <strong><span aria-hidden="true">@Icon(analysis.Verdict)</span> @Label(analysis.Verdict)</strong>
+                <strong><span class="msym msym-fill" aria-hidden="true">@Icon(analysis.Verdict)</span> @Label(analysis.Verdict)</strong>
                 <div>Prawdopodobieństwo przeszkody według AI: <strong>@analysis.Percent%</strong></div>
                 <div class="photo-meter" aria-hidden="true"><span style="width: @(analysis.Percent)%"></span></div>
                 @if (analysis.SuggestedKind is { } kind)
@@ -170,8 +170,8 @@
 
     private static string Icon(ObstacleVerdict verdict) => verdict switch
     {
-        ObstacleVerdict.Likely => "⚠️",
-        ObstacleVerdict.Uncertain => "❔",
-        _ => "✅"
+        ObstacleVerdict.Likely => "warning",
+        ObstacleVerdict.Uncertain => "help",
+        _ => "check_circle"
     };
 }

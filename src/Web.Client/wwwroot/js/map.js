@@ -1,8 +1,8 @@
 // Mapa Leaflet sterowana z komponentu MapView.
 const maps = {};
 
-const WALK_STYLE = { color: '#0b5ed7', weight: 5, opacity: 0.8, dashArray: '6 6' };
-const TRANSIT_STYLE = { color: '#6f42c1', weight: 6, opacity: 0.9 };
+const WALK_STYLE = { color: '#0B4F8A', weight: 5, opacity: 0.8, dashArray: '6 6' };
+const TRANSIT_STYLE = { color: '#7A2E8F', weight: 6, opacity: 0.9 };
 
 // Kolejność prób ustawienia stałej etykiety względem pinezki.
 const LABEL_OFFSETS = { top: [0, -16], right: [16, 0], left: [-16, 0], bottom: [0, 16] };
@@ -59,6 +59,15 @@ function text(value) {
     return span;
 }
 
+// Ikona Material Symbols; nazwa ikony to ligatura czcionki.
+function symbol(name, color, fill) {
+    const span = document.createElement('span');
+    span.className = fill ? 'msym msym-fill' : 'msym';
+    span.textContent = name;
+    if (color) span.style.color = color;
+    return span;
+}
+
 function iconMarker(item, html, className, size) {
     const icon = L.divIcon({ html, className, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
     return L.marker([item.lat, item.lon], { icon, keyboard: true });
@@ -83,19 +92,19 @@ export function setMarkers(id, items, fit) {
         } else if (item.certified) {
             // Miejsce z certyfikatem: gwiazdka w złotej obwódce, kolor wypełnienia nadal mówi o ocenie.
             const pin = document.createElement('span');
-            pin.className = 'map-certified';
+            pin.className = 'map-certified msym-fill';
             pin.style.background = item.color;
-            pin.textContent = '★';
+            pin.textContent = 'star';
             marker = iconMarker(item, pin, 'map-certified-icon', 34);
             marker.setZIndexOffset(500);
             marker.bindTooltip(text(item.name), { direction: 'top', offset: [0, -16] });
         } else if (item.icon) {
             // Punkt odpoczynku (toaleta, ławka, ciche miejsce): sam symbol, bez kółka.
-            marker = iconMarker(item, text(item.icon), 'map-emoji-icon', 28);
+            marker = iconMarker(item, symbol(item.icon, item.color), 'map-symbol-icon', 28);
             marker.bindTooltip(text(item.name), { direction: 'top', offset: [0, -12] });
         } else {
             marker = L.circleMarker([item.lat, item.lon], {
-                radius: 8, color: '#1b1b1b', weight: 1.5, fillColor: item.color, fillOpacity: 0.95
+                radius: 8, color: '#191C20', weight: 1.5, fillColor: item.color, fillOpacity: 0.95
             });
             marker.bindTooltip(text(item.name));
         }
@@ -131,7 +140,7 @@ function placePick(entry, latlng) {
     if (entry.pick) {
         entry.pick.setLatLng(latlng);
     } else {
-        const icon = L.divIcon({ html: text('📍'), className: 'map-pick-icon', iconSize: [40, 40], iconAnchor: [20, 38] });
+        const icon = L.divIcon({ html: symbol('location_on', null, true), className: 'map-pick-icon', iconSize: [40, 40], iconAnchor: [20, 38] });
         entry.pick = L.marker(latlng, { icon, draggable: true, keyboard: true, zIndexOffset: 1000 }).addTo(entry.map);
         entry.pick.bindTooltip(text(`${entry.pickLabel}: przeciągnij, żeby poprawić`), { direction: 'top', offset: [0, -38] });
         entry.pick.on('dragend', () => pickChanged(entry));

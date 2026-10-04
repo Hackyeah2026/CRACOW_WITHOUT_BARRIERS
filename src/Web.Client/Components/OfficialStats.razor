@@ -9,7 +9,7 @@
     <section class="col-6 col-md-3">
         <div class="card card-body h-100">
             <h2 class="h6">Zamknięte zgłoszenia miejsc</h2>
-            <p class="display-6 mb-0">@(stats.ClosedShare is { } share ? share.ToString("P0") : "–")</p>
+            <p class="display-6 mb-0">@(stats.ClosedShare is { } share ? share.ToString("P0") : "brak")</p>
             <p class="small text-body-secondary mb-0">rozwiązane albo odrzucone</p>
         </div>
     </section>
@@ -83,7 +83,7 @@
 
     private static string Duration(double? hours) => hours switch
     {
-        null => "–",
+        null => "brak",
         < 1 => "< 1 godz.",
         < 48 => $"{hours:0} godz.",
         _ => $"{hours / 24:0} dni"

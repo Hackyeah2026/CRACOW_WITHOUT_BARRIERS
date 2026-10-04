@@ -18,6 +18,8 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 **Co doszło 3.10.2026 ok. 23:30:** konta firmowe: wniosek dla miejsca z katalogu, zatwierdzenie przez urzędnika, własne oznaczenia udogodnień, certyfikat z kodem QR do pobrania i wyróżnienie na mapie. Szczegóły w sekcji "Konta firmowe i certyfikat", plan w [plan-konto-firmowe.md](plan-konto-firmowe.md).
 
+**Co doszło 4.10.2026:** wyszukiwarka miejsc działa spójnie niezależnie od wybranej kategorii (nazwa, adres i rodzaj miejsca, bez rozróżniania polskich znaków), a plan wskazuje ławki przy trasie, gdy odcinek jest dłuższy niż limit marszu z profilu. Szczegóły w sekcjach "Wyszukiwanie miejsc" i "Ławki na przerwę w planie".
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -26,7 +28,7 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 |---|---|---|---|
 | 1 | Ekran startowy z wyborem trybu | zrobione | "Zwiedzam" / "Załatwiam sprawę" |
 | 2 | Kreator profilu | zrobione | 7 gotowych profili (można łączyć) i dostrajanie parametrów |
-| 3 | Katalog miejsc: mapa i lista | zrobione | ocena pod profil, wyszukiwarka, filtr kategorii |
+| 3 | Katalog miejsc: mapa i lista | zrobione | ocena pod profil, filtr kategorii, wyszukiwarka po nazwie, adresie i rodzaju miejsca (patrz "Wyszukiwanie miejsc") |
 | 4 | Karta miejsca | zrobione | bariery, udogodnienia, braki danych, źródło i data każdej cechy |
 | 5 | Podpowiedzi | częściowo | lista jest sortowana rankingiem pod profil; nie ma osobnego widoku ani punktu startu użytkownika |
 | 6 | Planer trasy | zrobione w podstawowym zakresie | kolejność przystanków, trasa po ulicach dobrana do profilu, ostrzeżenia o stromych odcinkach; bez listy pojedynczych barier (krawężniki, bruk) |
@@ -177,7 +179,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 **Rozważone warianty wczytywania:** jeden duży plik (kilkanaście MB przy każdym wejściu), pliki per kategoria, kafle przestrzenne (ranking całego miasta przestaje działać bez pobrania wszystkiego), miejsca w MongoDB z zapytaniami po obszarze (katalog zależny od bazy), odpytywanie OpenStreetMap na żywo (publiczne Overpass API jest zawodne i wolne: podczas importu trzy instancje na zmianę zwracały błędy, limity czasu i nieaktualne dane). **Wybrane: pliki per kategoria**, bo aplikacja i tak pracuje zestawami kategorii, a katalog zostaje statyczny i działa bez serwera.
 
 - **Układ:** `data/{miasto}/places/index.json` (data importu, kategorie z liczbą miejsc) i `places/{Kategoria}.json`. `IPlaceCatalog` ma `GetAsync(miasto, kategorie)`, `FindAsync(miasto, id)` i `GetCategoriesAsync`; nie ma już metody zwracającej całe miasto.
-- **Co się pobiera:** lista w trybie "Załatwiam sprawę" to 7 plików (ok. 1,4 MB przed kompresją), "Zwiedzam" 6 plików (ok. 0,75 MB). Ławki (3,4 MB) i sklepy (1,3 MB) pobierają się dopiero po wybraniu kategorii w filtrze. Kompresja serwera zmniejsza pliki 6-15 razy (ławki: ok. 220 KB).
+- **Co się pobiera:** lista w trybie "Załatwiam sprawę" to 7 plików (ok. 1,4 MB przed kompresją), "Zwiedzam" 6 plików (ok. 0,75 MB). Sklepy (1,5 MB), noclegi, toalety i szkoły pobierają się po wybraniu kategorii albo przy pierwszym wyszukiwaniu frazy. Ławki (4 MB) i koperty (0,55 MB) tylko po wybraniu ich kategorii, a ławki także przy układaniu planu z odcinkiem dłuższym niż limit marszu. Kompresja serwera zmniejsza pliki 6-15 razy (ławki: ok. 220 KB).
 - **Karta miejsca z bezpośredniego adresu** szuka najpierw w plikach już pobranych, potem w pozostałych od najmniejszych.
 - **Nowe kategorie:** apteka (wydzielona ze "Zdrowia"), miejsce kultu, park, sklep, nocleg, usługi (poczta, bank, pomoc społeczna; poczta przeszła z "Urzędu"), szkoła i uczelnia. Ławki i koperty, dotąd puste, są importowane. Tryb "Zwiedzam" obejmuje dodatkowo miejsca kultu i parki, "Załatwiam sprawę" apteki i usługi; reszta jest w filtrze kategorii z liczbą miejsc.
 - **Zmiany w imporcie:** cztery osobne zapytania z ponawianiem; perony uzupełniają cechy przystanków (387 przystanków); restauracje także bez tagu `wheelchair`; toalety prywatne pominięte, "dla klientów" i płatne opisane; ulice oznaczone jako atrakcje pominięte; adres także z `addr:place`; nowe tagi `elevator`, `hearing_loop`, `dog=yes`; data cechy to data sprawdzenia z OSM (`check_date`), a gdy jej nie ma, data ostatniej edycji obiektu (kolumna na karcie miejsca nazywa się teraz "Stan na dzień"). Importer odrzuca instancję Overpass z danymi starszymi niż 2 dni.
@@ -206,6 +208,37 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 
 **Znany brak w zapisanych danych:** pierwsza grupa zapytań (miejsca z nazwą) przyszła z instancji z nieaktualną bazą, więc brakuje ok. 25 niedawno dodanych obiektów, w tym "Przychodni Medycyna Polska" ze ścieżki demo (jej ręczne uzupełnienie nie miało się do czego przypiąć). Kontrola świeżości jest już w importerze; trzeba powtórzyć `dotnet run --project src/Tools -- import krakow`, gdy główna instancja Overpass będzie dostępna.
 
+### Wyszukiwanie miejsc
+
+Dotąd "Wszystkie kategorie" oznaczały tylko kategorie bieżącego trybu, a fraza była porównywana wyłącznie z nazwą: "hotel" dawał 3 miejsca, a po wybraniu kategorii "Nocleg" ponad sto.
+
+- **Zakres:** bez frazy lista pokazuje kategorie trybu, jak dotąd. Wpisana fraza przy "Wszystkich kategoriach" obejmuje kategorie trybu oraz toalety, sklepy, noclegi i szkoły (`ModeCategories.Scope`). Wynik bez wybranej kategorii zawiera więc wszystko, co daje filtr kategorii.
+- **Ławki i koperty** nie są przeszukiwane (`ModeCategories.Searchable`): to punkty bez nazw, potrzebne do planu trasy. Widać je po wybraniu ich kategorii.
+- **Dopasowanie** (`PlaceSearch`): każde słowo frazy musi pasować do nazwy, adresu albo rodzaju miejsca. Rodzaj to krótka lista rdzeni słów na kategorię (np. "hotel", "nocleg" → noclegi; "restauracja", "kawiarnia" → jedzenie; "apteka", "wc"). Wielkość liter i polskie znaki nie mają znaczenia ("kosciol" znajduje "Kościół").
+- **Kolejność:** najpierw miejsca z frazą w nazwie lub adresie, potem dopasowane tylko po rodzaju; w obu grupach według oceny dopasowania do profilu.
+- **Liczniki w filtrze kategorii** przy wpisanej frazie pokazują liczbę trafień (`GetPlaceSearchCountsQuery`); ławki i koperty nie mają wtedy licznika.
+- **Uruchamianie:** wyszukiwanie startuje po naciśnięciu Enter albo przycisku "Szukaj", a nie w trakcie pisania (filtrowanie tysięcy miejsc i przerysowanie mapy przy każdej literze zacinało stronę). W trakcie szukania lista pokazuje wskaźnik "Szukam miejsc…".
+- Ta sama logika działa w wyszukiwarce miejsca w "Zgłoś na mapie" i we wniosku o konto firmowe, bo korzystają z tego samego zapytania (`GetPlacesQuery`).
+
+**Ograniczenia:** dane nie rozróżniają typu lokalu, więc "kawiarnia" zwraca całą kategorię jedzenia; "parking" pasuje też do parków (wspólny rdzeń); pierwsze wyszukiwanie pobiera dodatkowo ok. 1,8 MB (głównie sklepy).
+
+### Ławki na przerwę w planie
+
+- **Kiedy:** profil ma limit marszu bez odpoczynku i odcinek planu go przekracza. Bez limitu w profilu ławek nie wskazujemy. Odcinek szacowany w linii prostej (bez trasy po ulicach) też ich nie dostaje, bo nie wiadomo, którędy się idzie.
+- **Dobór** (`RestStopRules.AlongRoute`): ławki do 30 m od trasy; każda kolejna to najdalsza, do której da się dojść w limicie. Gdy w limicie nie ma żadnej, brana jest najbliższa następna. Ławki bliżej niż 50 m od początku albo końca odcinka są pomijane. Położenie ławki jest skalowane do długości odcinka podanej przez silnik tras.
+- **Komunikat przy odcinku:** gdy jest przejazd i są ławki: "Możesz podjechać komunikacją miejską albo iść pieszo i odpocząć na ławce po drodze"; gdy są tylko ławki: "Po drodze są ławki, na których możesz odpocząć". Gdy ławek nie ma na całej trasie, plan podaje najdłuższy fragment bez przerwy (`RestStopRules.LongestStretchM`).
+- **Widok:** lista ławek z odległością od początku odcinka, symbole 🪑 na mapie planu i wpis w legendzie. Ławki są zapisane w odcinku (`TripLeg.RestStops`); plany zapisane wcześniej ich nie mają.
+- **Pobieranie:** plik ławek (4 MB przed kompresją) pobiera się przy pierwszym planie z odcinkiem dłuższym niż limit.
+
+### Samouczek
+
+- **Start:** tylko na życzenie, przyciskiem „Samouczek” w nagłówku. Nie uruchamia się sam i niczego nie zapisuje ani nie wysyła.
+- **Przebieg:** jeden samouczek przez wszystkie strony: start, profil potrzeb, miejsca, plan, zgłoszenia, konto. Po ostatnim kroku strony przechodzi na następną i czeka, aż ta wczyta swoje elementy.
+- **Gość i zalogowany** (`TourScript.For`): gość ustawia konfigurację tymczasową na `/profil`, przy zgłoszeniu dowiaduje się, że do wysłania potrzebne jest konto, a na końcu dostaje zachętę do jego założenia. Zalogowany zaczyna od pulpitu, edytuje profil konta na `/konto/profil`, widzi formularz zgłoszenia i informację, gdzie śledzić odpowiedzi urzędu.
+- **Kroki opcjonalne:** kroki o karcie miejsca, kolejności i przycisku „Ułóż plan” znikają, gdy tych elementów nie ma (brak wyników, pusty plan). Każda strona ma przynajmniej jeden krok stały.
+- **Technika:** driver.js przez pakiet `Blazor.DriverJs` 1.2.2; komponent `AppTour` w układzie strony, elementy wskazywane atrybutem `data-tour`. Dymek na tokenach M3, polskie etykiety, obsługa klawiatury (strzałki, Esc), animacja wyłączona przy `prefers-reduced-motion`.
+- **Obejście błędu pakietu:** pakiet przekazywał do .NET brak numeru kroku przed pierwszym krokiem i po zamknięciu, co kończyło się wyjątkiem w konsoli. `js/driverjs-fix.js` zastępuje brak numeru wartością -1.
+
 ### Warstwy
 
 | Projekt | Co zawiera |
@@ -217,7 +250,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | `Infrastructure.Mongo` | połączenie hosta z MongoDB: ustawienia, rejestracja klienta, konwencje zapisu, sprawdzenie połączenia; repozytorium zgłoszeń, konta urzędników, indeksy i konta zakładane przy starcie |
 | `Web` | host: serwuje aplikację, pośredniczy w routingu, sprawdza połączenie z bazą (`GET /api/health/db`), przyjmuje zgłoszenia, loguje urzędników |
 | `Tools` | `import <miasto>`: miejsca z OpenStreetMap + ręczne uzupełnienia; `transit <miasto>`: rozkład z GTFS |
-| `Tests` | 139 testów: zdjęcia w zgłoszeniach (limit i format, odnośnik w zgłoszeniu, widoki, zapis w BSON), konta firmowe (walidacja wniosku i NIP, decyzje urzędnika, deklaracje, widoki bez danych firmy, łączenie z katalogiem, certyfikat z kodem QR), mapowanie tagów OpenStreetMap na kategorie i cechy, profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
+| `Tests` | 165 testów: scenariusz samouczka (trzy funkcje w obu wariantach, różnice między gościem a zalogowanym, krok stały na każdej stronie), wyszukiwanie miejsc (zakres kategorii, polskie znaki, adres, kolejność wyników, liczniki), ławki na przerwę (dobór przy trasie, luki, skalowanie do długości odcinka), zdjęcia w zgłoszeniach (limit i format, odnośnik w zgłoszeniu, widoki, zapis w BSON), konta firmowe (walidacja wniosku i NIP, decyzje urzędnika, deklaracje, widoki bez danych firmy, łączenie z katalogiem, certyfikat z kodem QR), mapowanie tagów OpenStreetMap na kategorie i cechy, profil konta i konfiguracja tymczasowa, konta mieszkańców (walidacja rejestracji, zgłaszający w dokumencie i poza widokami publicznymi), punkty z utrudnieniami (walidacja, pas wokół trasy, dopasowanie do profilu, statystyki), silnik oceny, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarka połączeń, obszar mapy, zapis dokumentów MongoDB i zachowanie bez bazy, walidacja i zapis zgłoszeń, hasła urzędników, zestawienie zgłoszeń |
 
 ### Dane
 
@@ -252,6 +285,8 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 - **Konto, profil i strona główna** (baza testowa): strona główna bez konta i pulpit po zalogowaniu; konfiguracja tymczasowa "Senior" przejęta przez konto przy logowaniu; podsumowanie profilu na `/profil` i edytor na `/konto/profil`; zakładka zgłoszeń pod `/konto` i `/zgloszenia`.
 
 - **Konta firmowe na bazie testowej:** wniosek z formularza (wyszukanie lokalu, błędny NIP zatrzymany, status "czeka"); bez konta 401, sesja mieszkańca nie zatwierdza wniosków (401); przed zatwierdzeniem oznaczenia i certyfikat → 409; zatwierdzenie z panelu urzędnika; drugi wniosek i druga decyzja dla tego samego miejsca → 409; odrzucenie bez uzasadnienia → 400; zapis oznaczeń i ich widok na karcie miejsca ze zmianą oceny; podgląd certyfikatu, a kod QR odczytany z niego przez przeglądarkę (BarcodeDetector) daje adres karty miejsca; pinezki z gwiazdką, znaczek na liście i filtr "Tylko z certyfikatem"; cofnięcie zatwierdzenia zdejmuje miejsce z listy publicznej i blokuje certyfikat, ponowne zatwierdzenie zostawia numer.
+
+- **Wyszukiwanie miejsc i ławki w planie** (instancja testowa, 4.10.2026): "hotel" przy "Wszystkich kategoriach" w trybie "Zwiedzam" daje 396 miejsc (393 noclegi i 3 z frazą w nazwie), liczniki kategorii pokazują trafienia; "kosciol" znajduje 239 miejsc; lista zmienia się dopiero po Enterze, w trakcie widać wskaźnik. Plan Muzeum Czartoryskich → Barbakan → Kopiec Krakusa z profilem "Senior" (limit 500 m): odcinek 4,1 km dostał 7 ławek, ostrzeżenie o fragmencie ok. 990 m bez ławki i symbole na mapie. Wariant "komunikacja albo ławka" nie był sprawdzony ani w przeglądarce (dla tego odcinka nie było połączenia), ani testem jednostkowym.
 
 ### Nie sprawdzone
 
@@ -335,7 +370,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | Dane o komunikacji z ZTP i MSIP | tylko GTFS z ZTP | MSIP nie ma danych o komunikacji; adresy warstw ZTP nieustalone |
 | Do routingu idą "parametry trasy" | idą trzy parametry: wózek, schody, krawężnik | zgodne z zasadą prywatności, doprecyzowane |
 | Macierz czasów z routingu do układania kolejności | kolejność z odległości w linii prostej | planer nie zależy od limitu i dostępności API |
-| `BreakInserter` wstawia przerwy | ostrzeżenie i propozycja przejazdu komunikacją | przerwy (ławki, toalety) nadal do zrobienia |
+| `BreakInserter` wstawia przerwy | ostrzeżenie, propozycja przejazdu komunikacją i ławki przy trasie (`RestStopRules`) | ławki są podpowiedzią przy odcinku, a nie osobnym przystankiem planu; toalety nadal do zrobienia |
 | Toalety w liście i podpowiedziach | dostępne tylko przez filtr kategorii | zajmowały górę rankingu |
 | Zasięg miejsc: Kraków | centrum (prostokąt ok. 3 × 3 km); komunikacja obejmuje cały Kraków | mniejszy plik i szybszy import; zasięg jest jednym wpisem w `CityImports` |
 | Bez bazy danych: pliki statyczne i IndexedDB | doszło połączenie hosta z MongoDB z kolekcjami zgłoszeń i kont urzędników | zgłoszenia mają trafiać do urzędu, a nie zostawać na urządzeniu |
@@ -378,7 +413,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 | 4 | Prawdziwe dane dla miejsc demo | wiarygodność przed jury |
 | 5 | Scenariusz Pani Zofii w trybie "Załatwiam sprawę" z przejazdem komunikacją | trzecia persona z filmu |
 | 6 | Publiczne API + OpenAPI na hoście | kryterium "Projekt" |
-| 7 | Odjazdy liczone od czasu dotarcia do miejsca, przerwy na trasie | spójny plan dnia |
+| 7 | Odjazdy liczone od czasu dotarcia do miejsca, toalety jako przerwy na trasie | spójny plan dnia |
 | 8 | Opis planu przez OpenAI | punkt 8 zakresu |
 | 9 | Mapa hałasu MSIP, warstwy ZTP | mniej "brak danych" dla profili sensorycznych, cechy przystanków |
 | 10 | README, przegląd dostępności interfejsu | materiały do zgłoszenia |

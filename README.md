@@ -36,9 +36,9 @@ Informacje o dostępności miejsc w Krakowie są rozproszone i zwykle zero-jedyn
 |---|---|
 | **Dwa tryby** | **Zwiedzam** (atrakcje, muzea, kultura, jedzenie) i **Załatwiam sprawę** (urzędy, przychodnie, biblioteki, przystanki) dla turystów i mieszkańców |
 | **Profil potrzeb** | 11 gotowych profili, które można łączyć: wózek elektryczny i ręczny, kule lub balkonik, osoba niewidoma, głucha, słabosłysząca, spektrum autyzmu, nadwrażliwość sensoryczna, niepełnosprawność intelektualna, senior, wózek dziecięcy. Każdy parametr można potem zmienić |
-| **Katalog miejsc** | ponad 4 000 miejsc w Krakowie na mapie i liście, posortowanych od najlepiej dopasowanych do profilu; wyszukiwarka i filtr kategorii |
+| **Katalog miejsc** | blisko 29 000 miejsc w Krakowie w 18 kategoriach, na mapie i liście, posortowanych od najlepiej dopasowanych do profilu; filtr kategorii i wyszukiwarka po nazwie, adresie i rodzaju miejsca (np. „hotel”, „kawiarnia”), która nie rozróżnia polskich znaków |
 | **Karta miejsca** | status (dostępne / z ograniczeniami / niedostępne / brak danych), bariery, udogodnienia, braki danych, a przy każdej cesze źródło i data |
-| **Planer trasy** | kolejność przystanków (najbliższy sąsiad + 2-opt), trasa po ulicach dobrana do profilu (OpenRouteService: profil wózkowy, omijanie schodów, limit krawężnika), ostrzeżenia o stromych odcinkach |
+| **Planer trasy** | kolejność przystanków (najbliższy sąsiad + 2-opt), trasa po ulicach dobrana do profilu (OpenRouteService: profil wózkowy, omijanie schodów, limit krawężnika), ostrzeżenia o stromych odcinkach; gdy odcinek jest dłuższy niż limit marszu z profilu, plan wskazuje ławki przy trasie, na których można odpocząć |
 | **Komunikacja miejska** | dla odcinków dłuższych niż limit z profilu: linia, przystanki, godziny odjazdu i przyjazdu, najbliższe odjazdy, jedna przesiadka; rozkład ZTP Kraków (GTFS) |
 | **Zgłoszenia mieszkańców** | na karcie miejsca: „brakuje udogodnienia / bariera / błędne dane”, z listą udogodnień i opisem; zgłoszenie jest anonimowe, a status i odpowiedź urzędu widać w zakładce „Zgłoszenia” |
 | **Panel urzędnika** | logowanie, zestawienie (czego najczęściej brakuje, które miejsca mają najwięcej zgłoszeń), mapa zgłoszeń, zmiana statusu z odpowiedzią dla zgłaszającego |
@@ -226,7 +226,7 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 dotnet test src/Tests
 ```
 
-54 testy jednostkowe obejmują: silnik oceny dla person, łączenie profili, kolejność przystanków, układanie planu, zapytania i odpowiedzi OpenRouteService, wyszukiwarkę połączeń komunikacji, zapis dokumentów w MongoDB, zachowanie bez bazy, walidację zgłoszeń, hasła urzędników i zestawienie zgłoszeń.
+165 testów jednostkowych obejmuje m.in.: scenariusz samouczka, silnik oceny dla person, łączenie profili, wyszukiwanie miejsc, kolejność przystanków, układanie planu, dobór ławek na przerwę, zapytania i odpowiedzi OpenRouteService, wyszukiwarkę połączeń komunikacji, zapis dokumentów w MongoDB, zachowanie bez bazy, walidację zgłoszeń, hasła urzędników i zestawienie zgłoszeń.
 
 ## Prywatność
 

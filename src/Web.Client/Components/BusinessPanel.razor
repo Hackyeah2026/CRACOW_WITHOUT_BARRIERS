@@ -70,7 +70,7 @@ else
                     {
                         var id = $"business-feature-{key}";
                         <div class="col-md-6">
-                            <label class="form-label mb-1" for="@id">@Labels.Of(key)</label>
+                            <label class="form-label" for="@id">@Labels.Of(key)</label>
                             <select id="@id" class="form-select" value="@_declared.GetValueOrDefault(key, "")"
                                     @onchange="e => Declare(key, (string?)e.Value)">
                                 <option value="">Nie podano</option>
@@ -123,7 +123,7 @@ else
                 {
                     <div class="row g-2">
                         <div class="col-md-4">
-                            <label class="form-label mb-1" for="business-category">Rodzaj miejsca</label>
+                            <label class="form-label" for="business-category">Rodzaj miejsca</label>
                             <select id="business-category" class="form-select" @bind="_category" @bind:after="SearchAsync">
                                 @foreach (var category in _categories)
                                 {
@@ -132,7 +132,7 @@ else
                             </select>
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label mb-1" for="business-search">Nazwa miejsca</label>
+                            <label class="form-label" for="business-search">Nazwa miejsca</label>
                             <input id="business-search" class="form-control" type="search" placeholder="np. nazwa lokalu"
                                    @bind="_search" @bind:event="oninput" @bind:after="SearchAsync" />
                         </div>
@@ -155,7 +155,7 @@ else
                                     }
                                     else
                                     {
-                                        <span class="certified-badge"><span aria-hidden="true">★</span> ma już konto firmowe</span>
+                                        <span class="certified-badge"><span class="msym msym-fill" aria-hidden="true">verified</span> ma już konto firmowe</span>
                                     }
                                 </li>
                             }

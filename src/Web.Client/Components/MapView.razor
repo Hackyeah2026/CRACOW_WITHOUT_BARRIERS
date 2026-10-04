@@ -5,7 +5,7 @@
     <div id="@_id" class="map" role="application" aria-label="@Label"></div>
     <button type="button" class="btn btn-light map-fullscreen-btn" aria-pressed="@(_fullscreen ? "true" : "false")"
             aria-label="@(_fullscreen ? "Zamknij pełny ekran mapy" : "Pokaż mapę na pełnym ekranie")" @onclick="ToggleFullscreenAsync">
-        <span aria-hidden="true">⛶</span> @(_fullscreen ? "Zamknij" : "Pełny ekran")
+        <span class="msym" aria-hidden="true">@(_fullscreen ? "fullscreen_exit" : "fullscreen")</span> @(_fullscreen ? "Zamknij" : "Pełny ekran")
     </button>
 </div>
 

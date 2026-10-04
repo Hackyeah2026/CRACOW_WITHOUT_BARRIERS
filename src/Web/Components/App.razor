@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pl">
 
 <head>
@@ -7,8 +7,19 @@
     <base href="/" />
     <title>Kraków bez barier</title>
     <ResourcePreloader />
-    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0B3D6B" />
+    <link rel="preload" href="fonts/roboto-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="fonts/roboto-latin-ext.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="fonts/material-symbols-outlined-subset.woff2" as="font" type="font/woff2" crossorigin />
+    @* Z Bootstrapa zostaje reset, siatka i klasy pomocnicze; komponenty mają własne style na tokenach M3. *@
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap-reboot.min.css"]" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap-grid.min.css"]" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap-utilities.min.css"]" />
     <link rel="stylesheet" href="@Assets["lib/leaflet/leaflet.css"]" />
+    <link rel="stylesheet" href="@Assets["_content/Blazor.DriverJs/driverjs.css"]" />
+    <link rel="stylesheet" href="@Assets["css/tokens.css"]" />
+    <link rel="stylesheet" href="@Assets["css/components.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
@@ -18,6 +29,8 @@
 <body>
     <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
     <script src="@Assets["lib/leaflet/leaflet.js"]"></script>
+    <script src="@Assets["_content/Blazor.DriverJs/driverjs.js"]"></script>
+    <script src="@Assets["js/driverjs-fix.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

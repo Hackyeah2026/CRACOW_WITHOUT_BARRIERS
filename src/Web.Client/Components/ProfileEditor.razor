@@ -4,9 +4,8 @@
     <!-- Left: Presets & Parameters -->
     <div class="profile-editor">
         <!-- Presets Selection -->
-        <section class="form-section">
+        <section class="form-section" data-tour="profile-presets">
             <div class="section-header">
-                <span class="section-number">1</span>
                 <div>
                     <h2>Wybierz gotowy profil</h2>
                     <p class="section-help">Zaznacz wszystkie, które się do Ciebie odnoszą</p>
@@ -23,23 +22,7 @@
                                checked="@isSelected"
                                @onchange="e => TogglePreset(preset.Id, (bool)e.Value!)" />
                         <div class="preset-interior">
-                            <div class="preset-icon">
-                                @switch (preset.Id)
-                                {
-                                    case NeedsProfilePresets.ElectricWheelchair:
-                                    case NeedsProfilePresets.ManualWheelchair: <span>🦽</span>; break;
-                                    case NeedsProfilePresets.WalkingAid: <span>🦯</span>; break;
-                                    case NeedsProfilePresets.Blind: <span>👓</span>; break;
-                                    case NeedsProfilePresets.Deaf:
-                                    case NeedsProfilePresets.HardOfHearing: <span>👂</span>; break;
-                                    case NeedsProfilePresets.Autism:
-                                    case NeedsProfilePresets.SensorySensitivity: <span>🧠</span>; break;
-                                    case NeedsProfilePresets.EasyRead: <span>🔤</span>; break;
-                                    case NeedsProfilePresets.Senior: <span>👵</span>; break;
-                                    case NeedsProfilePresets.Stroller: <span>👨‍👧‍👦</span>; break;
-                                    default: <span>✓</span>; break;
-                                }
-                            </div>
+                            <div class="preset-icon" aria-hidden="true"><span class="msym">@PresetIcon(preset.Id)</span></div>
                             <div class="preset-text">
                                 <strong>@preset.Name</strong>
                                 <span class="preset-area">@preset.Area</span>
@@ -52,19 +35,18 @@
         </section>
 
         <!-- Parameters -->
-        <section class="form-section mt-5">
+        <section class="form-section" data-tour="profile-params">
             <div class="section-header">
-                <span class="section-number">2</span>
                 <div>
                     <h2>Dostosuj parametry</h2>
-                    <p class="section-help">Precyzuj swoje potrzeby</p>
+                    <p class="section-help">Doprecyzuj swoje potrzeby</p>
                 </div>
             </div>
 
             <div class="parameters-columns">
                 <!-- Mobility -->
                 <div class="param-group">
-                    <h3 class="param-group-title">🚶 Ruch i poruszanie się</h3>
+                    <h3 class="param-group-title"><span class="msym" aria-hidden="true">directions_walk</span>Ruch i poruszanie się</h3>
                     <Toggle Id="step-free" Label="Wejście bez stopni jest konieczne" Value="_draft.StepFreeRequired" OnChange="v => { _draft = _draft with { StepFreeRequired = v }; StateHasChanged(); }" />
                     <Toggle Id="stairs" Label="Unikam schodów" Value="_draft.AvoidStairs" OnChange="v => { _draft = _draft with { AvoidStairs = v }; StateHasChanged(); }" />
                     <Toggle Id="cobble" Label="Unikam bruku i nierównych powierzchni" Value="_draft.AvoidCobblestone" OnChange="v => { _draft = _draft with { AvoidCobblestone = v }; StateHasChanged(); }" />
@@ -73,7 +55,7 @@
 
                 <!-- Vision -->
                 <div class="param-group">
-                    <h3 class="param-group-title">👓 Wzrok</h3>
+                    <h3 class="param-group-title"><span class="msym" aria-hidden="true">blind</span>Wzrok</h3>
                     <Toggle Id="tactile" Label="Potrzebuję ścieżek dotykowych / oznaczeń fakturalnych" Value="_draft.NeedsTactilePaving" OnChange="v => { _draft = _draft with { NeedsTactilePaving = v }; StateHasChanged(); }" />
                     <Toggle Id="audiodesc" Label="Potrzebuję audiodeskrypcji / przewodnika audio" Value="_draft.NeedsAudioDescription" OnChange="v => { _draft = _draft with { NeedsAudioDescription = v }; StateHasChanged(); }" />
                     <Toggle Id="guide-dog" Label="Poruszam się z psem asystującym" Value="_draft.NeedsAssistanceDog" OnChange="v => { _draft = _draft with { NeedsAssistanceDog = v }; StateHasChanged(); }" />
@@ -81,7 +63,7 @@
 
                 <!-- Hearing -->
                 <div class="param-group">
-                    <h3 class="param-group-title">👂 Słuch</h3>
+                    <h3 class="param-group-title"><span class="msym" aria-hidden="true">hearing</span>Słuch</h3>
                     <Toggle Id="sign-lang" Label="Potrzebuję obsługi w Polskim Języku Migowym (PJM)" Value="_draft.NeedsSignLanguage" OnChange="v => { _draft = _draft with { NeedsSignLanguage = v }; StateHasChanged(); }" />
                     <Toggle Id="ind-loop" Label="Potrzebuję pętli indukcyjnej" Value="_draft.NeedsInductionLoop" OnChange="v => { _draft = _draft with { NeedsInductionLoop = v }; StateHasChanged(); }" />
                     <Toggle Id="visual-info" Label="Potrzebuję informacji i komunikatów wizualnych" Value="_draft.NeedsVisualInformation" OnChange="v => { _draft = _draft with { NeedsVisualInformation = v }; StateHasChanged(); }" />
@@ -89,10 +71,10 @@
 
                 <!-- Sensory -->
                 <div class="param-group">
-                    <h3 class="param-group-title">🧠 Sensoryka</h3>
+                    <h3 class="param-group-title"><span class="msym" aria-hidden="true">psychology</span>Sensoryka</h3>
                     <div class="form-group">
-                        <label>Hałas - co tolerujesz?</label>
-                        <select class="form-select" value="@(_draft.MaxNoiseLevel?.ToString() ?? "")"
+                        <label class="form-label" for="max-noise">Hałas - co tolerujesz?</label>
+                        <select id="max-noise" class="form-select" value="@(_draft.MaxNoiseLevel?.ToString() ?? "")"
                                 @onchange="e => { _draft = _draft with { MaxNoiseLevel = ParseLevel(e.Value) }; StateHasChanged(); }">
                             <option value="">Nie ma znaczenia</option>
                             <option value="1">Tylko bardzo cicho</option>
@@ -100,8 +82,8 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Tłum - co tolerujesz?</label>
-                        <select class="form-select" value="@(_draft.MaxCrowdLevel?.ToString() ?? "")"
+                        <label class="form-label" for="max-crowd">Tłum - co tolerujesz?</label>
+                        <select id="max-crowd" class="form-select" value="@(_draft.MaxCrowdLevel?.ToString() ?? "")"
                                 @onchange="e => { _draft = _draft with { MaxCrowdLevel = ParseLevel(e.Value) }; StateHasChanged(); }">
                             <option value="">Nie ma znaczenia</option>
                             <option value="1">Tylko mało ludzi</option>
@@ -113,28 +95,28 @@
 
                 <!-- Cognitive -->
                 <div class="param-group">
-                    <h3 class="param-group-title">🔤 Poznawcze i komunikacja</h3>
+                    <h3 class="param-group-title"><span class="msym" aria-hidden="true">text_fields</span>Poznawcze i komunikacja</h3>
                     <Toggle Id="etr" Label="Potrzebuję tekstu łatwego do czytania (ETR)" Value="_draft.NeedsEasyToRead" OnChange="v => { _draft = _draft with { NeedsEasyToRead = v }; StateHasChanged(); }" />
                     <Toggle Id="picto" Label="Potrzebuję oznaczeń piktogramowych" Value="_draft.NeedsPictograms" OnChange="v => { _draft = _draft with { NeedsPictograms = v }; StateHasChanged(); }" />
                 </div>
 
                 <!-- Fitness -->
                 <div class="param-group">
-                    <h3 class="param-group-title">💪 Kondycja i odpoczynek</h3>
+                    <h3 class="param-group-title"><span class="msym" aria-hidden="true">chair</span>Kondycja i odpoczynek</h3>
                     <Toggle Id="seating" Label="Potrzebuję łatwo dostępnych miejsc do siedzenia" Value="_draft.NeedsSeating" OnChange="v => { _draft = _draft with { NeedsSeating = v }; StateHasChanged(); }" />
                     <div class="form-group">
-                        <label>Maksymalny dystans bez odpoczynku (metry)</label>
-                        <input class="form-control" type="number" min="50" step="50"
+                        <label class="form-label" for="max-distance">Maksymalny dystans bez odpoczynku (metry)</label>
+                        <input id="max-distance" class="form-control" aria-describedby="max-distance-help" type="number" min="50" step="50"
                                value="@_draft.MaxDistanceWithoutRestM"
                                @onchange="e => { _draft = _draft with { MaxDistanceWithoutRestM = int.TryParse(e.Value?.ToString(), out var m) && m > 0 ? m : null }; StateHasChanged(); }" />
-                        <small class="form-text">Pozostaw puste, jeśli brak limitu</small>
+                        <small id="max-distance-help" class="form-text">Pozostaw puste, jeśli brak limitu</small>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- Actions -->
-        <section class="form-section mt-5">
+        <section class="form-section" data-tour="profile-save">
             <div class="form-actions">
                 <button type="button" class="btn btn-primary btn-lg" @onclick="SaveAsync">
                     @SaveLabel
@@ -143,24 +125,24 @@
                     Wyczyść profil
                 </button>
             </div>
-            <p class="form-note" role="status">💾 @(_saved ? "Zapisano. " : "")@Note</p>
+            <p class="form-note" role="status"><span class="msym" aria-hidden="true">save</span> @(_saved ? "Zapisano. " : "")@Note</p>
         </section>
     </div>
 
     <!-- Right: Live Preview (Sticky) -->
     <div class="profile-preview">
         <div class="preview-sticky">
-            <h3 class="preview-title">📋 Podgląd profilu</h3>
+            <h3 class="preview-title">Podgląd profilu</h3>
             <div class="preview-content">
                 <ProfileSummary Profile="_draft" />
             </div>
             <div class="preview-stats">
                 <div class="stat">
-                    <span class="stat-label">Wybranych presetów:</span>
+                    <span class="stat-label">Wybrane profile:</span>
                     <span class="stat-value">@_draft.Presets.Count</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">Parametrów dostosowanych:</span>
+                    <span class="stat-label">Ustawione potrzeby:</span>
                     <span class="stat-value">@CountCustomParameters()</span>
                 </div>
             </div>
@@ -172,6 +154,22 @@
 </div>
 
 @code {
+    private static string PresetIcon(string id) => id switch
+    {
+        NeedsProfilePresets.ElectricWheelchair => "accessible_forward",
+        NeedsProfilePresets.ManualWheelchair => "accessible",
+        NeedsProfilePresets.WalkingAid => "assist_walker",
+        NeedsProfilePresets.Blind => "blind",
+        NeedsProfilePresets.Deaf => "hearing_disabled",
+        NeedsProfilePresets.HardOfHearing => "hearing",
+        NeedsProfilePresets.Autism => "psychology",
+        NeedsProfilePresets.SensorySensitivity => "sensors",
+        NeedsProfilePresets.EasyRead => "text_fields",
+        NeedsProfilePresets.Senior => "elderly",
+        NeedsProfilePresets.Stroller => "stroller",
+        _ => "check"
+    };
+
     private NeedsProfile _draft = NeedsProfile.Empty;
     private bool _saved;
 

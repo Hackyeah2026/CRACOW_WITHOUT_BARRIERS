@@ -1,0 +1,1146 @@
+/* Podstawa i komponenty współdzielone. Kolory, pismo, promienie i czasy tylko z tokens.css.
+   Nazwy klas (btn, card, alert, form-control...) zostały z Bootstrapa, żeby nie zmieniać znaczników; wygląd jest własny. */
+
+/* ---------- Podstawa ---------- */
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    --kbb-surface: var(--md-sys-color-surface);
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    font: var(--md-sys-typescale-body-large);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0 0 var(--kbb-space-3);
+    color: var(--md-sys-color-on-surface);
+    text-wrap: balance;
+}
+
+h1, .h1 { font: var(--md-sys-typescale-headline-medium); }
+h2, .h2 { font: var(--md-sys-typescale-headline-small); }
+h3, .h3, .h4 { font: var(--md-sys-typescale-title-large); }
+h4, .h5 { font: var(--md-sys-typescale-title-large); }
+h5, h6, .h6 { font: var(--md-sys-typescale-title-medium); }
+
+@media (min-width: 840px) {
+    h1, .h1 { font: var(--md-sys-typescale-headline-large); }
+}
+
+p {
+    margin: 0 0 var(--kbb-space-4);
+}
+
+small, .small {
+    font: var(--md-sys-typescale-body-medium);
+}
+
+strong {
+    font-weight: 700;
+}
+
+.display-6 {
+    font: var(--md-sys-typescale-display-small);
+}
+
+.list-unstyled {
+    padding-left: 0;
+    list-style: none;
+}
+
+/* Link w tekście ma podkreślenie, żeby nie odróżniał go sam kolor. */
+a {
+    color: var(--md-sys-color-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+a:hover {
+    color: var(--md-sys-color-primary);
+    text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+    outline: var(--kbb-focus-width) solid var(--kbb-focus-color);
+    outline-offset: 2px;
+}
+
+/* Nagłówek, na który po nawigacji trafia fokus (FocusOnNavigate), nie jest kontrolką, więc nie dostaje obrysu. */
+[tabindex="-1"]:focus-visible {
+    outline: none;
+}
+
+.text-muted, .text-secondary, .text-body-secondary {
+    color: var(--md-sys-color-on-surface-variant) !important;
+}
+
+.text-danger {
+    color: var(--md-sys-color-error) !important;
+}
+
+.text-warning-emphasis {
+    color: var(--kbb-color-limited) !important;
+}
+
+.border-start {
+    border-left-color: var(--md-sys-color-outline) !important;
+}
+
+/* Ikona Material Symbols: zawsze z aria-hidden i z tekstem obok. */
+.msym {
+    display: inline-block;
+    flex-shrink: 0;
+    font-family: "Material Symbols Outlined";
+    font-size: var(--kbb-icon-size);
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    vertical-align: -0.25em;
+    font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+}
+
+.msym-fill {
+    font-variation-settings: "FILL" 1;
+}
+
+.skip-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: var(--kbb-z-skip-link);
+    padding: var(--kbb-space-3) var(--kbb-space-4);
+    border-radius: 0 0 var(--md-sys-shape-corner-small) 0;
+    background: var(--md-sys-color-surface-container-lowest);
+    color: var(--md-sys-color-primary);
+    font: var(--md-sys-typescale-label-large);
+}
+
+/* ---------- Przyciski ---------- */
+
+.btn {
+    --_bg: transparent;
+    --_fg: var(--md-sys-color-primary);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--kbb-space-2);
+    min-width: var(--kbb-target);
+    min-height: var(--kbb-target);
+    padding: var(--kbb-space-2) var(--kbb-space-6);
+    border: 1px solid transparent;
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background-color: var(--_bg);
+    color: var(--_fg);
+    font: var(--md-sys-typescale-label-large);
+    letter-spacing: 0.00625rem;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.btn:hover {
+    background-color: color-mix(in srgb, var(--_fg) var(--md-sys-state-hover-opacity), var(--_bg));
+    color: var(--_fg);
+}
+
+.btn:active {
+    background-color: color-mix(in srgb, var(--_fg) var(--md-sys-state-pressed-opacity), var(--_bg));
+}
+
+.btn .msym {
+    margin-left: calc(var(--kbb-space-2) * -1);
+    font-size: 1.25rem;
+    vertical-align: middle;
+}
+
+/* filled */
+.btn-primary {
+    --_bg: var(--md-sys-color-primary);
+    --_fg: var(--md-sys-color-on-primary);
+}
+
+.btn-primary:hover {
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.btn-danger {
+    --_bg: var(--md-sys-color-error);
+    --_fg: var(--md-sys-color-on-error);
+}
+
+/* tonal; btn-success to stan „W planie” */
+.btn-secondary, .btn-success {
+    --_bg: var(--md-sys-color-secondary-container);
+    --_fg: var(--md-sys-color-on-secondary-container);
+}
+
+/* outlined */
+.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger, .btn-light {
+    border-color: var(--md-sys-color-outline);
+}
+
+.btn-outline-danger {
+    --_fg: var(--md-sys-color-error);
+}
+
+.btn-light {
+    --_bg: var(--md-sys-color-surface-container-lowest);
+    --_fg: var(--md-sys-color-on-surface);
+}
+
+/* text */
+.btn-link {
+    padding-inline: var(--kbb-space-3);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+.btn-sm {
+    padding-inline: var(--kbb-space-4);
+}
+
+.btn:disabled, .btn.disabled {
+    border-color: transparent;
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
+    color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+    box-shadow: none;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Przycisk z samą ikoną (strzałki kolejności w planie) */
+.btn-move {
+    padding: 0;
+}
+
+.btn-move .msym {
+    margin: 0;
+    font-size: var(--kbb-icon-size);
+}
+
+/* ---------- Karty ---------- */
+
+.card {
+    --kbb-surface: var(--md-sys-color-surface-container-low);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+}
+
+.card-body {
+    flex: 1 1 auto;
+    padding: var(--kbb-space-4);
+}
+
+@media (min-width: 600px) {
+    .card-body {
+        padding: var(--kbb-space-6);
+    }
+}
+
+/* ---------- Plakietki ---------- */
+
+/* Ocena dostępności i statusy: ikona lub tekst, obramowanie i kolor; nigdy sam kolor. */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: var(--kbb-space-1) var(--kbb-space-3);
+    border: 1px solid var(--kbb-color-unknown);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--kbb-color-unknown-container);
+    color: var(--kbb-color-on-unknown-container);
+    font: var(--md-sys-typescale-label-large);
+    white-space: nowrap;
+}
+
+.status-badge .msym {
+    margin-left: calc(var(--kbb-space-1) * -1);
+    font-size: 1.25rem;
+    color: var(--kbb-color-unknown);
+    vertical-align: middle;
+}
+
+.status-ok, .status-accessible {
+    border-color: var(--kbb-color-ok);
+    background: var(--kbb-color-ok-container);
+    color: var(--kbb-color-on-ok-container);
+}
+
+.status-ok .msym, .status-accessible .msym {
+    color: var(--kbb-color-ok);
+}
+
+.status-limited {
+    border-color: var(--kbb-color-limited);
+    background: var(--kbb-color-limited-container);
+    color: var(--kbb-color-on-limited-container);
+}
+
+.status-limited .msym {
+    color: var(--kbb-color-limited);
+}
+
+.status-no, .status-inaccessible {
+    border-color: var(--kbb-color-no);
+    background: var(--kbb-color-no-container);
+    color: var(--kbb-color-on-no-container);
+}
+
+.status-no .msym, .status-inaccessible .msym {
+    color: var(--kbb-color-no);
+}
+
+.status-unknown {
+    border-style: dashed;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+    padding: 2px var(--kbb-space-2);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    font: var(--md-sys-typescale-label-medium);
+    letter-spacing: 0.03em;
+    vertical-align: middle;
+}
+
+.badge.text-bg-light, .badge.text-bg-secondary {
+    background: var(--md-sys-color-secondary-container) !important;
+    color: var(--md-sys-color-on-secondary-container) !important;
+}
+
+.badge.text-bg-success {
+    background: var(--kbb-color-ok-container) !important;
+    color: var(--kbb-color-on-ok-container) !important;
+}
+
+.badge.text-bg-warning {
+    background: var(--kbb-color-limited-container) !important;
+    color: var(--kbb-color-on-limited-container) !important;
+}
+
+.badge.border {
+    border: 1px solid var(--md-sys-color-outline) !important;
+}
+
+.certified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--kbb-space-1);
+    min-height: 1.5rem;
+    padding: 2px var(--kbb-space-2);
+    border: 1px solid var(--md-sys-color-tertiary);
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+    font: var(--md-sys-typescale-label-large);
+    white-space: nowrap;
+}
+
+.certified-badge .msym {
+    font-size: 1.125rem;
+    vertical-align: middle;
+}
+
+/* ---------- Chipy ---------- */
+
+/* Przełącznik z dwóch przycisków z aria-pressed wygląda jak chipy filtrujące; stan pokazuje też znak wyboru. */
+.mode-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--kbb-space-2);
+}
+
+.mode-selector .btn {
+    --_bg: transparent;
+    --_fg: var(--md-sys-color-on-surface-variant);
+    padding-inline: var(--kbb-space-4);
+    border-color: var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small);
+}
+
+.mode-selector .btn[aria-pressed="true"] {
+    --_bg: var(--md-sys-color-secondary-container);
+    --_fg: var(--md-sys-color-on-secondary-container);
+    border-color: var(--md-sys-color-on-secondary-container);
+}
+
+.mode-selector .btn[aria-pressed="true"]::before {
+    font-family: "Material Symbols Outlined";
+    font-size: 1.25rem;
+    font-weight: 400;
+    line-height: 1;
+    font-feature-settings: "liga";
+    content: "check";
+    content: "check" / "";
+}
+
+.mode-selector .btn .msym {
+    margin-left: 0;
+}
+
+.mode-selector .btn[aria-pressed="true"] .msym {
+    display: none;
+}
+
+.needs-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--kbb-space-2);
+    margin: var(--kbb-space-3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.needs-list li {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: var(--kbb-space-1) var(--kbb-space-3);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small);
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-label-large);
+}
+
+/* ---------- Pola formularzy ---------- */
+
+/* Etykieta zawsze widoczna, osadzona na górnej krawędzi pola (outlined text field). */
+.form-label {
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+    max-width: calc(100% - 1.5rem);
+    margin: 0 0 -0.625rem 0.75rem;
+    padding: 0 var(--kbb-space-1);
+    background: var(--kbb-surface);
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-label-large);
+}
+
+.form-control, .form-select {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    padding: var(--kbb-space-4) var(--kbb-space-4) var(--kbb-space-3);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface);
+    font: var(--md-sys-typescale-body-large);
+    appearance: none;
+    transition: border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.form-control:hover, .form-select:hover {
+    border-color: var(--md-sys-color-on-surface);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: inset 0 0 0 1px var(--md-sys-color-primary);
+}
+
+.form-control::placeholder {
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 1;
+}
+
+textarea.form-control {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+/* Strzałka w kolorze outline jest czytelna w obu motywach. */
+.form-select {
+    padding-right: 3rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2373777F' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.5rem;
+}
+
+.form-select option {
+    background: var(--md-sys-color-surface-container);
+    color: var(--md-sys-color-on-surface);
+}
+
+.form-text {
+    display: block;
+    margin-top: var(--kbb-space-1);
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-body-medium);
+}
+
+.input-group {
+    display: flex;
+    align-items: stretch;
+    gap: var(--kbb-space-2);
+}
+
+.input-group > .form-control {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.input-group > .btn {
+    flex: none;
+    min-height: 56px;
+}
+
+fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+legend {
+    float: none;
+    width: auto;
+    margin-bottom: var(--kbb-space-2);
+    padding: 0;
+    font: var(--md-sys-typescale-title-medium);
+}
+
+/* Checkbox i radio: natywne kontrolki (działają w trybie wysokiego kontrastu), cały wiersz ma 48 px. */
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: var(--kbb-space-3);
+    min-height: var(--kbb-target);
+}
+
+.form-check-input {
+    flex: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: 0;
+    accent-color: var(--md-sys-color-primary);
+    cursor: pointer;
+}
+
+.form-check-label {
+    flex: 1 1 auto;
+    padding-block: var(--kbb-space-2);
+    cursor: pointer;
+}
+
+.validation-message {
+    margin-top: var(--kbb-space-1);
+    color: var(--md-sys-color-error);
+    font: var(--md-sys-typescale-body-medium);
+}
+
+.invalid {
+    border-color: var(--md-sys-color-error);
+}
+
+/* ---------- Banery ---------- */
+
+.alert {
+    position: relative;
+    margin-bottom: var(--kbb-space-4);
+    padding: var(--kbb-space-3) var(--kbb-space-4) var(--kbb-space-3) 3.25rem;
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+.alert::before {
+    position: absolute;
+    top: var(--kbb-space-3);
+    left: var(--kbb-space-4);
+    font-family: "Material Symbols Outlined";
+    font-size: 1.5rem;
+    font-weight: 400;
+    line-height: 1.5rem;
+    font-feature-settings: "liga";
+    content: "info";
+    content: "info" / "";
+}
+
+.alert a, .alert-link {
+    color: inherit;
+    font-weight: 500;
+}
+
+.alert-info {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.alert-warning {
+    border-color: var(--kbb-color-limited);
+    background: var(--kbb-color-limited-container);
+    color: var(--kbb-color-on-limited-container);
+}
+
+.alert-warning::before {
+    content: "warning";
+    content: "warning" / "";
+}
+
+.alert-danger {
+    border-color: var(--md-sys-color-error);
+    background: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+}
+
+.alert-danger::before {
+    content: "error";
+    content: "error" / "";
+}
+
+.alert-success {
+    border-color: var(--kbb-color-ok);
+    background: var(--kbb-color-ok-container);
+    color: var(--kbb-color-on-ok-container);
+}
+
+.alert-success::before {
+    content: "check_circle";
+    content: "check_circle" / "";
+}
+
+/* Notatka przy odcinku trasy, opis punktu, werdykt zdjęcia */
+.hazard-note, .photo-verdict, .transit {
+    margin-top: var(--kbb-space-2);
+    padding: var(--kbb-space-3) var(--kbb-space-4);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+.hazard-concerns, .transit-none {
+    border-color: var(--md-sys-color-error);
+    background: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+}
+
+.photo-verdict-likely {
+    border-color: var(--kbb-color-limited);
+    background: var(--kbb-color-limited-container);
+    color: var(--kbb-color-on-limited-container);
+}
+
+.photo-verdict-unlikely {
+    border-color: var(--kbb-color-ok);
+    background: var(--kbb-color-ok-container);
+    color: var(--kbb-color-on-ok-container);
+}
+
+.photo-verdict .form-text {
+    color: inherit;
+}
+
+.photo-meter {
+    height: var(--kbb-space-2);
+    margin: var(--kbb-space-2) 0;
+    border: 1px solid currentColor;
+    border-radius: var(--md-sys-shape-corner-full);
+    overflow: hidden;
+}
+
+.photo-meter span {
+    display: block;
+    height: 100%;
+    background: currentColor;
+}
+
+.report-description {
+    white-space: pre-line;
+}
+
+/* ---------- Zakładki ---------- */
+
+.nav {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.nav-tabs {
+    align-items: flex-end;
+    gap: 0 var(--kbb-space-1);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.nav-tabs .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--kbb-space-2);
+    min-height: var(--kbb-target);
+    margin-bottom: -1px;
+    padding: 0 var(--kbb-space-4);
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-title-small);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.nav-tabs .nav-link:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+    color: var(--md-sys-color-on-surface);
+}
+
+.nav-tabs .nav-link.active {
+    border-bottom-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-primary);
+}
+
+/* ---------- Postęp ---------- */
+
+.spinner-border {
+    display: inline-block;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 4px solid var(--md-sys-color-outline-variant);
+    border-top-color: var(--md-sys-color-primary);
+    border-radius: 50%;
+    vertical-align: -0.25em;
+    animation: kbb-spin 1s linear infinite;
+}
+
+.spinner-border-sm {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-width: 2px;
+}
+
+.btn .spinner-border {
+    border-color: color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+}
+
+@keyframes kbb-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Wskaźnik postępu jest informacją, więc zostaje, ale obraca się wolno. */
+/* Samouczek (driver.js): dymek na tokenach M3 zamiast stałych kolorów biblioteki. */
+.driver-popover.kbb-tour {
+    max-width: min(360px, calc(100vw - 2 * var(--kbb-space-4)));
+    padding: var(--kbb-space-4);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+    box-shadow: var(--md-sys-elevation-level3);
+}
+
+.driver-popover.kbb-tour * {
+    font-family: var(--md-ref-typeface-plain);
+}
+
+.kbb-tour .driver-popover-title {
+    padding-right: var(--kbb-target);
+    font: var(--md-sys-typescale-title-medium);
+}
+
+.kbb-tour .driver-popover-description {
+    font: var(--md-sys-typescale-body-medium);
+}
+
+.kbb-tour .driver-popover-progress-text {
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-body-medium);
+}
+
+.kbb-tour .driver-popover-footer {
+    flex-wrap: wrap;
+    gap: var(--kbb-space-2);
+}
+
+.kbb-tour .driver-popover-footer button {
+    min-height: var(--kbb-target);
+    padding: 0 var(--kbb-space-4);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background-color: transparent;
+    color: var(--md-sys-color-primary);
+    font: var(--md-sys-typescale-label-large);
+    line-height: var(--kbb-target);
+    text-shadow: none;
+}
+
+.kbb-tour .driver-popover-footer .driver-popover-next-btn {
+    border-color: var(--md-sys-color-primary);
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+.kbb-tour .driver-popover-close-btn {
+    width: var(--kbb-target);
+    height: var(--kbb-target);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 1.5rem;
+}
+
+.kbb-tour .driver-popover-close-btn:hover {
+    color: var(--md-sys-color-on-surface);
+}
+
+.kbb-tour .driver-popover-footer button:focus-visible, .kbb-tour .driver-popover-close-btn:focus-visible {
+    outline: var(--kbb-focus-width) solid var(--kbb-focus-color);
+    outline-offset: 2px;
+}
+
+.kbb-tour .driver-popover-arrow {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner-border {
+        animation-duration: 4s;
+    }
+}
+
+/* ---------- Tabele i listy ---------- */
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    margin-bottom: var(--kbb-space-4);
+    border-collapse: collapse;
+    color: var(--md-sys-color-on-surface);
+    font: var(--md-sys-typescale-body-medium);
+}
+
+.table th, .table td {
+    padding: var(--kbb-space-3) var(--kbb-space-3);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    text-align: left;
+    vertical-align: top;
+}
+
+.table-sm th, .table-sm td {
+    padding: var(--kbb-space-2) var(--kbb-space-3);
+}
+
+.table thead th {
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-title-small);
+}
+
+.table tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+.table .text-end {
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-table td.stat-bar-cell {
+    width: 45%;
+    vertical-align: middle;
+}
+
+.stat-bar {
+    min-width: 2px;
+    height: var(--kbb-space-3);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    background: var(--md-sys-color-primary);
+}
+
+.stat-bar.stat-bar-alt {
+    background: var(--kbb-color-limited);
+}
+
+.list-group {
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    list-style: none;
+    overflow: hidden;
+}
+
+.list-group-item {
+    padding: var(--kbb-space-2) var(--kbb-space-4);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.list-group-item:last-child {
+    border-bottom: 0;
+}
+
+/* ---------- Snackbar i dialog ---------- */
+
+.snackbar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--kbb-nav-bar-height) + var(--kbb-space-6) + env(safe-area-inset-bottom, 0px));
+    z-index: var(--kbb-z-snackbar);
+    display: flex;
+    align-items: center;
+    gap: var(--kbb-space-2);
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--kbb-space-4));
+    min-height: var(--kbb-target);
+    padding: var(--kbb-space-3) var(--kbb-space-4);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    background: var(--md-sys-color-inverse-surface);
+    color: var(--md-sys-color-inverse-on-surface);
+    font: var(--md-sys-typescale-body-medium);
+    box-shadow: var(--md-sys-elevation-level3);
+    transform: translateX(-50%);
+    animation: kbb-snackbar-in var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+@keyframes kbb-snackbar-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(var(--kbb-space-2));
+    }
+}
+
+@media (min-width: 840px) {
+    .snackbar {
+        bottom: var(--kbb-space-6);
+    }
+}
+
+.kbb-dialog {
+    --kbb-surface: var(--md-sys-color-surface-container-high);
+    width: min(35rem, calc(100vw - 2 * var(--kbb-space-4)));
+    padding: var(--kbb-space-6);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+    box-shadow: var(--md-sys-elevation-level3);
+}
+
+.kbb-dialog::backdrop {
+    background: var(--md-sys-color-scrim);
+}
+
+.kbb-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--kbb-space-2);
+    margin-top: var(--kbb-space-6);
+}
+
+/* ---------- Mapa ---------- */
+
+.map-frame {
+    position: relative;
+    background: var(--md-sys-color-surface-container);
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.map {
+    height: 28rem;
+    max-height: 70dvh;
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-medium);
+    overflow: hidden;
+}
+
+@media (max-width: 839px) {
+    .map {
+        height: 20rem;
+    }
+}
+
+.map-fullscreen-btn {
+    position: absolute;
+    top: var(--kbb-space-3);
+    right: var(--kbb-space-3);
+    z-index: 1001;
+    padding-inline: var(--kbb-space-4);
+    box-shadow: var(--md-sys-elevation-level2);
+}
+
+.map-fullscreen-btn .msym {
+    margin-left: 0;
+}
+
+.map-frame.map-frame-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: var(--kbb-z-map-fullscreen);
+    border-radius: 0;
+}
+
+.map-frame:fullscreen .map,
+.map-frame.map-frame-fullscreen .map {
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+}
+
+/* Pinezki leżą na zawsze jasnych kaflach mapy, więc mają stałe kolory z tokenów mapy. */
+.map-pin, .map-certified {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 2px solid var(--kbb-color-map-surface);
+    border-radius: 50%;
+    color: var(--kbb-color-map-surface);
+    font: var(--md-sys-typescale-label-large);
+    font-weight: 700;
+    box-shadow: 0 0 0 1.5px var(--kbb-color-map-outline);
+}
+
+.map-certified {
+    width: 34px;
+    height: 34px;
+    border: 3px solid var(--kbb-color-map-certified);
+    font-family: "Material Symbols Outlined";
+    font-size: 1.125rem;
+    font-weight: 400;
+    box-shadow: 0 0 0 2px var(--kbb-color-map-outline);
+}
+
+.map-symbol-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--kbb-color-map-outline);
+    border-radius: 50%;
+    background: var(--kbb-color-map-surface);
+    color: var(--kbb-color-map-outline);
+}
+
+.map-symbol-icon .msym {
+    font-size: 1.125rem;
+    vertical-align: middle;
+}
+
+.map-pick-icon {
+    color: var(--kbb-color-map-end);
+    text-align: center;
+    cursor: grab;
+    filter: drop-shadow(0 0 1px var(--kbb-color-map-surface)) drop-shadow(0 1px 2px var(--kbb-color-map-outline));
+}
+
+.map-pick-icon .msym {
+    font-size: 40px;
+    line-height: 40px;
+}
+
+.map-label {
+    font: var(--md-sys-typescale-label-large);
+}
+
+.map-label-transit {
+    border-color: var(--kbb-color-map-transit);
+    background: var(--kbb-color-map-transit);
+    color: var(--kbb-color-map-surface);
+    font: var(--md-sys-typescale-label-large);
+    font-weight: 700;
+}
+
+.map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--kbb-space-1) var(--kbb-space-4);
+}
+
+.map-legend li {
+    display: flex;
+    align-items: center;
+    gap: var(--kbb-space-2);
+}
+
+.map-legend .msym {
+    font-size: 1.25rem;
+}
+
+.map-legend-pin {
+    width: 1rem;
+    height: 1rem;
+    border: 1.5px solid var(--kbb-color-map-outline);
+    border-radius: 50%;
+    background: var(--kbb-color-map-middle);
+}
+
+.map-legend-line {
+    width: 2rem;
+    border-top: 4px solid var(--kbb-color-map-transit);
+}
+
+.map-legend-walk {
+    border-top: 4px dashed var(--kbb-color-map-walk);
+}
+
+.map-legend-pin.stop-start { background: var(--kbb-color-map-start); }
+.map-legend-pin.stop-end { background: var(--kbb-color-map-end); }
+
+/* Legenda leży na tle strony; w ciemnym motywie linie potrzebują jaśniejszego tonu, żeby je było widać. */
+@media (prefers-color-scheme: dark) {
+    .map-legend-pin { border-color: var(--md-sys-color-on-surface); }
+    .map-legend-walk { border-top-color: var(--md-sys-color-primary); }
+    .map-legend-line:not(.map-legend-walk) { border-top-color: var(--md-sys-color-on-surface); }
+}
+
+/* ---------- Tryb wymuszonych kolorów (Windows High Contrast) ---------- */
+
+@media (forced-colors: active) {
+    .btn, .card, .alert, .status-badge, .badge, .certified-badge, .needs-list li,
+    .hazard-note, .photo-verdict, .transit, .snackbar, .kbb-dialog {
+        border: 1px solid CanvasText;
+    }
+
+    .btn:disabled, .btn.disabled {
+        border-color: GrayText;
+        color: GrayText;
+    }
+
+    .mode-selector .btn[aria-pressed="true"], .nav-tabs .nav-link.active {
+        border-color: Highlight;
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    .stat-bar, .photo-meter span {
+        forced-color-adjust: none;
+        background: CanvasText;
+    }
+
+    .map-frame {
+        forced-color-adjust: none;
+    }
+}

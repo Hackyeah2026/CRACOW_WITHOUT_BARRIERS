@@ -1,0 +1,36 @@
+@implements IDisposable
+
+@* Krótkie potwierdzenie akcji. Region role="status" jest w DOM stale, żeby czytnik ekranu odczytał nową treść. *@
+<div role="status">
+    @if (_message is not null)
+    {
+        <div class="snackbar">@_message</div>
+    }
+</div>
+
+@code {
+    private const int VisibleMs = 5000;
+    private string? _message;
+    private CancellationTokenSource? _hide;
+
+    /// <summary>Pokazuje komunikat; kolejny zastępuje poprzedni i liczy czas od nowa.</summary>
+    public async Task ShowAsync(string message)
+    {
+        _hide?.Cancel();
+        var hide = _hide = new CancellationTokenSource();
+        _message = message;
+        StateHasChanged();
+        try
+        {
+            await Task.Delay(VisibleMs, hide.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        _message = null;
+        StateHasChanged();
+    }
+
+    public void Dispose() => _hide?.Cancel();
+}

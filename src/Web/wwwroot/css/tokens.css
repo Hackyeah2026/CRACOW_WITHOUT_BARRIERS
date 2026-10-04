@@ -1,0 +1,251 @@
+/* Tokeny systemu designu (Material Design 3). Jedyne miejsce, w którym wolno wpisać kolor, rozmiar pisma, promień czy czas animacji.
+   Kolory mapy są wyjątkiem: kafle OpenStreetMap są zawsze jasne, więc pinezki mają stałą paletę w Labels.cs i map.js. */
+
+@font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("../fonts/roboto-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("../fonts/roboto-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Podzbiór ikon używanych w aplikacji; nową ikonę trzeba dodać do pliku czcionki. */
+@font-face {
+    font-family: "Material Symbols Outlined";
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url("../fonts/material-symbols-outlined-subset.woff2") format("woff2");
+}
+
+:root {
+    color-scheme: light dark;
+
+    /* Kolory: motyw jasny */
+    --md-sys-color-primary: #0B4F8A;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #D3E4FF;
+    --md-sys-color-on-primary-container: #001C38;
+    --md-sys-color-secondary: #52606F;
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: #D6E4F7;
+    --md-sys-color-on-secondary-container: #0F1D2A;
+    --md-sys-color-tertiary: #765A00;
+    --md-sys-color-on-tertiary: #FFFFFF;
+    --md-sys-color-tertiary-container: #FFDF9E;
+    --md-sys-color-on-tertiary-container: #251A00;
+    --md-sys-color-error: #BA1A1A;
+    --md-sys-color-on-error: #FFFFFF;
+    --md-sys-color-error-container: #FFDAD6;
+    --md-sys-color-on-error-container: #410002;
+    --md-sys-color-surface: #F8F9FF;
+    --md-sys-color-surface-container-lowest: #FFFFFF;
+    --md-sys-color-surface-container-low: #F2F3FA;
+    --md-sys-color-surface-container: #ECEEF4;
+    --md-sys-color-surface-container-high: #E6E8EE;
+    --md-sys-color-surface-container-highest: #E1E2E8;
+    --md-sys-color-on-surface: #191C20;
+    --md-sys-color-on-surface-variant: #43474E;
+    --md-sys-color-outline: #73777F;
+    --md-sys-color-outline-variant: #C3C7CF;
+    --md-sys-color-inverse-surface: #2E3135;
+    --md-sys-color-inverse-on-surface: #EFF0F7;
+    --md-sys-color-inverse-primary: #A2C9FF;
+    --md-sys-color-scrim: rgb(0 0 0 / 0.5);
+    --md-sys-color-shadow: rgb(11 61 107 / 0.25);
+
+    /* Pasek aplikacji zostaje granatowy w obu motywach, żeby białe logo nie wymagało zmian. */
+    --kbb-color-app-bar: #0B3D6B;
+    --kbb-color-on-app-bar: #FFFFFF;
+
+    /* Oceny dostępności i statusy: akcent (ikona, obramowanie), kontener, tekst na kontenerze. */
+    --kbb-color-ok: #146C2E;
+    --kbb-color-ok-container: #C4EED0;
+    --kbb-color-on-ok-container: #072711;
+    --kbb-color-limited: #8A5100;
+    --kbb-color-limited-container: #FFDDB3;
+    --kbb-color-on-limited-container: #2B1700;
+    --kbb-color-no: #BA1A1A;
+    --kbb-color-no-container: #FFDAD6;
+    --kbb-color-on-no-container: #410002;
+    --kbb-color-unknown: #5C5F66;
+    --kbb-color-unknown-container: #E1E2E8;
+    --kbb-color-on-unknown-container: #191C20;
+
+    /* Te same kolory co na mapie (Labels.cs, map.js), do legendy. */
+    --kbb-color-map-surface: #FFFFFF;
+    --kbb-color-map-certified: #F2B600;
+    --kbb-color-map-outline: #191C20;
+    --kbb-color-map-walk: #0B4F8A;
+    --kbb-color-map-transit: #7A2E8F;
+    --kbb-color-map-start: #146C2E;
+    --kbb-color-map-middle: #0B4F8A;
+    --kbb-color-map-end: #BA1A1A;
+
+    /* Typografia */
+    --md-ref-typeface-plain: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --md-sys-typescale-display-small: 400 2.25rem/2.75rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-headline-large: 400 2rem/2.5rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-headline-medium: 400 1.75rem/2.25rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-headline-small: 400 1.5rem/2rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-title-large: 400 1.375rem/1.75rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-title-medium: 500 1rem/1.5rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-title-small: 500 0.875rem/1.25rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-body-large: 400 1rem/1.5rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-body-medium: 400 0.875rem/1.25rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-label-large: 500 0.875rem/1.25rem var(--md-ref-typeface-plain);
+    --md-sys-typescale-label-medium: 500 0.75rem/1rem var(--md-ref-typeface-plain);
+
+    /* Kształt: pola 4, chipy 8, karty i banery 12, dialog 28, przyciski i plakietki pełne. */
+    --md-sys-shape-corner-extra-small: 4px;
+    --md-sys-shape-corner-small: 8px;
+    --md-sys-shape-corner-medium: 12px;
+    --md-sys-shape-corner-large: 16px;
+    --md-sys-shape-corner-extra-large: 28px;
+    --md-sys-shape-corner-full: 999px;
+
+    /* Odstępy: siatka 4/8 */
+    --kbb-space-1: 4px;
+    --kbb-space-2: 8px;
+    --kbb-space-3: 12px;
+    --kbb-space-4: 16px;
+    --kbb-space-6: 24px;
+    --kbb-space-8: 32px;
+    --kbb-space-12: 48px;
+    --kbb-page-gutter: 16px;
+    --kbb-target: 48px;
+    --kbb-icon-size: 1.5rem;
+
+    /* Elevation: hierarchię niosą tony powierzchni, cień tylko dla warstw pływających. */
+    --md-sys-elevation-level0: none;
+    --md-sys-elevation-level1: 0 1px 2px var(--md-sys-color-shadow);
+    --md-sys-elevation-level2: 0 2px 6px var(--md-sys-color-shadow);
+    --md-sys-elevation-level3: 0 6px 16px var(--md-sys-color-shadow);
+
+    /* Stany */
+    --md-sys-state-hover-opacity: 8%;
+    --md-sys-state-pressed-opacity: 12%;
+    --kbb-focus-width: 3px;
+    --kbb-focus-color: var(--md-sys-color-primary);
+
+    /* Ruch */
+    --md-sys-motion-duration-short2: 100ms;
+    --md-sys-motion-duration-short4: 200ms;
+    --md-sys-motion-duration-medium2: 300ms;
+    --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+    --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+    /* Warstwy */
+    --kbb-z-nav: 1100;
+    --kbb-z-map-fullscreen: 2000;
+    --kbb-z-snackbar: 2100;
+    --kbb-z-skip-link: 2200;
+
+    /* Układ: szerokość szyny nawigacji i wysokość dolnego paska */
+    --kbb-rail-width: 96px;
+    --kbb-nav-bar-height: 92px;
+}
+
+@media (min-width: 600px) {
+    :root {
+        --kbb-page-gutter: 24px;
+    }
+}
+
+@media (min-width: 840px) {
+    :root {
+        --kbb-page-gutter: 32px;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --md-sys-color-primary: #A2C9FF;
+        --md-sys-color-on-primary: #00315C;
+        --md-sys-color-primary-container: #0B4879;
+        --md-sys-color-on-primary-container: #D3E4FF;
+        --md-sys-color-secondary: #BAC8DA;
+        --md-sys-color-on-secondary: #243240;
+        --md-sys-color-secondary-container: #3A4857;
+        --md-sys-color-on-secondary-container: #D6E4F7;
+        --md-sys-color-tertiary: #EBC248;
+        --md-sys-color-on-tertiary: #3E2E00;
+        --md-sys-color-tertiary-container: #594400;
+        --md-sys-color-on-tertiary-container: #FFDF9E;
+        --md-sys-color-error: #FFB4AB;
+        --md-sys-color-on-error: #690005;
+        --md-sys-color-error-container: #93000A;
+        --md-sys-color-on-error-container: #FFDAD6;
+        --md-sys-color-surface: #111318;
+        --md-sys-color-surface-container-lowest: #0C0E13;
+        --md-sys-color-surface-container-low: #191C20;
+        --md-sys-color-surface-container: #1D2024;
+        --md-sys-color-surface-container-high: #272A2F;
+        --md-sys-color-surface-container-highest: #32353A;
+        --md-sys-color-on-surface: #E1E2E8;
+        --md-sys-color-on-surface-variant: #C3C7CF;
+        --md-sys-color-outline: #8D9199;
+        --md-sys-color-outline-variant: #43474E;
+        --md-sys-color-inverse-surface: #E1E2E8;
+        --md-sys-color-inverse-on-surface: #2E3135;
+        --md-sys-color-inverse-primary: #0B4F8A;
+        --md-sys-color-scrim: rgb(0 0 0 / 0.65);
+        --md-sys-color-shadow: rgb(0 0 0 / 0.5);
+
+        --kbb-color-ok: #7DDA95;
+        --kbb-color-ok-container: #0F5223;
+        --kbb-color-on-ok-container: #C4EED0;
+        --kbb-color-limited: #FFB95C;
+        --kbb-color-limited-container: #693C00;
+        --kbb-color-on-limited-container: #FFDDB3;
+        --kbb-color-no: #FFB4AB;
+        --kbb-color-no-container: #93000A;
+        --kbb-color-on-no-container: #FFDAD6;
+        --kbb-color-unknown: #C3C7CF;
+        --kbb-color-unknown-container: #43474E;
+        --kbb-color-on-unknown-container: #E1E2E8;
+    }
+}
+
+/* Wysoki kontrast: linie dekoracyjne stają się pełnymi obramowaniami, tekst pomocniczy przyjmuje kolor tekstu głównego. */
+@media (prefers-contrast: more) {
+    :root {
+        --md-sys-color-outline-variant: var(--md-sys-color-outline);
+        --md-sys-color-on-surface-variant: var(--md-sys-color-on-surface);
+        --md-sys-color-outline: var(--md-sys-color-on-surface);
+        --kbb-focus-width: 4px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --md-sys-motion-duration-short2: 0ms;
+        --md-sys-motion-duration-short4: 0ms;
+        --md-sys-motion-duration-medium2: 0ms;
+    }
+}
+
+/* Most do klas pomocniczych Bootstrapa (reset, siatka, utilities), żeby korzystały z tych samych tokenów. */
+:root {
+    --bs-body-font-family: var(--md-ref-typeface-plain);
+    --bs-body-font-size: 1rem;
+    --bs-body-line-height: 1.5;
+    --bs-body-color: var(--md-sys-color-on-surface);
+    --bs-body-bg: var(--md-sys-color-surface);
+    --bs-secondary-color: var(--md-sys-color-on-surface-variant);
+    --bs-border-color: var(--md-sys-color-outline);
+    --bs-link-color: var(--md-sys-color-primary);
+    --bs-link-hover-color: var(--md-sys-color-primary);
+    --bs-emphasis-color: var(--md-sys-color-on-surface);
+    --bs-heading-color: var(--md-sys-color-on-surface);
+}

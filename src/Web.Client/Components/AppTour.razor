@@ -1,0 +1,80 @@
+@using Blazor.DriverJs
+@using Blazor.DriverJs.Models
+@inject AppState State
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@* Jeden magazyn na całą sesję: usunięcie DriverStore zwalnia współdzielony moduł biblioteki. *@
+<DriverStore @ref="_store" Popovers="_popovers" Configuration="_configuration" OnNextStep="OnNextStepAsync" />
+
+@code {
+    private const int PageTimeoutMs = 5000;
+
+    private readonly SortedList<int, PopoverModel> _popovers = new();
+    private readonly DriverConfigurationModel _configuration = new()
+    {
+        PopoverClass = "kbb-tour",
+        NextButtonText = "Dalej",
+        PreviousButtonText = "Wstecz",
+        OverlayOpacity = 0.6,
+        StageRadius = 12,
+    };
+
+    private DriverStore? _store;
+    private IJSObjectReference? _module;
+    private IReadOnlyList<TourSegment> _segments = [];
+    private int _segment;
+
+    /// <summary>Uruchamia samouczek od początku, w wariancie dla gościa albo dla zalogowanego.</summary>
+    public async Task StartAsync()
+    {
+        await State.EnsureLoadedAsync();
+        _segments = TourScript.For(State.User is not null);
+        _segment = 0;
+        await ShowSegmentAsync();
+    }
+
+    private async Task ShowSegmentAsync()
+    {
+        var segment = _segments[_segment];
+        if (segment.Path is { } path && Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0] != path)
+            Navigation.NavigateTo(path);
+
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/tour.js");
+        await _module.InvokeVoidAsync("ready",
+            segment.Steps.Where(s => !s.Optional).Select(s => s.Selector),
+            segment.Steps.Where(s => s.Optional).Select(s => s.Selector), PageTimeoutMs);
+        var present = await _module.InvokeAsync<bool[]>("present", segment.Steps.Select(s => s.Selector));
+        var steps = segment.Steps.Where((step, i) => present[i] || !step.Optional).ToList();
+
+        var last = _segment == _segments.Count - 1;
+        _configuration.Animate = !await _module.InvokeAsync<bool>("reducedMotion");
+        // Ostatni krok strony prowadzi na następną, więc „Zakończ” pojawia się dopiero na końcu samouczka.
+        _configuration.DoneButtonText = last ? "Zakończ" : "Dalej";
+
+        _popovers.Clear();
+        for (var i = 0; i < steps.Count; i++)
+        {
+            _popovers.Add(i, new PopoverModel
+            {
+                Element = steps[i].Selector,
+                Title = steps[i].Title,
+                Description = steps[i].Description,
+                Side = "bottom",
+                ShowProgress = true,
+                ProgressText = $"Część {_segment + 1} z {_segments.Count}, krok {i + 1} z {steps.Count}",
+            });
+        }
+
+        await _store!.StartDrive();
+    }
+
+    private async Task OnNextStepAsync(int index)
+    {
+        if (index < _popovers.Count - 1 || _segment >= _segments.Count - 1)
+            return;
+
+        _segment++;
+        await ShowSegmentAsync();
+    }
+}

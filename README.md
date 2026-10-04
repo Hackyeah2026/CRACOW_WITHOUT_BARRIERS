@@ -17,6 +17,7 @@ Projekt na hackathon **HackYeah 2026**, kategoria **„Kraków bez barier”** (
 - [Architektura](#architektura)
 - [Uruchomienie](#uruchomienie)
 - [Konfiguracja](#konfiguracja)
+- [Wdrożenie na Mikrusa](#wdrożenie-na-mikrusa)
 - [Dane i licencje](#dane-i-licencje)
 - [API hosta](#api-hosta)
 - [Testy](#testy)
@@ -188,7 +189,67 @@ dotnet user-secrets set "Officials:Seed:0:Login" "urzednik" --project src/Web
 dotnet user-secrets set "Officials:Seed:0:Password" "<hasło>" --project src/Web
 ```
 
-Stan połączenia z bazą sprawdzisz pod `GET /api/health/db`. Panel urzędnika jest pod `/urzednik` (link w stopce).
+Stan połączenia z bazą sprawdzisz pod `GET /api/health/db`, a to, czy host działa, pod `GET /api/health`. Panel urzędnika jest pod `/urzednik` (link w stopce).
+
+## Wdrożenie na Mikrusa
+
+Aplikacja działa na Mikrusie 2.1 jako jeden kontener Dockera. Każdy push do `main` uruchamia [`.github/workflows/mikrus.yml`](.github/workflows/mikrus.yml):
+
+1. `check`: build i testy (`infra/ci/check.sh`); pull requesty kończą się tutaj.
+2. `package`: obraz z [`Dockerfile`](Dockerfile) (`package.sh`) i próbne uruchomienie kontenera (`smoke.sh`).
+3. `deploy`: obraz trafia na serwer po SSH (bez rejestru), a [`infra/mikrus/deploy.sh`](infra/mikrus/deploy.sh) podmienia kontener `kbb-web` i sprawdza, czy odpowiada. Gdy nie odpowiada, wraca poprzedni obraz i poprzednie ustawienia.
+
+Na serwerze potrzebny jest tylko Docker i `curl`. Kontener słucha na porcie `MIKRUS_HTTP_PORT`, ustawienia dostaje z pliku `/opt/kbb/app.env` (dostęp tylko dla roota), a klucze sesji trzyma w wolumenie `kbb-keys`, więc logowania przetrwają wdrożenie.
+
+Ustawienia podajesz w GitHub: **Settings → Environments → `mikrus`**.
+
+| Nazwa | Rodzaj | Wymagane | Wartość |
+|---|---|---|---|
+| `MIKRUS_HOST` | variable | tak | adres SSH serwera, np. `srv12.mikr.us` |
+| `MIKRUS_SSH_PORT` | variable | tak | port SSH z panelu Mikrusa, np. `10303` |
+| `MIKRUS_HTTP_PORT` | variable | tak | port serwera przydzielony w panelu, na którym ma słuchać aplikacja (1024–65535, inny niż SSH), np. `20303` |
+| `MIKRUS_PUBLIC_URL` | variable | tak | publiczny adres HTTPS kierujący na ten port, np. `https://srv12-20303.wykr.es` |
+| `MIKRUS_KEY` | secret | tak | klucz prywatny SSH do konta `root` (bez hasła) |
+| `MIKRUS_KNOWN_HOSTS` | secret | tak | wynik `ssh-keyscan` dla serwera |
+| `MONGO_CONNECTION_STRING` | secret | tak | `mongodb+srv://<użytkownik>:<hasło>@<klaster>/` |
+| `MONGO_DATABASE` | variable | nie | nazwa bazy (domyślnie `krakow-bez-barier`) |
+| `OPENROUTESERVICE_API_KEY` | secret | zalecane | bez niego nie działają trasy po ulicach |
+| `OPENAI_API_KEY` | secret | zalecane | bez niego nie działa ocena zdjęć |
+| `OPENAI_MODEL` | variable | nie | model z obsługą obrazów (domyślnie `gpt-4.1-mini`) |
+| `OFFICIAL_LOGIN` | variable | zalecane | login konta urzędnika zakładanego przy starcie |
+| `OFFICIAL_PASSWORD` | secret | razem z loginem | hasło tego konta |
+| `OFFICIAL_DISPLAY_NAME` | variable | nie | imię i nazwisko urzędnika |
+| `OFFICIAL_UNIT` | variable | nie | jednostka urzędnika |
+
+`Certificates:PublicBaseUrl` (adres w kodach QR na certyfikatach) ustawia się sam z `MIKRUS_PUBLIC_URL`. Każda wartość musi mieścić się w jednej linii.
+
+Klucz wdrożeniowy i odcisk serwera przygotujesz tak:
+
+```bash
+ssh-keygen -t ed25519 -N "" -C "github-kbb-deploy" -f mikrus_deploy
+```
+
+```bash
+ssh-copy-id -i mikrus_deploy.pub -p <MIKRUS_SSH_PORT> root@<MIKRUS_HOST>
+```
+
+```bash
+ssh-keyscan -p <MIKRUS_SSH_PORT> <MIKRUS_HOST>
+```
+
+Zawartość pliku `mikrus_deploy` to `MIKRUS_KEY`, a wynik `ssh-keyscan` to `MIKRUS_KNOWN_HOSTS`. W MongoDB Atlas dodaj adres wychodzący serwera do **Network Access**, inaczej wdrożenie zakończy się błędem „Database check failed”.
+
+Zmiana samego sekretu nie wymaga commita: uruchom workflow ręcznie (**Actions → Mikrus checks and deploy → Run workflow**). Logi aplikacji na serwerze: `docker logs --tail 100 kbb-web`.
+
+Obraz zbudujesz i uruchomisz też lokalnie:
+
+```bash
+docker build -t kbb-web:local .
+```
+
+```bash
+docker run --rm -p 8080:8080 -e Mongo__ConnectionString="<adres>" kbb-web:local
+```
 
 ## Dane i licencje
 

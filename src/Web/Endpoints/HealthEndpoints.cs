@@ -7,6 +7,9 @@ public static class HealthEndpoints
     /// <summary>Stan połączenia z bazą. Szczegóły błędu zostają w logach hosta, bo mogą zawierać adresy serwerów.</summary>
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
+        // Sam proces: wdrożenie sprawdza nim, czy host wstał, także zanim baza jest skonfigurowana.
+        app.MapGet("/api/health", () => Results.Text("OK"));
+
         app.MapGet("/api/health/db", async (MongoHealth health, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var result = await health.CheckAsync(ct);

@@ -1,0 +1,6 @@
+**
+!src/**
+**/bin/
+**/obj/
+src/Tests/
+src/Tools/

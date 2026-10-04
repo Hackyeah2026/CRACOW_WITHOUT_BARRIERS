@@ -1,0 +1,31 @@
+@if (Photo is { } photo)
+{
+    <figure class="report-photo mt-2 mb-1">
+        <a href="@Url(photo)" target="_blank" rel="noopener" aria-label="@($"Otwórz zdjęcie ze zgłoszenia w nowej karcie: {Subject}")">
+            <img src="@Url(photo)" loading="lazy" alt="@Alt(photo)" />
+        </a>
+        <figcaption class="small text-body-secondary">
+            @if (photo.Analysis is { } analysis)
+            {
+                <text>Ocena AI: przeszkoda na @analysis.Percent%@(analysis.SuggestedKind is { } kind ? $", {Labels.Of(kind).ToLowerInvariant()}" : ""). To podpowiedź, nie decyzja.</text>
+            }
+            else
+            {
+                <text>Zdjęcie bez oceny AI.</text>
+            }
+        </figcaption>
+    </figure>
+}
+
+@code {
+    [Parameter] public ReportPhoto? Photo { get; set; }
+
+    /// <summary>Czego dotyczy zgłoszenie, do opisu zdjęcia dla czytnika ekranu.</summary>
+    [Parameter] public string Subject { get; set; } = "";
+
+    private static string Url(ReportPhoto photo) => $"api/photos/{photo.Id}";
+
+    private string Alt(ReportPhoto photo) => photo.Analysis is { Summary.Length: > 0 } analysis
+        ? $"Zdjęcie ze zgłoszenia ({Subject}). Opis AI: {analysis.Summary}"
+        : $"Zdjęcie ze zgłoszenia ({Subject})";
+}

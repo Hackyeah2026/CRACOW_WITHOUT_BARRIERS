@@ -1,0 +1,102 @@
+---
+name: Mikrus checks and deploy
+
+"on":
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      # checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      # setup-dotnet v6.0.0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: "10.0.x"
+      - run: bash infra/ci/check.sh
+
+  package:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      # checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: bash infra/ci/package.sh
+      - run: bash infra/ci/smoke.sh
+      # upload-artifact v7.0.1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mikrus-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/image.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: mikrus
+    concurrency:
+      group: kbb-mikrus-deploy
+      cancel-in-progress: false
+    steps:
+      # checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      # download-artifact v8.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: mikrus-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts
+          # Preserve v4's warning-only digest validation behavior.
+          digest-mismatch: warn
+      - name: Skip stale main, upload and activate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_TAG: ${{ github.sha }}
+          MIKRUS_HOST: ${{ vars.MIKRUS_HOST }}
+          MIKRUS_SSH_PORT: ${{ vars.MIKRUS_SSH_PORT }}
+          MIKRUS_HTTP_PORT: ${{ vars.MIKRUS_HTTP_PORT }}
+          MIKRUS_PUBLIC_URL: ${{ vars.MIKRUS_PUBLIC_URL }}
+          MIKRUS_KEY: ${{ secrets.MIKRUS_KEY }}
+          MIKRUS_KNOWN_HOSTS: ${{ secrets.MIKRUS_KNOWN_HOSTS }}
+          # Application configuration; becomes the container's --env-file on the server.
+          MONGO_CONNECTION_STRING: ${{ secrets.MONGO_CONNECTION_STRING }}
+          MONGO_DATABASE: ${{ vars.MONGO_DATABASE }}
+          OPENROUTESERVICE_API_KEY: ${{ secrets.OPENROUTESERVICE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          OFFICIAL_LOGIN: ${{ vars.OFFICIAL_LOGIN }}
+          OFFICIAL_PASSWORD: ${{ secrets.OFFICIAL_PASSWORD }}
+          OFFICIAL_DISPLAY_NAME: ${{ vars.OFFICIAL_DISPLAY_NAME }}
+          OFFICIAL_UNIT: ${{ vars.OFFICIAL_UNIT }}
+        run: |
+          set -euo pipefail
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" \
+            --jq '.object.sha')
+          if [[ "$latest" != "$GITHUB_SHA" ]]; then
+            echo 'Skipping superseded main commit'
+            exit 0
+          fi
+          bash infra/ci/upload.sh

@@ -54,6 +54,18 @@ body {
     overflow-wrap: anywhere;
 }
 
+/* Na telefonie obok logo i samouczka nie ma miejsca na login: zostaje ikona, a login jest na stronie Konto. */
+@media (max-width: 599px) {
+    .app-bar__user > span:last-child {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+}
+
 .app-bar__actions {
     display: inline-flex;
     align-items: center;

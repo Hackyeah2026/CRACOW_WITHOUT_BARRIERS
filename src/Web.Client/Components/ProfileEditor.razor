@@ -125,7 +125,17 @@
                     Wyczyść profil
                 </button>
             </div>
-            <p class="form-note" role="status"><span class="msym" aria-hidden="true">save</span> @(_saved ? "Zapisano. " : "")@Note</p>
+            @if (ShowSaveState)
+            {
+                <p class="form-note @(IsDirty ? "form-note-unsaved" : "")" role="status">
+                    <span class="msym" aria-hidden="true">@(IsDirty ? "warning" : "check_circle")</span>
+                    @(IsDirty ? "Dane wymagają zapisu." : "Wszystko zapisane.")
+                </p>
+            }
+            else
+            {
+                <p class="form-note" role="status"><span class="msym" aria-hidden="true">save</span> @(_saved ? "Zapisano. " : "")@Note</p>
+            }
         </section>
     </div>
 
@@ -178,7 +188,16 @@
     /// <summary>Gdzie profil zostaje zapisany, pokazywane pod przyciskami.</summary>
     [Parameter] public string Note { get; set; } = "Profil zostaje na Twoim urządzeniu. Nie wysyłamy go na serwer.";
 
+    /// <summary>Zamiast <see cref="Note"/> pokazuje, czy wszystko jest zapisane, czy zmiany czekają na zapis.</summary>
+    [Parameter] public bool ShowSaveState { get; set; }
+
     [Parameter] public EventCallback OnSaved { get; set; }
+
+    private static readonly IReadOnlyList<string> NoPresets = [];
+
+    /// <summary>Rekord porównuje listę profili po referencji, więc ją porównujemy osobno, po zawartości.</summary>
+    private bool IsDirty => _draft with { Presets = NoPresets } != State.Profile with { Presets = NoPresets }
+                            || !_draft.Presets.Order().SequenceEqual(State.Profile.Presets.Order());
 
     protected override async Task OnInitializedAsync()
     {

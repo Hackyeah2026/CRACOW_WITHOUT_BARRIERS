@@ -179,7 +179,7 @@
                             <div class="place-card-footer">
                                 <button type="button" data-tour="place-add"
                                         class="btn btn-sm @(State.IsInPlan(item.Place.Id) ? "btn-success" : "btn-primary")"
-                                        aria-label="@(State.IsInPlan(item.Place.Id) ? "Usuń z planu" : "Dodaj do planu"): @item.Place.Name"
+                                        aria-label="@PlanButtonLabel(item.Place)" aria-haspopup="@(State.User is null ? null : "dialog")"
                                         @onclick="() => TogglePlanAsync(item.Place)">
                                     @if (State.IsInPlan(item.Place.Id))
                                     {
@@ -213,6 +213,7 @@
 </div>
 
 <Snackbar @ref="_snackbar" />
+<PlanPicker @ref="_planPicker" OnChanged="@(message => { _ = _snackbar?.ShowAsync(message); })" />
 
 @code {
     private const int PageSize = 20;
@@ -238,6 +239,7 @@
     private string _category = "";
     private int _shown = PageSize;
     private Snackbar? _snackbar;
+    private PlanPicker? _planPicker;
 
     protected override async Task OnInitializedAsync()
     {
@@ -391,8 +393,20 @@
             await _map.ShowAllMarkersAsync();
     }
 
+    private string PlanButtonLabel(Place place) => State.User is not null
+        ? $"{(State.IsInPlan(place.Id) ? "W planie, zmień plan" : "Dodaj do planu, wybierz plan")}: {place.Name}"
+        : $"{(State.IsInPlan(place.Id) ? "Usuń z planu" : "Dodaj do planu")}: {place.Name}";
+
+    /// <summary>Bez konta przycisk od razu dodaje albo usuwa; zalogowany wybiera plan albo tworzy nowy.</summary>
     private async Task TogglePlanAsync(Place place)
     {
+        if (State.User is not null)
+        {
+            if (_planPicker is not null)
+                await _planPicker.ShowAsync(place);
+            return;
+        }
+
         await State.TogglePlaceAsync(place.Id);
         // Potwierdzenie nie wstrzymuje interfejsu: znika samo po kilku sekundach.
         _ = _snackbar?.ShowAsync($"{(State.IsInPlan(place.Id) ? "Dodano do planu" : "Usunięto z planu")}: {place.Name}");

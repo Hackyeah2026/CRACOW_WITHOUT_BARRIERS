@@ -2,6 +2,7 @@ using Application.Abstractions;
 using Infrastructure.Mongo.Accounts;
 using Infrastructure.Mongo.Businesses;
 using Infrastructure.Mongo.Reports;
+using Infrastructure.Mongo.Trips;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 
@@ -46,5 +47,6 @@ public static class DependencyInjection
         .AddSingleton<IOfficialDirectory, MongoOfficialDirectory>()
         .AddSingleton<IUserDirectory, MongoUserDirectory>()
         .AddSingleton<IBusinessRepository, MongoBusinessRepository>()
+        .AddSingleton<ISavedPlanRepository, MongoSavedPlanRepository>()
         .AddHostedService<ReportsStartup>();
 }

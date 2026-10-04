@@ -2,6 +2,7 @@
 @inject AppState State
 @inject ISender Sender
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>@(_item?.Place.Name ?? "Miejsce")</PageTitle>
 
@@ -45,9 +46,10 @@ else
         <AssessmentBadge Status="_item.Assessment.Status" />
         <span>dla profilu: <ProfileSummaryInline /></span>
         <button type="button" class="btn @(State.IsInPlan(place.Id) ? "btn-success" : "btn-primary")"
-                aria-pressed="@(State.IsInPlan(place.Id) ? "true" : "false")" @onclick="() => TogglePlanAsync(place.Id)">
+                aria-pressed="@(State.User is not null ? null : State.IsInPlan(place.Id) ? "true" : "false")"
+                aria-haspopup="@(State.User is null ? null : "dialog")" @onclick="() => TogglePlanAsync(place)">
             <span class="msym" aria-hidden="true">@(State.IsInPlan(place.Id) ? "check" : "add")</span>
-            @(State.IsInPlan(place.Id) ? "W planie (usuń)" : "Dodaj do planu")
+            @(!State.IsInPlan(place.Id) ? "Dodaj do planu" : State.User is null ? "W planie (usuń)" : "W planie (zmień)")
         </button>
     </div>
 
@@ -110,13 +112,20 @@ else
         </div>
     </div>
 
-    <p class="mt-3"><a class="back-link" href="miejsca"><span class="msym" aria-hidden="true">arrow_back</span>Wróć do listy miejsc</a></p>
+    <p class="mt-3">
+        <button type="button" class="btn btn-link back-link" @onclick="GoBackAsync"><span class="msym" aria-hidden="true">arrow_back</span>Wróć</button>
+    </p>
+
+    <Snackbar @ref="_snackbar" />
+    <PlanPicker @ref="_planPicker" OnChanged="@(message => { _ = _snackbar?.ShowAsync(message); })" />
 }
 
 @code {
     private AssessedPlace? _item;
     private IReadOnlyList<MapMarker> _markers = [];
     private string? _error;
+    private Snackbar? _snackbar;
+    private PlanPicker? _planPicker;
 
     [Parameter] public string Id { get; set; } = "";
 
@@ -139,12 +148,34 @@ else
             Icon: Labels.MapIcon(_item.Place.Category), Certified: _item.Place.Certificate is not null)];
     }
 
-    /// <summary>Po dodaniu wracamy do listy, żeby wybierać dalej; po usunięciu zostajemy na karcie miejsca.</summary>
-    private async Task TogglePlanAsync(string placeId)
+    /// <summary>
+    /// Bez konta: po dodaniu wracamy do listy, żeby wybierać dalej; po usunięciu zostajemy na karcie miejsca.
+    /// Zalogowany wybiera plan albo tworzy nowy.
+    /// </summary>
+    private async Task TogglePlanAsync(Place place)
     {
-        var adding = !State.IsInPlan(placeId);
-        await State.TogglePlaceAsync(placeId);
+        if (State.User is not null)
+        {
+            if (_planPicker is not null)
+                await _planPicker.ShowAsync(place);
+            return;
+        }
+
+        var adding = !State.IsInPlan(place.Id);
+        await State.TogglePlaceAsync(place.Id);
         if (adding)
+            Navigation.NavigateTo("miejsca");
+    }
+
+    /// <summary>
+    /// Wraca tam, skąd użytkownik przyszedł (lista, plan, zgłoszenia). Gdy karta jest pierwszą stroną w tej karcie
+    /// przeglądarki, np. po zeskanowaniu kodu QR, nie ma dokąd cofać, więc otwieramy listę miejsc.
+    /// </summary>
+    private async Task GoBackAsync()
+    {
+        if (await JS.GetValueAsync<int>("history.length") > 1)
+            await JS.InvokeVoidAsync("history.back");
+        else
             Navigation.NavigateTo("miejsca");
     }
 }

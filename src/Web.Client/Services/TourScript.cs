@@ -37,7 +37,9 @@ public static class TourScript
             new(Anchor("place-card"), "Miejsca ocenione pod Twój profil",
                 "Przy każdym miejscu jest ocena dostępności i jej powód. Brak danych nigdy nie udaje dostępności.", Optional: true),
             new(Anchor("place-add"), "Dodaj miejsce do planu",
-                "Tym przyciskiem dodajesz miejsce do planu. Drugie kliknięcie je usuwa.", Optional: true),
+                loggedIn
+                    ? "Tym przyciskiem dodajesz miejsce do planu: wybierasz, do którego, albo tworzysz nowy i go nazywasz."
+                    : "Tym przyciskiem dodajesz miejsce do planu. Drugie kliknięcie je usuwa.", Optional: true),
             new(Anchor("nav-plan"), "Plan",
                 "Liczba przy ikonie pokazuje, ile miejsc masz w planie. Teraz przejdziemy do planu."),
         ]),

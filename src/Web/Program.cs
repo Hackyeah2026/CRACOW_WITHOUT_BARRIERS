@@ -113,6 +113,7 @@ app.MapHazardEndpoints();
 app.MapAccountEndpoints();
 app.MapBusinessEndpoints();
 app.MapPhotoEndpoints();
+app.MapPlanEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Web.Client._Imports).Assembly);

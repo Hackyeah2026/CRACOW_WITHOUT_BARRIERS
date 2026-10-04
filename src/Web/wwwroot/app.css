@@ -544,6 +544,11 @@ body {
     font: var(--md-sys-typescale-body-medium);
 }
 
+.form-note-unsaved {
+    color: var(--md-sys-color-error);
+    font-weight: 600;
+}
+
 .preview-title {
     font: var(--md-sys-typescale-title-large);
 }

@@ -276,6 +276,8 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 | `GET /api/official/me` | zalogowany urzędnik | urzędnik |
 | `GET /api/official/reports?cityId=&status=&placeId=` | lista zgłoszeń | urzędnik |
 | `PATCH /api/official/reports/{id}` | zmiana statusu i odpowiedź dla zgłaszającego | urzędnik |
+| `GET /api/plans`, `GET /api/plans/{id}`, `POST /api/plans`, `PUT /api/plans/{id}`, `DELETE /api/plans/{id}` | nazwane plany konta: lista, plan z zapisaną trasą, utworzenie, zmiana nazwy i miejsc, usunięcie | konto |
+| `POST /api/plans/{id}/close` | zapis wyznaczonej trasy; zamyka plan, którego potem nie można edytować (zmiana → 409) | konto |
 | `GET /api/businesses?cityId=` | miejsca z certyfikatem konta firmowego i deklaracje firm | publiczny |
 | `GET /api/business/mine`, `POST /api/business/application` | wniosek o konto firmowe i jego stan | konto |
 | `PUT /api/business/features`, `GET /api/business/certificate` | oznaczenia udogodnień i certyfikat SVG z kodem QR | konto firmowe zatwierdzone przez urząd |
@@ -287,7 +289,7 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 dotnet test src/Tests
 ```
 
-165 testów jednostkowych obejmuje m.in.: scenariusz samouczka, silnik oceny dla person, łączenie profili, wyszukiwanie miejsc, kolejność przystanków, układanie planu, dobór ławek na przerwę, zapytania i odpowiedzi OpenRouteService, wyszukiwarkę połączeń komunikacji, zapis dokumentów w MongoDB, zachowanie bez bazy, walidację zgłoszeń, hasła urzędników i zestawienie zgłoszeń.
+170 testów jednostkowych obejmuje m.in.: plany konta i zapis trasy, scenariusz samouczka, silnik oceny dla person, łączenie profili, wyszukiwanie miejsc, kolejność przystanków, układanie planu, dobór ławek na przerwę, zapytania i odpowiedzi OpenRouteService, wyszukiwarkę połączeń komunikacji, zapis dokumentów w MongoDB, zachowanie bez bazy, walidację zgłoszeń, hasła urzędników i zestawienie zgłoszeń.
 
 ## Prywatność
 
@@ -296,6 +298,7 @@ Profil potrzeb to dane o zdrowiu, dlatego:
 - profil, plany i cache tras są tylko w **IndexedDB na urządzeniu**; nie używamy ciasteczek ani kont dla mieszkańców;
 - **ocena miejsc liczy się w przeglądarce**;
 - do routingu idą tylko punkty trasy i trzy parametry (wózek, unikanie schodów, maksymalny krawężnik), a nie cały profil;
+- plan zalogowanego konta (nazwa i miejsca) jest w bazie hosta; zapisana trasa trafia tam bez oceny miejsc, którą aplikacja liczy od nowa na urządzeniu, ale z ostrzeżeniami odcinków (np. o limicie marszu) i punktem startu, jeśli był wskazany; plan bez konta zostaje na urządzeniu;
 - zgłoszenie zawiera tylko miejsce, wybrane udogodnienia i opis, bez profilu i danych osobowych;
 - zdjęcie dołączone do zgłoszenia przeglądarka zmniejsza i zapisuje jako JPEG (bez EXIF, więc bez położenia GPS); host przekazuje je do oceny w OpenAI, a zmniejszoną kopię (do 1024 px i 300 KB) zapisuje w bazie jako część zgłoszenia; widzi ją urzędnik i zgłaszający;
 - klucze API i adres bazy są tylko na hoście.

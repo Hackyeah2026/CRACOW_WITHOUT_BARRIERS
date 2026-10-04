@@ -20,6 +20,8 @@ Stan na **3.10.2026, ok. 18:00** (po commicie `8046399`). Punkt odniesienia: [pl
 
 **Co doszło 4.10.2026:** wyszukiwarka miejsc działa spójnie niezależnie od wybranej kategorii (nazwa, adres i rodzaj miejsca, bez rozróżniania polskich znaków), a plan wskazuje ławki przy trasie, gdy odcinek jest dłuższy niż limit marszu z profilu. Szczegóły w sekcjach "Wyszukiwanie miejsc" i "Ławki na przerwę w planie".
 
+**Co doszło 4.10.2026 (plany konta):** zalogowany ma nazwane plany zapisane w bazie, przycisk "Do planu" pyta, do którego planu dodać miejsce, a zapis wyznaczonej trasy zamyka plan. Szczegóły w sekcji "Plany konta".
+
 ## 1. Co zostało zrealizowane
 
 ### Zakres funkcjonalny (sekcja 6 planu prac)
@@ -180,7 +182,7 @@ Na serwerze: zmienne `Officials__Seed__0__Login`, `Officials__Seed__0__Password`
 
 - **Układ:** `data/{miasto}/places/index.json` (data importu, kategorie z liczbą miejsc) i `places/{Kategoria}.json`. `IPlaceCatalog` ma `GetAsync(miasto, kategorie)`, `FindAsync(miasto, id)` i `GetCategoriesAsync`; nie ma już metody zwracającej całe miasto.
 - **Co się pobiera:** lista w trybie "Załatwiam sprawę" to 7 plików (ok. 1,4 MB przed kompresją), "Zwiedzam" 6 plików (ok. 0,75 MB). Sklepy (1,5 MB), noclegi, toalety i szkoły pobierają się po wybraniu kategorii albo przy pierwszym wyszukiwaniu frazy. Ławki (4 MB) i koperty (0,55 MB) tylko po wybraniu ich kategorii, a ławki także przy układaniu planu z odcinkiem dłuższym niż limit marszu. Kompresja serwera zmniejsza pliki 6-15 razy (ławki: ok. 220 KB).
-- **Karta miejsca z bezpośredniego adresu** szuka najpierw w plikach już pobranych, potem w pozostałych od najmniejszych.
+- **Karta miejsca z bezpośredniego adresu** szuka najpierw w plikach już pobranych, potem w pozostałych od najmniejszych. Znalezione miejsce jest zapamiętywane na urządzeniu (IndexedDB, magazyn `placeCache`, ważne do następnego importu katalogu), więc plan otwarty po odświeżeniu strony nie czyta ponownie wszystkich plików: dla planu z trzema sklepami 18,7 s spadło do 0,4 s. Na nowym urządzeniu pierwsze otwarcie takiego planu nadal trwa kilkanaście sekund.
 - **Nowe kategorie:** apteka (wydzielona ze "Zdrowia"), miejsce kultu, park, sklep, nocleg, usługi (poczta, bank, pomoc społeczna; poczta przeszła z "Urzędu"), szkoła i uczelnia. Ławki i koperty, dotąd puste, są importowane. Tryb "Zwiedzam" obejmuje dodatkowo miejsca kultu i parki, "Załatwiam sprawę" apteki i usługi; reszta jest w filtrze kategorii z liczbą miejsc.
 - **Zmiany w imporcie:** cztery osobne zapytania z ponawianiem; perony uzupełniają cechy przystanków (387 przystanków); restauracje także bez tagu `wheelchair`; toalety prywatne pominięte, "dla klientów" i płatne opisane; ulice oznaczone jako atrakcje pominięte; adres także z `addr:place`; nowe tagi `elevator`, `hearing_loop`, `dog=yes`; data cechy to data sprawdzenia z OSM (`check_date`), a gdy jej nie ma, data ostatniej edycji obiektu (kolumna na karcie miejsca nazywa się teraz "Stan na dzień"). Importer odrzuca instancję Overpass z danymi starszymi niż 2 dni.
 - **Mapa:** powyżej 600 pinezek symbole są zastępowane kółkami rysowanymi na płótnie, żeby tysiące ławek nie zatrzymały przeglądarki.
@@ -229,6 +231,18 @@ Dotąd "Wszystkie kategorie" oznaczały tylko kategorie bieżącego trybu, a fra
 - **Komunikat przy odcinku:** gdy jest przejazd i są ławki: "Możesz podjechać komunikacją miejską albo iść pieszo i odpocząć na ławce po drodze"; gdy są tylko ławki: "Po drodze są ławki, na których możesz odpocząć". Gdy ławek nie ma na całej trasie, plan podaje najdłuższy fragment bez przerwy (`RestStopRules.LongestStretchM`).
 - **Widok:** lista ławek z odległością od początku odcinka, symbole 🪑 na mapie planu i wpis w legendzie. Ławki są zapisane w odcinku (`TripLeg.RestStops`); plany zapisane wcześniej ich nie mają.
 - **Pobieranie:** plik ławek (4 MB przed kompresją) pobiera się przy pierwszym planie z odcinkiem dłuższym niż limit.
+
+### Plany konta
+
+- **Bez konta bez zmian:** jeden plan na urządzeniu, przycisk "Do planu" od razu dodaje albo usuwa miejsce.
+- **Z kontem:** plany mają nazwy i są w kolekcji `plans` (właściciel = login z sesji; najwyżej 50 planów na konto, 30 miejsc w planie). Przycisk "Do planu" na liście i na karcie miejsca otwiera okno z planami w przygotowaniu (dodaj albo usuń) i polem na nazwę nowego planu; gdy konto nie ma planu, okno od razu prosi o utworzenie (`PlanPicker`).
+- **Strona Plan:** lista "Moje plany" (otwórz, usuń z potwierdzeniem, nowy plan) i edycja otwartego planu jak dotąd. Kolejność i lista miejsc zapisują się w bazie przy każdej zmianie.
+- **Zapis trasy:** po ułożeniu planu przycisk "Zapisz trasę i zamknij plan" (z potwierdzeniem) zapisuje trasę i nadaje planowi status "Zamknięty: trasa zapisana". Zamkniętego planu nie da się edytować (host odpowiada 409), można go otworzyć albo usunąć.
+- **Prywatność:** trasa jest zapisywana bez oceny miejsc (`SavedRoutes`), a przy otwarciu ocena liczy się na urządzeniu dla bieżącego profilu. Na serwer trafiają jednak ostrzeżenia odcinków (np. limit marszu) i punkt startu, jeśli był wskazany; okno potwierdzenia mówi o punkcie startu.
+- **Nie zrobione:** zmiana nazwy planu w interfejsie (endpoint ją przyjmuje), przeniesienie planu sprzed logowania na konto, kopiowanie zamkniętego planu do edycji.
+- **Karta miejsca:** przycisk "Wróć" cofa do poprzedniej strony (lista, plan, zgłoszenia); gdy karta jest pierwszą stroną w karcie przeglądarki, otwiera listę miejsc.
+
+**Endpointy (konto):** `GET /api/plans`, `GET /api/plans/{id}`, `POST /api/plans`, `PUT /api/plans/{id}`, `POST /api/plans/{id}/close`, `DELETE /api/plans/{id}`.
 
 ### Samouczek
 

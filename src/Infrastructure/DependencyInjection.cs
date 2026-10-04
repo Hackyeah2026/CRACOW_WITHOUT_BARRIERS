@@ -21,7 +21,8 @@ public static class DependencyInjection
         .AddScoped<IHazardsClient, HostHazardsClient>()
         .AddScoped<IPhotoAnalysisClient, HostPhotoAnalysisClient>()
         .AddScoped<IOfficialClient, HostOfficialClient>()
-        .AddScoped<IAccountClient, HostAccountClient>();
+        .AddScoped<IAccountClient, HostAccountClient>()
+        .AddScoped<ISavedPlansClient, HostSavedPlansClient>();
 
     /// <summary>Usługi hosta: integracje wymagające kluczy API.</summary>
     public static IServiceCollection AddServerInfrastructure(this IServiceCollection services, OpenRouteServiceOptions routing)

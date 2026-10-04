@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Checks the rendering of the container's env file without network or Docker.
+# The fixtures hold literal $, ` and \ on purpose: they must reach the file unchanged.
+# shellcheck disable=SC2016
 set -euo pipefail
 script_dir=$(cd -- "$(dirname -- "$0")" && pwd)
 # shellcheck source-path=SCRIPTDIR

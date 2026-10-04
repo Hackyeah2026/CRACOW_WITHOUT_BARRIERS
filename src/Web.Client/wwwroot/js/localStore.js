@@ -1,7 +1,7 @@
 // Cienka nakładka na IndexedDB. Wartości to napisy JSON przygotowane po stronie .NET.
 const DB = 'krakow-bez-barier';
-const VERSION = 2;
-const STORES = ['profile', 'plans', 'reports', 'hazards', 'routeCache'];
+const VERSION = 3;
+const STORES = ['profile', 'plans', 'reports', 'hazards', 'routeCache', 'placeCache'];
 
 function open() {
     return new Promise((resolve, reject) => {

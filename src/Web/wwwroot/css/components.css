@@ -959,6 +959,24 @@ legend {
     margin-top: var(--kbb-space-6);
 }
 
+.plan-picker-list {
+    display: grid;
+    gap: var(--kbb-space-2);
+}
+
+.plan-picker-list .btn {
+    display: flex;
+    align-items: center;
+    gap: var(--kbb-space-2);
+    width: 100%;
+    text-align: start;
+}
+
+.plan-name-input {
+    flex: 1 1 14rem;
+    width: auto;
+}
+
 /* ---------- Mapa ---------- */
 
 .map-frame {

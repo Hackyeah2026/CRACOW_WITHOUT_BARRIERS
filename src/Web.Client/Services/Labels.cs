@@ -1,3 +1,4 @@
+using Domain.Trips;
 using Domain.Assessments;
 using Domain.Businesses;
 using Domain.Hazards;
@@ -196,6 +197,12 @@ public static class Labels
     /// <summary>Nazwa potwierdzonego punktu na mapie.</summary>
     public static string Verified(VerifiedHazard hazard) =>
         $"Zweryfikowane utrudnienie {AffectedGroup(hazard.Kind)}: {Of(hazard.Kind).ToLowerInvariant()}";
+
+    public static string Of(SavedPlanStatus status) => status == SavedPlanStatus.Closed ? "Zamknięty: trasa zapisana" : "W przygotowaniu";
+
+    public static string Css(SavedPlanStatus status) => status == SavedPlanStatus.Closed ? "status-accessible" : "status-unknown";
+
+    public static string PlacesWord(int count) => count == 1 ? "miejsce" : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "miejsca" : "miejsc";
 
     public static string Of(HazardStatus status) => status switch
     {

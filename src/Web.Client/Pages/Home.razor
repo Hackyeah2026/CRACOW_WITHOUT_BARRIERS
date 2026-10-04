@@ -37,14 +37,14 @@
                 <div class="col-lg-4">
                     <div class="card card-body h-100">
                         <h3 class="h5">Plan</h3>
-                        <p class="mb-1"><span class="dash-number">@State.PlanPlaceIds.Count</span> @PlacesWord(State.PlanPlaceIds.Count) w planie</p>
+                        <p class="mb-1"><span class="dash-number">@State.PlanPlaceIds.Count</span> @Labels.PlacesWord(State.PlanPlaceIds.Count) w planie@(State.ActivePlan is { } active ? $" „{active.Name}”" : "")</p>
                         <p class="text-body-secondary">
                             @(State.PlanPlaceIds.Count == 0
                                 ? "Wybierz miejsca, a ułożymy trasę z ostrzeżeniami o utrudnieniach."
                                 : "Ułóż trasę po ulicach, z komunikacją miejską i ostrzeżeniami o utrudnieniach.")
                         </p>
-                        <a class="btn btn-outline-primary mt-auto align-self-start" href="@(State.PlanPlaceIds.Count == 0 ? "miejsca" : "plan")">
-                            @(State.PlanPlaceIds.Count == 0 ? "Wybierz miejsca" : "Otwórz plan")
+                        <a class="btn btn-outline-primary mt-auto align-self-start" href="@(State.PlanPlaceIds.Count == 0 && State.Plans.Count == 0 ? "miejsca" : "plan")">
+                            @(State.PlanPlaceIds.Count == 0 && State.Plans.Count == 0 ? "Wybierz miejsca" : State.Plans.Count > 1 ? "Otwórz plany" : "Otwórz plan")
                         </a>
                     </div>
                 </div>
@@ -204,8 +204,6 @@
         // Ocena miejsc zależy od profilu, więc bez niego najpierw prowadzimy do jego ustawienia.
         Navigation.NavigateTo(State.Profile.IsEmpty ? "profil" : "miejsca");
     }
-
-    private static string PlacesWord(int count) => count == 1 ? "miejsce" : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "miejsca" : "miejsc";
 
     private sealed record ReportsSummary(int Total, int Waiting, int InProgress, int Done, int Answered);
 }

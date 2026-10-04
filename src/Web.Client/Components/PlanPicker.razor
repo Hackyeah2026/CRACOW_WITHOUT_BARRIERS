@@ -1,0 +1,127 @@
+@implements IAsyncDisposable
+@inject AppState State
+@inject IJSRuntime JS
+
+@* Wybór planu konta dla miejsca: istniejący plan w przygotowaniu albo nowy. Natywny <dialog>, jak ConfirmDialog. *@
+<dialog @ref="_dialog" class="kbb-dialog" aria-labelledby="@_titleId">
+    <h2 id="@_titleId">Do którego planu?</h2>
+    <p>Miejsce: <strong>@_place?.Name</strong></p>
+
+    @if (Drafts.Count == 0)
+    {
+        <p>Nie masz jeszcze planu w przygotowaniu. Nazwij nowy plan, a dodamy do niego to miejsce.</p>
+    }
+    else
+    {
+        <ul class="list-unstyled plan-picker-list">
+            @foreach (var plan in Drafts)
+            {
+                var included = _place is not null && plan.PlaceIds.Contains(_place.Id);
+                <li>
+                    <button type="button" class="btn @(included ? "btn-success" : "btn-outline-primary")" disabled="@_busy"
+                            @onclick="() => ToggleAsync(plan)">
+                        <span class="msym" aria-hidden="true">@(included ? "check" : "add")</span>
+                        <span>@plan.Name<span class="visually-hidden">:</span> <small>(@plan.PlaceIds.Count @Labels.PlacesWord(plan.PlaceIds.Count))</small></span>
+                        <span class="ms-auto">@(included ? "Usuń z planu" : "Dodaj")</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+
+    <form @onsubmit="CreateAsync" @onsubmit:preventDefault novalidate>
+        <label class="form-label" for="@_nameId">Nowy plan</label>
+        <div class="d-flex flex-wrap gap-2">
+            <input id="@_nameId" class="form-control plan-name-input" maxlength="@SavedPlanDraft.MaxNameLength"
+                   placeholder="np. Sobota na Kazimierzu" @bind="_name" />
+            <button type="submit" class="btn btn-primary" disabled="@_busy">Utwórz i dodaj miejsce</button>
+        </div>
+    </form>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger mt-3 mb-0" role="alert">@_error</div>
+    }
+
+    <div class="kbb-dialog-actions">
+        <button type="button" class="btn btn-link" @onclick="CloseAsync">Zamknij</button>
+    </div>
+</dialog>
+
+@code {
+    private readonly string _titleId = $"dialog-{Guid.NewGuid():N}";
+    private readonly string _nameId = $"plan-name-{Guid.NewGuid():N}";
+    private ElementReference _dialog;
+    private IJSObjectReference? _module;
+    private Place? _place;
+    private string _name = "";
+    private string? _error;
+    private bool _busy;
+
+    /// <summary>Komunikat po zmianie, np. do pokazania w potwierdzeniu na stronie.</summary>
+    [Parameter] public EventCallback<string> OnChanged { get; set; }
+
+    private IReadOnlyList<SavedPlan> Drafts => State.Plans.Where(p => !p.IsClosed).ToList();
+
+    public async Task ShowAsync(Place place)
+    {
+        (_place, _name, _error) = (place, "", null);
+        StateHasChanged();
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/dialog.js");
+        await _module.InvokeVoidAsync("show", _dialog);
+    }
+
+    private async Task ToggleAsync(SavedPlan plan)
+    {
+        if (_place is not { } place)
+            return;
+
+        var adding = !plan.PlaceIds.Contains(place.Id);
+        await RunAsync(() => State.TogglePlaceInPlanAsync(plan.Id, place.Id),
+            $"{(adding ? "Dodano do planu" : "Usunięto z planu")} „{plan.Name}”: {place.Name}");
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_place is not { } place)
+            return;
+
+        var name = _name.Trim();
+        await RunAsync(() => State.CreatePlanAsync(name, place.Id), $"Utworzono plan „{name}” i dodano: {place.Name}");
+    }
+
+    private async Task RunAsync(Func<Task<Application.Abstractions.Result>> action, string message)
+    {
+        if (_busy)
+            return;
+
+        _busy = true;
+        _error = null;
+        var result = await action();
+        _busy = false;
+        if (result.IsFailure)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        await CloseAsync();
+        await OnChanged.InvokeAsync(message);
+    }
+
+    private async Task CloseAsync()
+    {
+        if (_module is not null)
+            await _module.InvokeVoidAsync("close", _dialog);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null)
+                await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

@@ -6,11 +6,66 @@
 <PageTitle>Plan</PageTitle>
 
 <div class="page-header" data-tour="plan-intro">
-    <h1>Plan: @Labels.Of(State.Mode)</h1>
+    <h1>Plan: @(State.User is null ? Labels.Of(State.Mode) : State.ActivePlan?.Name ?? "moje plany")</h1>
     <p>Profil: <ProfileSummaryInline /> · <a href="profil">zmień</a></p>
 </div>
 
 <CoverageNotice />
+
+@if (_selected is not null && State.User is not null)
+{
+    <section class="card card-body mb-3" aria-labelledby="plans-heading">
+        <h2 id="plans-heading" class="h5">Moje plany</h2>
+        @if (State.PlansError is not null)
+        {
+            <div class="alert alert-warning" role="alert">@State.PlansError</div>
+        }
+        else if (State.Plans.Count == 0)
+        {
+            <p>Nie masz jeszcze żadnego planu. Nazwij pierwszy poniżej albo dodaj miejsce z <a href="miejsca">listy miejsc</a>.</p>
+        }
+        else
+        {
+            <ul class="list-unstyled place-list">
+                @foreach (var plan in State.Plans)
+                {
+                    var active = plan.Id == State.ActivePlan?.Id;
+                    <li class="place-item">
+                        <div>
+                            <span class="place-name">@plan.Name</span>
+                            <span class="status-badge @Labels.Css(plan.Status)">@Labels.Of(plan.Status)</span>
+                            @if (active)
+                            {
+                                <span class="badge text-bg-light border ms-1">Otwarty</span>
+                            }
+                            <div class="small text-body-secondary">
+                                @plan.PlaceIds.Count @Labels.PlacesWord(plan.PlaceIds.Count) · zmieniony @Labels.When(plan.UpdatedAt)
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-primary" disabled="@(active || _busy)"
+                                    aria-label="Otwórz plan: @plan.Name" @onclick="() => OpenPlanAsync(plan.Id)">Otwórz</button>
+                            <button type="button" class="btn btn-outline-danger" disabled="@_busy"
+                                    aria-label="Usuń plan: @plan.Name" @onclick="() => AskDeleteAsync(plan)">Usuń</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        <form @onsubmit="CreatePlanAsync" @onsubmit:preventDefault novalidate>
+            <label class="form-label" for="new-plan-name">Nowy plan</label>
+            <div class="d-flex flex-wrap gap-2">
+                <input id="new-plan-name" class="form-control plan-name-input" maxlength="@SavedPlanDraft.MaxNameLength"
+                       placeholder="np. Sobota na Kazimierzu" @bind="_newPlanName" />
+                <button type="submit" class="btn btn-outline-primary" disabled="@_busy">Utwórz plan</button>
+            </div>
+        </form>
+        @if (_plansError is not null)
+        {
+            <div class="alert alert-danger mt-3 mb-0" role="alert">@_plansError</div>
+        }
+    </section>
+}
 
 @if (_selected is null)
 {
@@ -18,6 +73,24 @@
         <div class="spinner-border text-primary mb-2" aria-hidden="true"></div>
         <p>Wczytuję wybrane miejsca…</p>
     </div>
+}
+else if (State.User is not null && State.ActivePlan is null)
+{
+    @if (State.Plans.Count > 0)
+    {
+        <p>Otwórz plan z listy albo utwórz nowy.</p>
+    }
+}
+else if (IsClosed)
+{
+    <div class="alert alert-info" role="note">
+        <strong>Ten plan jest zamknięty.</strong> Trasa została zapisana @Labels.When(State.ActivePlan!.UpdatedAt) i planu nie można już edytować:
+        nie dodasz ani nie usuniesz miejsc i nie zmienisz kolejności. Możesz go usunąć albo utworzyć nowy plan.
+    </div>
+    @if (_loadingRoute)
+    {
+        <p role="status">Wczytuję zapisaną trasę…</p>
+    }
 }
 else if (_selected.Count == 0)
 {
@@ -139,6 +212,19 @@ else
     Usuniemy z planu wszystkie wybrane miejsca i punkt startu.
 </ConfirmDialog>
 
+<ConfirmDialog @ref="_confirmDelete" Title="Usunąć plan?" ConfirmLabel="Usuń plan" OnConfirm="DeletePlanAsync">
+    Usuniemy plan „@_deleting?.Name”@(_deleting is { IsClosed: true } ? " razem z zapisaną trasą" : ""). Tego nie da się cofnąć.
+</ConfirmDialog>
+
+<ConfirmDialog @ref="_confirmClose" Title="Zapisać trasę i zamknąć plan?" ConfirmLabel="Zapisz i zamknij" OnConfirm="ClosePlanAsync">
+    Zapiszemy tę trasę w planie „@State.ActivePlan?.Name” na Twoim koncie. Po zapisaniu planu nie będzie można edytować:
+    nie dodasz ani nie usuniesz miejsc i nie zmienisz kolejności. Zamknięty plan możesz otworzyć albo usunąć.
+    @if (State.StartLocation is not null)
+    {
+        <text> Razem z trasą zapiszemy na serwerze wskazany punkt startu.</text>
+    }
+</ConfirmDialog>
+
 @if (_building)
 {
     <div class="text-center py-4" role="status">
@@ -155,7 +241,7 @@ else
 @if (_plan is not null)
 {
     <section aria-labelledby="plan-heading">
-        <h2 id="plan-heading" class="h4" tabindex="-1">Twój plan</h2>
+        <h2 id="plan-heading" class="h4" tabindex="-1">@(IsClosed ? "Zapisana trasa" : "Twój plan")</h2>
         <p role="status">
             @_plan.Stops.Count przystanków, około @Labels.Distance(_plan.TotalDistanceM) drogi,
             około @Math.Ceiling(_plan.TotalDurationMin) min w ruchu (bez czasu na miejscu).
@@ -164,6 +250,19 @@ else
                 <text>Przy trasie: @_hazards.Count @(_hazards.Count == 1 ? "utrudnienie potwierdzone" : "utrudnień potwierdzonych") przez urząd, z tego dla Twojego profilu: @_hazards.Count(h => h.ConcernsProfile).</text>
             }
         </p>
+        @if (State.ActivePlan is { IsClosed: false })
+        {
+            <div class="card card-body mb-3">
+                <p class="mb-2">
+                    Trasa jest gotowa? Zapisz ją na koncie. <strong>Zapis zamyka plan: potem nie można go już edytować.</strong>
+                </p>
+                <div>
+                    <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="() => _confirmClose!.ShowAsync()">
+                        <span class="msym" aria-hidden="true">save</span> Zapisz trasę i zamknij plan
+                    </button>
+                </div>
+            </div>
+        }
 
         <div class="row g-3">
             <div class="col-lg-6">
@@ -292,25 +391,109 @@ else
     private bool _locating;
 
     private bool _pickingStart;
+    private bool _busy;
+    private bool _loadingRoute;
+    private string _newPlanName = "";
+    private string? _plansError;
+    private SavedPlan? _deleting;
     private ConfirmDialog? _confirmClear;
+    private ConfirmDialog? _confirmDelete;
+    private ConfirmDialog? _confirmClose;
     private IReadOnlyList<MapMarker> _pickerMarkers = [];
 
     private bool ShowStartPicker => _pickingStart || State.StartLocation is not null;
 
     private GeoPoint CityCenter => State.City is { } city ? new GeoPoint(city.Lat, city.Lon) : new GeoPoint(50.0614, 19.9366);
 
+    private bool IsClosed => State.ActivePlan is { IsClosed: true };
+
     private bool CanBuild => _selected is not null && _selected.Count >= (State.StartLocation is null ? 2 : 1);
 
     protected override async Task OnInitializedAsync()
     {
         await State.EnsureLoadedAsync();
+        await ReloadAsync();
+    }
+
+    /// <summary>Po zmianie otwartego planu: miejsca planu w przygotowaniu albo zapisana trasa planu zamkniętego.</summary>
+    private async Task ReloadAsync()
+    {
+        (_plan, _error, _locationError, _pickingStart) = (null, null, null, false);
         await LoadSelectedAsync();
+        if (State.ActivePlan is not { IsClosed: true } closed)
+            return;
+
+        _loadingRoute = true;
+        StateHasChanged();
+        var route = await Sender.Send(new GetSavedRouteQuery(closed.Id, State.Profile));
+        _loadingRoute = false;
+        if (route.IsSuccess)
+            ShowPlan(route.Value);
+        else
+            _error = route.Error;
+    }
+
+    private async Task OpenPlanAsync(string planId)
+    {
+        _plansError = null;
+        await State.SelectPlanAsync(planId);
+        await ReloadAsync();
+    }
+
+    private async Task CreatePlanAsync()
+    {
+        if (_busy)
+            return;
+
+        _busy = true;
+        var result = await State.CreatePlanAsync(_newPlanName.Trim());
+        _busy = false;
+        _plansError = result.Error;
+        if (result.IsSuccess)
+        {
+            _newPlanName = "";
+            await ReloadAsync();
+        }
+    }
+
+    private async Task AskDeleteAsync(SavedPlan plan)
+    {
+        _deleting = plan;
+        await _confirmDelete!.ShowAsync();
+    }
+
+    private async Task DeletePlanAsync()
+    {
+        if (_deleting is not { } plan || _busy)
+            return;
+
+        _busy = true;
+        var wasActive = plan.Id == State.ActivePlan?.Id;
+        var result = await State.DeletePlanAsync(plan.Id);
+        _busy = false;
+        _plansError = result.Error;
+        if (result.IsSuccess && wasActive)
+            await ReloadAsync();
+    }
+
+    private async Task ClosePlanAsync()
+    {
+        if (_plan is not { } route || _busy)
+            return;
+
+        _busy = true;
+        var result = await State.ClosePlanAsync(route);
+        _busy = false;
+        _error = result.Error;
+        if (result.IsSuccess)
+            await LoadSelectedAsync();
     }
 
     private async Task LoadSelectedAsync()
     {
         var selected = new List<AssessedPlace>();
-        foreach (var id in State.PlanPlaceIds)
+        // Zamknięty plan pokazuje zapisaną trasę, a nie listę do edycji.
+        foreach (var id in IsClosed ? [] : State.PlanPlaceIds)
         {
             var result = await Sender.Send(new GetPlaceDetailsQuery(State.CityId, id, State.Profile));
             if (result.IsSuccess)
@@ -332,22 +515,19 @@ else
 
     private async Task RemoveAsync(string id)
     {
-        await State.TogglePlaceAsync(id);
+        _error = (await State.TogglePlaceAsync(id)).Error;
         _plan = null;
         await LoadSelectedAsync();
     }
 
     private async Task MoveAsync(AssessedPlace item, int offset)
     {
-        if (offset < 0)
-            await State.MovePlaceUpAsync(item.Place.Id);
-        else
-            await State.MovePlaceDownAsync(item.Place.Id);
+        _error = (offset < 0 ? await State.MovePlaceUpAsync(item.Place.Id) : await State.MovePlaceDownAsync(item.Place.Id)).Error;
 
         // Ułożony plan przestaje odpowiadać liście, więc go chowamy.
         _plan = null;
         await LoadSelectedAsync();
-        _moveStatus = $"{item.Place.Name}: pozycja {State.PlanPlaceIds.IndexOf(item.Place.Id) + 1} z {State.PlanPlaceIds.Count}.";
+        _moveStatus = $"{item.Place.Name}: pozycja {_selected!.FindIndex(p => p.Place.Id == item.Place.Id) + 1} z {_selected.Count}.";
     }
 
     private async Task SetOptimizeAsync(ChangeEventArgs e)
@@ -396,9 +576,9 @@ else
 
     private async Task ClearAsync()
     {
-        await State.ClearPlanAsync();
+        var cleared = await State.ClearPlanAsync();
         _plan = null;
-        _error = null;
+        _error = cleared.Error;
         _locationError = null;
         _pickingStart = false;
         await LoadSelectedAsync();
@@ -423,25 +603,30 @@ else
                 return;
             }
 
-            _plan = result.Value;
-            var count = _plan.Stops.Count;
-            // Ten sam punkt może leżeć przy dwóch odcinkach; na mapie i w podsumowaniu liczymy go raz.
-            _hazards = _plan.Legs.SelectMany(l => l.Hazards ?? []).DistinctBy(h => h.Hazard.Id).ToList();
-            _markers = _plan.Stops
-                .Select((s, i) => new MapMarker(s.IsUserLocation ? "" : s.Place.Id,
-                    StopRole(i, count) is { } role ? $"{s.Place.Name} ({role.ToLowerInvariant()})" : s.Place.Name,
-                    s.Place.Lat, s.Place.Lon, StopColor(i, count), s.Order.ToString()))
-                .Concat(_hazards.Select(h => Labels.Marker(h.Hazard) with { Id = "" }))
-                .Concat(_plan.Legs.SelectMany(l => l.RestStops ?? []).DistinctBy(r => r.PlaceId).Select(r => new MapMarker(
-                    "", $"Ławka na przerwę (po około {Labels.Distance(r.DistanceFromStartM)} marszu)", r.Lat, r.Lon, RestColor,
-                    Icon: Labels.MapIcon(PlaceCategory.Bench))))
-                .ToList();
-            _route = RouteSegments(_plan);
+            ShowPlan(result.Value);
         }
         finally
         {
             _building = false;
         }
+    }
+
+    private void ShowPlan(TripPlan plan)
+    {
+        _plan = plan;
+        var count = plan.Stops.Count;
+        // Ten sam punkt może leżeć przy dwóch odcinkach; na mapie i w podsumowaniu liczymy go raz.
+        _hazards = plan.Legs.SelectMany(l => l.Hazards ?? []).DistinctBy(h => h.Hazard.Id).ToList();
+        _markers = plan.Stops
+            .Select((s, i) => new MapMarker(s.IsUserLocation ? "" : s.Place.Id,
+                StopRole(i, count) is { } role ? $"{s.Place.Name} ({role.ToLowerInvariant()})" : s.Place.Name,
+                s.Place.Lat, s.Place.Lon, StopColor(i, count), s.Order.ToString()))
+            .Concat(_hazards.Select(h => Labels.Marker(h.Hazard) with { Id = "" }))
+            .Concat(plan.Legs.SelectMany(l => l.RestStops ?? []).DistinctBy(r => r.PlaceId).Select(r => new MapMarker(
+                "", $"Ławka na przerwę (po około {Labels.Distance(r.DistanceFromStartM)} marszu)", r.Lat, r.Lon, RestColor,
+                Icon: Labels.MapIcon(PlaceCategory.Bench))))
+            .ToList();
+        _route = RouteSegments(plan);
     }
 
     /// <summary>Najpierw dojścia piesze, potem proponowane przejazdy, żeby linie komunikacji były na wierzchu.</summary>

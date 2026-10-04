@@ -38,6 +38,7 @@ public static class LocalStores
     public const string Plans = "plans";
     public const string Reports = "reports";
     public const string RouteCache = "routeCache";
+    public const string PlaceCache = "placeCache";
 }
 
 public sealed record RouteRequest(GeoPoint From, GeoPoint To, NeedsProfile Profile);

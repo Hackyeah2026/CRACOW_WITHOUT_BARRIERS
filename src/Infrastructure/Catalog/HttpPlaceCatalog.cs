@@ -2,15 +2,19 @@ using System.Net.Http.Json;
 using Application.Abstractions;
 using Domain;
 using Domain.Places;
+using Microsoft.JSInterop;
 
 namespace Infrastructure.Catalog;
 
 /// <summary>
 /// Katalog czytany ze statycznych plików aplikacji: data/cities.json i po jednym pliku na kategorię
 /// (data/{miasto}/places/{kategoria}.json, spis w index.json). Plik kategorii jest pobierany przy pierwszym użyciu.
+/// Miejsca wyszukane po identyfikatorze są zapamiętywane na urządzeniu: plan otwarty z bezpośredniego adresu
+/// nie musi wtedy pobierać i czytać plików wszystkich kategorii, co na kilka-kilkadziesiąt sekund blokowało stronę.
 /// </summary>
-internal sealed class HttpPlaceCatalog(HttpClient http) : IPlaceCatalog
+internal sealed class HttpPlaceCatalog(HttpClient http, ILocalStore store) : IPlaceCatalog
 {
+    private readonly HashSet<string> _remembered = [];
     private IReadOnlyList<City>? _cities;
     private readonly Dictionary<string, Task<PlaceIndex>> _indexes = [];
     private readonly Dictionary<(string CityId, PlaceCategory Category), Task<IReadOnlyList<Place>>> _files = [];
@@ -36,8 +40,11 @@ internal sealed class HttpPlaceCatalog(HttpClient http) : IPlaceCatalog
         foreach (var (key, file) in _files.ToList())
         {
             if (key.CityId == cityId && file.IsCompletedSuccessfully && file.Result.FirstOrDefault(p => p.Id == placeId) is { } cached)
-                return cached;
+                return await RememberAsync(cached, index.GeneratedOn);
         }
+
+        if (await RecallAsync(cityId, placeId, index.GeneratedOn) is { } remembered)
+            return remembered;
 
         // Potem brakujące pliki od najmniejszych, żeby wejście z bezpośredniego adresu nie zaczynało od tysięcy ławek.
         foreach (var category in index.Categories.OrderBy(c => c.Count).Select(c => c.Category))
@@ -45,10 +52,44 @@ internal sealed class HttpPlaceCatalog(HttpClient http) : IPlaceCatalog
             if (_files.TryGetValue((cityId, category), out var loaded) && loaded.IsCompletedSuccessfully)
                 continue;
             if ((await FileAsync(cityId, category)).FirstOrDefault(p => p.Id == placeId) is { } found)
-                return found;
+                return await RememberAsync(found, index.GeneratedOn);
         }
         return null;
     }
+
+    /// <summary>Miejsce zapamiętane na urządzeniu, o ile pochodzi z tego samego importu co bieżący katalog.</summary>
+    private async Task<Place?> RecallAsync(string cityId, string placeId, DateOnly generatedOn)
+    {
+        try
+        {
+            var key = CacheKey(cityId, placeId);
+            if (await store.GetAsync<CachedPlace>(LocalStores.PlaceCache, key) is not { Place: not null } cached || cached.GeneratedOn != generatedOn)
+                return null;
+
+            _remembered.Add(key);
+            return cached.Place;
+        }
+        catch (Exception ex) when (ex is JSException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<Place> RememberAsync(Place place, DateOnly generatedOn)
+    {
+        // Pamięć na urządzeniu tylko przyspiesza: gdy zapis się nie uda, katalog działa dalej z plików.
+        try
+        {
+            if (_remembered.Add(CacheKey(place.CityId, place.Id)))
+                await store.PutAsync(LocalStores.PlaceCache, CacheKey(place.CityId, place.Id), new CachedPlace(generatedOn, place));
+        }
+        catch (JSException) { }
+        return place;
+    }
+
+    private static string CacheKey(string cityId, string placeId) => $"{cityId}:{placeId}";
+
+    private sealed record CachedPlace(DateOnly GeneratedOn, Place Place);
 
     // Trzymamy zadania, a nie wyniki: równoległe zapytania o ten sam plik czekają na jedno pobranie.
     private Task<PlaceIndex> IndexAsync(string cityId)

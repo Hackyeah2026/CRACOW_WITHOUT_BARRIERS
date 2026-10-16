@@ -165,8 +165,8 @@ public sealed class SensoryRule : IAssessmentRule
         var band = $"{AmbientNoise.Describe(db)} ({LevelLabel(level)})";
         const string inside = "Mapa nie mówi nic o hałasie w środku.";
         return level <= max
-            ? Reasons.Amenity(place, FeatureKey.AmbientNoiseDb, $"Okolica budynku według miejskiej mapy hałasu: {band}, w granicach Twojej tolerancji. {inside}")
-            : Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, AssessmentStatus.Limited, $"Głośna okolica budynku według miejskiej mapy hałasu: {band}. {inside}");
+            ? Reasons.Amenity(place, FeatureKey.AmbientNoiseDb, $"Okolica według miejskiej mapy hałasu: {band}, w granicach Twojej tolerancji. {inside}")
+            : Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, AssessmentStatus.Limited, $"Głośna okolica według miejskiej mapy hałasu: {band}. {inside}");
     }
 
     private static string LevelLabel(int level) => level switch { <= 1 => "niski", 2 => "umiarkowany", _ => "wysoki" };

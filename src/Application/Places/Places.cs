@@ -263,3 +263,19 @@ internal sealed class GetCitiesQueryHandler(IPlaceCatalog catalog) : IQueryHandl
     public async Task<Result<IReadOnlyList<City>>> Handle(GetCitiesQuery query, CancellationToken ct) =>
         Result.Success(await catalog.GetCitiesAsync(ct));
 }
+
+/// <param name="ConflictCount">Wszystkie miejsca ze sprzecznymi źródłami; <see cref="Conflicts"/> zawiera najwyżej kilkadziesiąt z nich.</param>
+public sealed record DataGapsReport(IReadOnlyList<CategoryCoverage> Categories, IReadOnlyList<ConflictingPlace> Conflicts, int ConflictCount);
+
+/// <summary>Pokrycie danymi o dostępności w kategoriach miejsc publicznych i miejsca ze sprzecznymi źródłami (panel urzędnika).</summary>
+public sealed record GetDataGapsQuery(string CityId, int MaxConflicts = 50) : IQuery<DataGapsReport>;
+
+internal sealed class GetDataGapsQueryHandler(IPlaceCatalog catalog) : IQueryHandler<GetDataGapsQuery, DataGapsReport>
+{
+    public async Task<Result<DataGapsReport>> Handle(GetDataGapsQuery query, CancellationToken ct)
+    {
+        var places = await catalog.GetAsync(query.CityId, DataCoverage.PublicCategories.ToList(), ct);
+        var categories = DataCoverage.Summarize(places);
+        return Result.Success(new DataGapsReport(categories, DataCoverage.Conflicts(places, query.MaxConflicts), categories.Sum(c => c.WithConflicts)));
+    }
+}

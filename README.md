@@ -102,7 +102,7 @@ flowchart LR
     subgraph Offline["Import danych (Tools)"]
         OSM[(OpenStreetMap<br/>Overpass)]
         GTFS[(GTFS ZTP Kraków)]
-        MSIP[(MSIP Kraków<br/>mapa hałasu 2022,<br/>toalety publiczne)]
+        MSIP[(MSIP Kraków<br/>mapa hałasu 2022,<br/>toalety publiczne,<br/>wiaty ZTP)]
     end
     OSM --> STATIC
     GTFS --> STATIC
@@ -268,6 +268,7 @@ docker run --rm -p 8080:8080 -e Mongo__ConnectionString="<adres>" kbb-web:local
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) (Overpass API) | 28 971 miejsc w 18 kategoriach (po jednym pliku na kategorię): m.in. ławki, sklepy, jedzenie, przystanki, koperty, zdrowie, apteki, urzędy, atrakcje, parki, toalety; tagi `wheelchair`, `toilets:wheelchair`, `tactile_paving`, `bench`, `shelter`, `elevator`, `hearing_loop` | ODbL, © autorzy OpenStreetMap |
 | [MSIP Kraków: mapa hałasu 2022](https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer) | hałas otoczenia (wskaźnik LDWN, ruch drogowy: warstwa 1, tramwaje i kolej: warstwa 5) dla 14 759 miejsc; ławki i miejsca parkingowe pominięte. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | [warunki portalu Otwarte Dane](https://otwartedane.um.krakow.pl/warunki-wykorzystania-danych-udostepnianych-w-portalu): swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) i czasu wytworzenia oraz pozyskania danych |
 | [MSIP Kraków: toalety publiczne](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/WT_WC_2023/MapServer/0) (rejestr ISDP, stan 2023) | 50 toalet miejskich: dostosowanie dla osób z niepełnosprawnościami i jego rodzaj (wjazd z poziomu 0, pochylnia, platforma, winda, schodołaz), przewijak, godziny, czy czynna. 48 połączonych z toaletą z OSM w promieniu 50 m, 2 dodane. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | jak wyżej (warunki portalu Otwarte Dane) |
+| [MSIP Kraków: wiaty przystankowe KMK](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/9) (rejestr ZTP, import do MSIP 10.10.2026) | 1557 wiat dopasowanych do przystanków po nazwie ze słupkiem (np. „Agatowa 01”), a bez zgodnej nazwy do najbliższego przystanku w promieniu 30 m: wiata przy 1439 przystankach, przy 98 OSM podaje „brak wiaty” (sprzeczność widoczna na karcie). Rejestr mówi tylko, gdzie wiata jest, więc nie zapisujemy „brak wiaty”. Pobrane 17.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | jak wyżej (warunki portalu Otwarte Dane) |
 | [GTFS ZTP Kraków](https://gtfs.ztp.krakow.pl/) | 218 linii, ok. 95 tys. kursów, 3 474 przystanki | według zasad udostępniania ZTP |
 | [OpenRouteService](https://openrouteservice.org/) | trasy piesze i wózkowe | według regulaminu usługi |
 | Uzupełnienia zespołu ([`overrides/krakow.json`](src/Tools/overrides/krakow.json)) | cechy sensoryczne i szczegóły dla miejsc ze ścieżki demo | **dane demonstracyjne**, oznaczone w aplikacji, niezweryfikowane |

@@ -16,6 +16,16 @@ public static class CityData
             Console.WriteLine($"Toalety publiczne: {toilets.Count - added} połączone z OSM, {added} nowych");
         }
 
+        if (city.StopSheltersLayer is { } sheltersLayer)
+        {
+            var shelters = await new ZtpSheltersSource(http).LoadAsync(sheltersLayer);
+            places = ZtpSheltersSource.Apply(places, shelters, out var unmatched);
+            var withShelter = places.Count(p => p.Features.Any(f => f.Source == ZtpSheltersSource.Source));
+            var conflicts = places.Count(p => p.Category == PlaceCategory.Stop && p.ConflictsOn(FeatureKey.StopShelter).Count > 0);
+            Console.WriteLine($"Wiaty: {withShelter} przystanków z wiatą z rejestru ZTP, {unmatched} wiat bez przystanku w katalogu, " +
+                              $"{conflicts} przystanków, przy których OSM podaje inaczej");
+        }
+
         if (city.NoiseLayers is { Count: > 0 } layers)
         {
             var map = await new MsipNoiseSource(http).LoadAsync(layers);

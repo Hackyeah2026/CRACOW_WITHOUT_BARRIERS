@@ -180,6 +180,10 @@ public sealed class StaminaRule : IAssessmentRule
         if (!profile.NeedsSeating)
             yield break;
 
+        // Na przystanku wiata to schronienie w czasie czekania na deszcz i upał; jej brak nie przekreśla przystanku.
+        if (place.Category == PlaceCategory.Stop && place.StateOf(FeatureKey.StopShelter) == FeatureState.Yes)
+            yield return Reasons.Amenity(place, FeatureKey.StopShelter, "Wiata na przystanku: można przeczekać deszcz lub upał.");
+
         var benches = place.StateOf(FeatureKey.Benches);
         var seating = place.StateOf(FeatureKey.SeatingInside);
 

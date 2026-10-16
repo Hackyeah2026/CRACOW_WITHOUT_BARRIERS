@@ -17,6 +17,7 @@ public static class DependencyInjection
             new CertifiedPlaceCatalog(p.GetRequiredService<HttpPlaceCatalog>(), p.GetRequiredService<IBusinessClient>()),
             p.GetRequiredService<IReportsClient>()))
         .AddScoped<ITransitCatalog, HttpTransitCatalog>()
+        .AddScoped<INoiseCatalog, HttpNoiseCatalog>()
         .AddScoped<ILocalStore, IndexedDbLocalStore>()
         .AddScoped<IRoutingClient, HostRoutingClient>()
         .AddScoped<IReportsClient, HostReportsClient>()

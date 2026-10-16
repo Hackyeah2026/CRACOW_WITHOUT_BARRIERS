@@ -154,8 +154,8 @@ public sealed class SensoryRule : IAssessmentRule
         if (level <= max)
             return Reasons.Amenity(place, FeatureKey.AmbientNoiseDb, $"{text}.");
 
-        var impact = level - max >= 2 ? AssessmentStatus.Inaccessible : AssessmentStatus.Limited;
-        return Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, impact, $"{text}, powyżej Twojej tolerancji.");
+        // Mapa ma przedziały co 5 dB i opisuje hałas uśredniony z doby, więc daje najwyżej "z ograniczeniami".
+        return Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, AssessmentStatus.Limited, $"{text}, powyżej Twojej tolerancji.");
     }
 
     /// <summary>Głośna ulica utrudnia dojście i wejście, ale nie przesądza o hałasie w środku, więc najwyżej "z ograniczeniami".</summary>

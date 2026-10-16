@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Domain;
 using Domain.Places;
 
 namespace Tools;
@@ -5,7 +7,8 @@ namespace Tools;
 /// <summary>Uzupełnienie katalogu o dane miejskie (MSIP). Każde źródło jest opcjonalne i zależy od konfiguracji miasta.</summary>
 public static class CityData
 {
-    public static async Task<List<Place>> ApplyAsync(List<Place> places, string cityId, CityImport city, HttpClient http)
+    /// <param name="dataDir">Katalog danych miasta: trafia tam siatka hałasu (noise.json) do sprawdzania tras w przeglądarce.</param>
+    public static async Task<List<Place>> ApplyAsync(List<Place> places, string cityId, CityImport city, HttpClient http, string dataDir)
     {
         // Najpierw toalety: nowe obiekty z rejestru miasta dostają potem hałas otoczenia jak pozostałe miejsca.
         if (city.PublicToiletsLayer is { } toiletsLayer)
@@ -30,6 +33,10 @@ public static class CityData
         {
             var map = await new MsipNoiseSource(http).LoadAsync(layers);
             places = MsipNoiseSource.Apply(places, map);
+            var grid = MsipNoiseSource.BuildGrid(map, city.South, city.West, city.North, city.East);
+            var gridPath = Path.Combine(dataDir, "noise.json");
+            await File.WriteAllTextAsync(gridPath, JsonSerializer.Serialize(grid, DomainJson.Options));
+            Console.WriteLine($"Siatka hałasu: {grid.Rows} × {grid.Cols} komórek, {new FileInfo(gridPath).Length / 1024} KB");
             Console.WriteLine($"Hałas otoczenia: {places.Count(p => p.Feature(FeatureKey.AmbientNoiseDb) is not null)} miejsc " +
                               $"z {places.Count(MsipNoiseSource.AppliesTo)} sprawdzanych");
         }

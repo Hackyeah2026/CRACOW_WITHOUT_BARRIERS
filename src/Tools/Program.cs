@@ -39,7 +39,7 @@ http.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowBezBarier/1.0 (+https://git
 
 if (command == "city")
 {
-    PlaceFiles.Write(output, await CityData.ApplyAsync(PlaceFiles.Read(output), cityId, city, http));
+    PlaceFiles.Write(output, await CityData.ApplyAsync(PlaceFiles.Read(output), cityId, city, http, dataDir));
     return 0;
 }
 
@@ -53,7 +53,7 @@ if (places.Count == 0)
     return 1;
 }
 
-places = await CityData.ApplyAsync(places, cityId, city, http);
+places = await CityData.ApplyAsync(places, cityId, city, http, dataDir);
 places = OverridesApplier.Apply(places, overrides);
 PlaceFiles.Write(output, places);
 return 0;

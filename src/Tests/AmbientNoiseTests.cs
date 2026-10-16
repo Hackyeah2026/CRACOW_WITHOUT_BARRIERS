@@ -110,11 +110,12 @@ public class AmbientNoiseTests
     }
 
     [Fact]
-    public void Very_loud_stop_is_inaccessible_for_someone_who_needs_quiet()
+    public void Even_a_very_loud_stop_is_limited_and_not_inaccessible_because_the_map_is_a_daily_average()
     {
         var assessment = AssessmentEngine.Assess(QuietOnly, PlaceAt(PlaceCategory.Stop, Ambient(75)));
 
-        Assert.Equal(AssessmentStatus.Inaccessible, assessment.Status);
+        Assert.Equal(AssessmentStatus.Limited, assessment.Status);
+        Assert.Contains("MSIP", assessment.Reasons.Single().Source);
     }
 
     [Fact]

@@ -58,6 +58,8 @@ public sealed class MobilityRule : IAssessmentRule
             {
                 if (place.StateOf(FeatureKey.Elevator) == FeatureState.Yes)
                     yield return Reasons.Amenity(place, FeatureKey.Elevator, "Są schody, ale jest też winda.");
+                else if (place.StateOf(FeatureKey.Elevator) == FeatureState.No)
+                    yield return Reasons.Barrier(place, FeatureKey.Elevator, hard, "Są schody, a windy brak.");
                 else
                     yield return Reasons.Barrier(place, FeatureKey.Stairs, hard, "Schody bez potwierdzonej windy.");
             }

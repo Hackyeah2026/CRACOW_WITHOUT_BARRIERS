@@ -12,8 +12,10 @@ public static class DependencyInjection
     public static IServiceCollection AddBrowserInfrastructure(this IServiceCollection services) => services
         .AddScoped<HttpPlaceCatalog>()
         .AddScoped<IBusinessClient, HostBusinessClient>()
-        // Katalog z plików uzupełniony o certyfikaty i deklaracje zatwierdzonych firm.
-        .AddScoped<IPlaceCatalog>(p => new CertifiedPlaceCatalog(p.GetRequiredService<HttpPlaceCatalog>(), p.GetRequiredService<IBusinessClient>()))
+        // Katalog z plików uzupełniony o certyfikaty i deklaracje zatwierdzonych firm oraz braki potwierdzone przez urząd.
+        .AddScoped<IPlaceCatalog>(p => new ConfirmedGapsPlaceCatalog(
+            new CertifiedPlaceCatalog(p.GetRequiredService<HttpPlaceCatalog>(), p.GetRequiredService<IBusinessClient>()),
+            p.GetRequiredService<IReportsClient>()))
         .AddScoped<ITransitCatalog, HttpTransitCatalog>()
         .AddScoped<ILocalStore, IndexedDbLocalStore>()
         .AddScoped<IRoutingClient, HostRoutingClient>()

@@ -14,8 +14,13 @@ public interface IReportRepository
     /// <summary>Najnowsze zgłoszenia spełniające filtr.</summary>
     Task<IReadOnlyList<Report>> ListAsync(ReportFilter filter, int limit, CancellationToken ct);
 
-    /// <summary>Zmienia status i odpowiedź urzędu; null, gdy zgłoszenia nie ma.</summary>
-    Task<Report?> UpdateStatusAsync(string id, ReportStatusChange change, string officialLogin, DateTime now, CancellationToken ct);
+    Task<Report?> FindAsync(string id, CancellationToken ct);
+
+    /// <summary>Zmienia status, odpowiedź urzędu i datę potwierdzenia (null zdejmuje potwierdzenie); null, gdy zgłoszenia nie ma.</summary>
+    Task<Report?> UpdateStatusAsync(string id, ReportStatusChange change, DateTime? confirmedAt, string officialLogin, DateTime now, CancellationToken ct);
+
+    /// <summary>Zgłoszenia z potwierdzonym brakiem, które jeszcze wpływają na ocenę (nie rozwiązane i nie odrzucone).</summary>
+    Task<IReadOnlyList<Report>> ListConfirmedAsync(string cityId, int limit, CancellationToken ct);
 }
 
 /// <summary>Punkty z utrudnieniami w bazie hosta.</summary>
@@ -48,6 +53,9 @@ public interface IReportsClient
     Task<Result<ReportReceipt>> SubmitAsync(ReportDraft draft, CancellationToken ct);
     /// <summary>Zgłoszenia zalogowanego mieszkańca, od najnowszych.</summary>
     Task<Result<IReadOnlyList<ReportStatusView>>> GetMineAsync(CancellationToken ct);
+
+    /// <summary>Braki potwierdzone przez urząd w danym mieście (publiczne).</summary>
+    Task<Result<IReadOnlyList<ConfirmedGap>>> GetConfirmedAsync(string cityId, CancellationToken ct);
 }
 
 /// <summary>Punkty z utrudnieniami: wysyłka z przeglądarki do hosta i odczyt punktów potwierdzonych przez urząd.</summary>

@@ -75,6 +75,20 @@ public sealed record Report(
     /// <summary>Zdjęcie dołączone przez zgłaszającego; sam plik jest w kolekcji zdjęć.</summary>
     public ReportPhoto? Photo { get; init; }
 
+    /// <summary>Kiedy urzędnik potwierdził, że zaznaczonych udogodnień brakuje; null, gdy nie potwierdził.</summary>
+    public DateTime? ConfirmedAt { get; init; }
+
+    /// <summary>Potwierdzić można tylko zgłoszenie, które wskazuje konkretne udogodnienia: tylko wtedy wiadomo, co zmienić w ocenie.</summary>
+    public bool CanBeConfirmed => Kind is ReportKind.MissingAmenity or ReportKind.Barrier && Features.Count > 0;
+
+    /// <summary>
+    /// Potwierdzony brak wpływa na ocenę, dopóki zgłoszenie nie jest rozwiązane ani odrzucone. Po rozwiązaniu nie
+    /// zakładamy, że udogodnienie już jest: ocena wraca do pozostałych źródeł.
+    /// </summary>
+    public bool AffectsAssessment => ConfirmedAt is not null && CanBeConfirmed && Status is not (ReportStatus.Resolved or ReportStatus.Rejected);
+
+    public ConfirmedGap ToConfirmedGap() => new(CityId, PlaceId, Kind, Features, ConfirmedAt ?? UpdatedAt);
+
     public static Report Create(ReportDraft draft, DateTime now) => new(
         Guid.NewGuid().ToString("N"), draft.CityId, draft.PlaceId, draft.PlaceName.Trim(), draft.Category, draft.Lat, draft.Lon,
         draft.Kind, draft.Features, (draft.Description ?? "").Trim(), ReportStatus.New, now, now, null, null);
@@ -83,7 +97,7 @@ public sealed record Report(
 
     /// <summary>Widok dla zgłaszającego: bez loginu urzędnika.</summary>
     public ReportStatusView ToStatusView() =>
-        new(Id, PlaceId, PlaceName, Kind, Features, Status, CreatedAt, UpdatedAt, OfficialNote) { Photo = Photo };
+        new(Id, PlaceId, PlaceName, Kind, Features, Status, CreatedAt, UpdatedAt, OfficialNote) { Photo = Photo, ConfirmedAt = ConfirmedAt };
 }
 
 /// <summary>Co zgłaszający widzi o swoim zgłoszeniu.</summary>
@@ -92,6 +106,8 @@ public sealed record ReportStatusView(
     ReportStatus Status, DateTime CreatedAt, DateTime UpdatedAt, string? OfficialNote)
 {
     public ReportPhoto? Photo { get; init; }
+
+    public DateTime? ConfirmedAt { get; init; }
 }
 
 /// <summary>Potwierdzenie przyjęcia zgłoszenia.</summary>
@@ -99,10 +115,37 @@ public sealed record ReportReceipt(string Id, string PlaceId, string PlaceName, 
 
 public sealed record ReportFilter(string? CityId = null, ReportStatus? Status = null, string? PlaceId = null);
 
-public sealed record ReportStatusChange(ReportStatus Status, string? Note)
+/// <param name="Confirmed">Urzędnik potwierdza, że zaznaczonych udogodnień brakuje (np. po wizji lokalnej).</param>
+public sealed record ReportStatusChange(ReportStatus Status, string? Note, bool Confirmed = false)
 {
     public IReadOnlyList<string> Validate() =>
         Note is { Length: > Report.MaxNoteLength } ? [$"Odpowiedź może mieć najwyżej {Report.MaxNoteLength} znaków."]
         : !Enum.IsDefined(Status) ? ["Nieznany status."]
+        : Confirmed && Status == ReportStatus.Rejected ? ["Odrzuconego zgłoszenia nie można jednocześnie potwierdzić."]
         : [];
+}
+
+/// <summary>
+/// Brak potwierdzony przez urząd w widoku publicznym: bez treści zgłoszenia, zgłaszającego i urzędnika.
+/// Aplikacja dopisuje go do oceny miejsca jako osobne źródło.
+/// </summary>
+public sealed record ConfirmedGap(string CityId, string PlaceId, ReportKind Kind, IReadOnlyList<FeatureKey> Features, DateTime ConfirmedAt)
+{
+    public const string Source = "Zgłoszenie mieszkańca potwierdzone przez urząd";
+
+    /// <summary>
+    /// Potwierdzone braki trafiają przed pozostałe cechy, więc ocena z nich korzysta, a wcześniejsze dane (np. "jest winda"
+    /// z OpenStreetMap) zostają obok i karta miejsca pokazuje, że źródła się różnią. Przy kilku potwierdzeniach tej samej
+    /// cechy liczy się najnowsze.
+    /// </summary>
+    public static Place ApplyTo(Place place, IEnumerable<ConfirmedGap> gaps)
+    {
+        var confirmed = gaps.Where(g => g.PlaceId == place.Id)
+            .OrderByDescending(g => g.ConfirmedAt)
+            .SelectMany(g => g.Features.Select(key => (key, g.ConfirmedAt)))
+            .DistinctBy(x => x.key)
+            .Select(x => new AccessibilityFeature(x.key, FeatureState.No, null, Source, DateOnly.FromDateTime(x.ConfirmedAt), false))
+            .ToList();
+        return confirmed.Count == 0 ? place : place with { Features = [.. confirmed, .. place.Features.Where(f => f.Source != Source)] };
+    }
 }

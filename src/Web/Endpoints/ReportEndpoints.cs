@@ -8,6 +8,7 @@ public static class ReportEndpoints
 {
     private const int MaxMine = 100;
     private const int MaxListed = 500;
+    private const int MaxConfirmed = 2000;
 
     /// <summary>
     /// Zgłoszenia miejsc: wysyła je zalogowany mieszkaniec (urząd widzi login zgłaszającego), a obsługuje urzędnik
@@ -15,6 +16,11 @@ public static class ReportEndpoints
     /// </summary>
     public static IEndpointRouteBuilder MapReportEndpoints(this IEndpointRouteBuilder app)
     {
+        // Publicznie: same potwierdzone braki (miejsce, udogodnienia, data), bez treści zgłoszenia i loginów.
+        app.MapGet("/api/reports/confirmed", async (string cityId, IReportRepository repository, CancellationToken ct) =>
+                Results.Ok((await repository.ListConfirmedAsync(cityId, MaxConfirmed, ct)).Where(r => r.AffectsAssessment).Select(r => r.ToConfirmedGap())))
+            .AddEndpointFilter(Api.DatabaseUnavailableFilter);
+
         var reports = app.MapGroup("/api/reports")
             .AddEndpointFilter(Api.DatabaseUnavailableFilter)
             .RequireAuthorization(AccountEndpoints.UserPolicy);
@@ -54,7 +60,15 @@ public static class ReportEndpoints
             if (!Api.IsId(id))
                 return Results.NotFound();
 
-            var updated = await repository.UpdateStatusAsync(id, change, OfficialEndpoints.ProfileOf(user).Login, DateTime.UtcNow, ct);
+            if (await repository.FindAsync(id, ct) is not { } report)
+                return Results.NotFound();
+            if (change.Confirmed && !report.CanBeConfirmed)
+                return Api.Invalid(["Potwierdzić można tylko zgłoszenie braku udogodnienia albo bariery z zaznaczonymi udogodnieniami."]);
+
+            // Ponowny zapis potwierdzonego zgłoszenia zachowuje datę pierwszego potwierdzenia.
+            var now = DateTime.UtcNow;
+            var confirmedAt = change.Confirmed ? report.ConfirmedAt ?? now : (DateTime?)null;
+            var updated = await repository.UpdateStatusAsync(id, change, confirmedAt, OfficialEndpoints.ProfileOf(user).Login, now, ct);
             return updated is null ? Results.NotFound() : Results.Ok(updated);
         });
 

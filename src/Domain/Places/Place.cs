@@ -18,7 +18,9 @@ public enum FeatureKey
     WheelchairAccess, WheelchairLimited, StepFreeEntrance, ThresholdHeightCm, DoorWidthCm, Elevator, AccessibleToilet,
     SurfaceCobblestone, InclinePercent, Stairs, TactilePaving, AudioDescription, AssistanceDogAllowed,
     InductionLoop, SignLanguage, VisualInformation, NoiseLevel, CrowdLevel, BrightLight, LowFloorStop,
-    StopShelter, QuietHours, QuietRoom, EasyToReadText, Pictograms, Benches, SeatingInside
+    StopShelter, QuietHours, QuietRoom, EasyToReadText, Pictograms, Benches, SeatingInside,
+    // Nowe cechy dopisujemy na końcu, tak jak kategorie.
+    AmbientNoiseDb
 }
 
 /// <summary>

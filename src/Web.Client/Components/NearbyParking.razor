@@ -1,0 +1,57 @@
+@inject ISender Sender
+@inject AppState State
+@inject NavigationManager Navigation
+
+@* Dojazd samochodem z kartą parkingową: najbliższe koperty i start trasy pieszej od wybranej. *@
+@if (_nearby is not null)
+{
+    <section class="card card-body mt-3" aria-labelledby="nearby-parking">
+        <h2 id="nearby-parking" class="h5">Dojazd samochodem: miejsca postojowe dla osób z niepełnosprawnościami</h2>
+        @if (_nearby.Count == 0)
+        {
+            <p class="mb-0">W promieniu @Labels.Distance(MaxDistanceM) nie znamy żadnego takiego miejsca. Brak w danych nie znaczy, że go nie ma.</p>
+        }
+        else
+        {
+            <ul class="list-unstyled mb-0">
+                @foreach (var item in _nearby)
+                {
+                    var spaces = item.Place.Feature(FeatureKey.DisabledParkingSpaces);
+                    <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 border-bottom">
+                        <div>
+                            <a href="@($"miejsca/{item.Place.Id}")">@(item.Place.Address ?? item.Place.Name)</a>
+                            <span class="text-body-secondary">· @Labels.Distance(item.DistanceM) w linii prostej@(spaces?.Value is { } count ? $" · stanowisk: {count:0}" : "")</span>
+                            <div class="small text-body-secondary">Źródło: @(spaces?.Source ?? item.Place.Features.FirstOrDefault()?.Source ?? "OpenStreetMap")@(spaces?.CheckedOn is { } on ? $", stan na {on:dd.MM.yyyy}" : "")</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => StartHereAsync(item.Place)">
+                            Zacznij trasę stąd<span class="visually-hidden">: @(item.Place.Address ?? item.Place.Name)</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+@code {
+    private const double MaxDistanceM = 500;
+
+    [Parameter, EditorRequired] public Place Target { get; set; } = default!;
+
+    private IReadOnlyList<NearbyPlace>? _nearby;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var result = await Sender.Send(new GetNearbyPlacesQuery(Target.CityId, Target.Location, PlaceCategory.DisabledParking, MaxDistanceM, 3));
+        _nearby = result.IsSuccess ? result.Value : null;
+    }
+
+    /// <summary>Koperta staje się punktem startu planu; bez konta dodajemy też to miejsce do planu, żeby trasa miała cel.</summary>
+    private async Task StartHereAsync(Place parking)
+    {
+        State.SetStartLocation(parking.Location);
+        if (State.User is null && !State.IsInPlan(Target.Id))
+            await State.TogglePlaceAsync(Target.Id);
+        Navigation.NavigateTo("plan");
+    }
+}

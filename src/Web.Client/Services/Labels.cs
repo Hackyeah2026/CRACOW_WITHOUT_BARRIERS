@@ -114,6 +114,8 @@ public static class Labels
         FeatureKey.Benches => "Ławki",
         FeatureKey.SeatingInside => "Miejsca do siedzenia w środku",
         FeatureKey.AmbientNoiseDb => "Hałas otoczenia (mapa hałasu)",
+        FeatureKey.DisabledParkingSpaces => "Miejsca postojowe dla osób z niepełnosprawnościami (liczba)",
+        FeatureKey.RequestStop => "Przystanek na żądanie",
         _ => key.ToString()
     };
 

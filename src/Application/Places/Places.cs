@@ -279,3 +279,24 @@ internal sealed class GetDataGapsQueryHandler(IPlaceCatalog catalog) : IQueryHan
         return Result.Success(new DataGapsReport(categories, DataCoverage.Conflicts(places, query.MaxConflicts), categories.Sum(c => c.WithConflicts)));
     }
 }
+
+public sealed record NearbyPlace(Place Place, double DistanceM);
+
+/// <summary>Najbliższe miejsca danej kategorii w linii prostej, np. koperty przy miejscu, do którego się jedzie.</summary>
+public sealed record GetNearbyPlacesQuery(string CityId, GeoPoint Point, PlaceCategory Category, double MaxDistanceM, int Limit)
+    : IQuery<IReadOnlyList<NearbyPlace>>;
+
+internal sealed class GetNearbyPlacesQueryHandler(IPlaceCatalog catalog) : IQueryHandler<GetNearbyPlacesQuery, IReadOnlyList<NearbyPlace>>
+{
+    public async Task<Result<IReadOnlyList<NearbyPlace>>> Handle(GetNearbyPlacesQuery query, CancellationToken ct)
+    {
+        var places = await catalog.GetAsync(query.CityId, [query.Category], ct);
+        IReadOnlyList<NearbyPlace> nearby = places
+            .Select(p => new NearbyPlace(p, p.Location.DistanceTo(query.Point)))
+            .Where(n => n.DistanceM <= query.MaxDistanceM)
+            .OrderBy(n => n.DistanceM)
+            .Take(query.Limit)
+            .ToList();
+        return Result.Success(nearby);
+    }
+}

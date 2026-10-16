@@ -29,6 +29,29 @@ public static class CityData
                               $"{conflicts} przystanków, przy których OSM podaje inaczej");
         }
 
+        if (city.StopsLayer is { } stopsLayer)
+        {
+            var registry = await new ZtpStopsSource(http).LoadAsync(stopsLayer);
+            places = ZtpStopsSource.Apply(places, registry, out var matched);
+            var onRequest = places.Count(p => p.Features.Any(f => f.Key == FeatureKey.RequestStop && f.State == FeatureState.Yes));
+            Console.WriteLine($"Przystanki na żądanie: {matched} przystanków z informacją z rejestru ZTP, w tym {onRequest} na żądanie");
+        }
+
+        if (city.ServicePointsLayer is { } pointsLayer)
+        {
+            var points = await new MsipServicePointsSource(http).LoadAsync(pointsLayer);
+            places = MsipServicePointsSource.Apply(places, points, cityId, out var matched);
+            Console.WriteLine($"Punkty obsługi mieszkańców: {matched} połączone z urzędami z OSM, {points.Count - matched} nowych");
+        }
+
+        if (city.DisabledParkingLayer is { } parkingLayer)
+        {
+            var snapshot = await new ZdmkParkingSource(http).LoadAsync(parkingLayer);
+            var groups = ZdmkParkingSource.Group(snapshot.Spaces);
+            places = ZdmkParkingSource.Apply(places, groups, snapshot.EditedOn, cityId, out var matched);
+            Console.WriteLine($"Koperty ZDMK: {groups.Count} miejsc ({snapshot.Spaces.Count} stanowisk), {matched} połączonych z OSM, {groups.Count - matched} nowych");
+        }
+
         if (city.NoiseLayers is { Count: > 0 } layers)
         {
             var map = await new MsipNoiseSource(http).LoadAsync(layers);

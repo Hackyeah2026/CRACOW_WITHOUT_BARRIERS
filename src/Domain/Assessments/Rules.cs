@@ -233,6 +233,21 @@ public sealed class VisionRule : IAssessmentRule
             }
         }
 
+        // Na przystanku na żądanie trzeba dać znak kierowcy, a osoba niewidoma może nie widzieć nadjeżdżającego pojazdu.
+        if ((profile.NeedsTactilePaving || profile.NeedsAudioDescription) && place.Category == PlaceCategory.Stop)
+        {
+            switch (place.StateOf(FeatureKey.RequestStop))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Barrier(place, FeatureKey.RequestStop, AssessmentStatus.Limited,
+                        "Przystanek na żądanie: pojazd zatrzyma się tylko na znak. Przy wsiadaniu trzeba go dać kierowcy, przy wysiadaniu nacisnąć przycisk w pojeździe.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Amenity(place, FeatureKey.RequestStop, "Pojazdy zatrzymują się tu zawsze, bez dawania znaku.");
+                    break;
+            }
+        }
+
         if (profile.NeedsAssistanceDog)
         {
             switch (place.StateOf(FeatureKey.AssistanceDogAllowed))

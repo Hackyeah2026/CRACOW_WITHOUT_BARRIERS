@@ -1,0 +1,90 @@
+@inject ISender Sender
+
+@* Gdzie brakuje danych o dostępności i gdzie źródła sobie przeczą: podpowiedź, gdzie wizja lokalna albo deklaracja dostępności da najwięcej. *@
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+else if (_report is null)
+{
+    <p role="status">Liczę pokrycie danymi w katalogu…</p>
+}
+else
+{
+    var weakest = _report.Categories.FirstOrDefault();
+    <p>
+        Liczone z katalogu aplikacji dla miejsc publicznych (@_report.Categories.Sum(c => c.Places) miejsc). Dane miejskie to MSIP, rejestry ZTP
+        i zgłoszenia potwierdzone w tym panelu.
+        @if (weakest is not null)
+        {
+            <text> Najmniej wiemy o kategorii <strong>@Labels.Of(weakest.Category)</strong>: informację dla osób na wózku ma @weakest.WheelchairShare.ToString("P0") miejsc.</text>
+        }
+    </p>
+
+    <div class="table-responsive" tabindex="0" role="region" aria-labelledby="gaps-table-caption">
+        <table class="table table-sm align-middle">
+            <caption id="gaps-table-caption" class="caption-top">Pokrycie danymi o dostępności, od najsłabiej opisanych kategorii</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Kategoria</th>
+                    <th scope="col" class="text-end">Miejsca</th>
+                    <th scope="col" class="text-end">Z informacją dla wózków</th>
+                    <th scope="col" class="text-end">Z jakąkolwiek cechą dostępności</th>
+                    <th scope="col" class="text-end">Z danymi miasta</th>
+                    <th scope="col" class="text-end">Sprzeczne źródła</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in _report.Categories)
+                {
+                    <tr>
+                        <th scope="row" class="fw-normal">@Labels.Of(c.Category)</th>
+                        <td class="text-end">@c.Places</td>
+                        <td class="text-end">@c.WithWheelchairInfo (@c.WheelchairShare.ToString("P0"))</td>
+                        <td class="text-end">@c.WithAccessibilityInfo (@c.AccessibilityShare.ToString("P0"))</td>
+                        <td class="text-end">@c.WithCityData</td>
+                        <td class="text-end">@c.WithConflicts</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <section class="card card-body" aria-labelledby="gaps-conflicts">
+        <h2 id="gaps-conflicts" class="h5">Do sprawdzenia w terenie: źródła się różnią (@_report.ConflictCount)</h2>
+        <p class="small text-body-secondary">
+            Ocena korzysta z danych miasta, ale mieszkańcy widzą ostrzeżenie. Wizja lokalna rozstrzyga sprzeczność; wynik można wpisać jako potwierdzone zgłoszenie.
+            @if (_report.ConflictCount > _report.Conflicts.Count)
+            {
+                <text>Pokazano @_report.Conflicts.Count pierwszych.</text>
+            }
+        </p>
+        @if (_report.Conflicts.Count == 0)
+        {
+            <p class="mb-0">Brak sprzecznych źródeł.</p>
+        }
+        else
+        {
+            <ul class="mb-0">
+                @foreach (var place in _report.Conflicts)
+                {
+                    <li><a href="@($"miejsca/{place.PlaceId}")">@place.Name</a> (@Labels.Of(place.Category)): @Labels.Features(place.Features)</li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public string CityId { get; set; } = "";
+
+    private DataGapsReport? _report;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var result = await Sender.Send(new GetDataGapsQuery(CityId));
+        _report = result.IsSuccess ? result.Value : null;
+        _error = result.IsSuccess ? null : result.Error;
+    }
+}

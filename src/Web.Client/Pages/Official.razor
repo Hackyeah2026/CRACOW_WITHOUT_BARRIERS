@@ -81,6 +81,10 @@ else
     {
         <OfficialStats Reports="_reports" Hazards="_hazards" />
     }
+    else if (_tab == PanelTab.DataGaps)
+    {
+        <OfficialDataGaps CityId="@State.CityId" />
+    }
     else
     {
         var summary = ReportStatistics.Summarize(_reports);
@@ -253,11 +257,11 @@ else
     private string _password = "";
     private string? _loginError;
     private string? _error;
-    private enum PanelTab { Reports, Hazards, Businesses, Stats }
+    private enum PanelTab { Reports, Hazards, Businesses, Stats, DataGaps }
 
     private static readonly (PanelTab Tab, string Name)[] Tabs =
         [(PanelTab.Reports, "Zgłoszenia miejsc"), (PanelTab.Hazards, "Punkty na mapie"), (PanelTab.Businesses, "Konta firmowe"),
-            (PanelTab.Stats, "Statystyki")];
+            (PanelTab.Stats, "Statystyki"), (PanelTab.DataGaps, "Braki danych")];
 
     private PanelTab _tab;
     private IReadOnlyList<Hazard> _hazards = [];

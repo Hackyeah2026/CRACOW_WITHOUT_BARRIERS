@@ -5,8 +5,17 @@ namespace Tools;
 /// <summary>Uzupełnienie katalogu o dane miejskie (MSIP). Każde źródło jest opcjonalne i zależy od konfiguracji miasta.</summary>
 public static class CityData
 {
-    public static async Task<List<Place>> ApplyAsync(List<Place> places, CityImport city, HttpClient http)
+    public static async Task<List<Place>> ApplyAsync(List<Place> places, string cityId, CityImport city, HttpClient http)
     {
+        // Najpierw toalety: nowe obiekty z rejestru miasta dostają potem hałas otoczenia jak pozostałe miejsca.
+        if (city.PublicToiletsLayer is { } toiletsLayer)
+        {
+            var toilets = await new MsipToiletsSource(http).LoadAsync(toiletsLayer);
+            places = MsipToiletsSource.Apply(places, toilets, cityId);
+            var added = places.Count(p => p.Id.StartsWith(MsipToiletsSource.IdPrefix));
+            Console.WriteLine($"Toalety publiczne: {toilets.Count - added} połączone z OSM, {added} nowych");
+        }
+
         if (city.NoiseLayers is { Count: > 0 } layers)
         {
             var map = await new MsipNoiseSource(http).LoadAsync(layers);

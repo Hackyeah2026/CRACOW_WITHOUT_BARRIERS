@@ -4,8 +4,9 @@ namespace Tools;
 /// <param name="OsmRelationId">Relacja OSM z granicą administracyjną miasta; import obejmuje wtedy dokładnie obszar miasta.</param>
 /// <param name="GtfsUrl">Rozkład komunikacji miejskiej w formacie GTFS; null, gdy miasto go nie udostępnia.</param>
 /// <param name="NoiseLayers">Warstwy poligonowe miejskiej mapy hałasu (ArcGIS REST) z polem ISOV1; puste, gdy miasto ich nie udostępnia.</param>
+/// <param name="PublicToiletsLayer">Warstwa punktowa toalet publicznych w formacie rejestru ISDP Krakowa (ArcGIS REST).</param>
 public sealed record CityImport(double South, double West, double North, double East, string? GtfsUrl = null, string? GtfsSource = null,
-    long? OsmRelationId = null, IReadOnlyList<string>? NoiseLayers = null);
+    long? OsmRelationId = null, IReadOnlyList<string>? NoiseLayers = null, string? PublicToiletsLayer = null);
 
 public static class CityImports
 {
@@ -20,6 +21,7 @@ public static class CityImports
                 // Mapa hałasu 2022, wskaźnik LDWN: hałas drogowy (1) i szynowy, czyli tramwaje i kolej (5).
                 "https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer/1",
                 "https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer/5"
-            ])
+            ],
+            PublicToiletsLayer: "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/WT_WC_2023/MapServer/0")
     };
 }

@@ -18,6 +18,7 @@ public static class DependencyInjection
             p.GetRequiredService<IReportsClient>()))
         .AddScoped<ITransitCatalog, HttpTransitCatalog>()
         .AddScoped<INoiseCatalog, HttpNoiseCatalog>()
+        .AddScoped<IDataSourcesCatalog, HttpDataSourcesCatalog>()
         .AddScoped<ILocalStore, IndexedDbLocalStore>()
         .AddScoped<IRoutingClient, HostRoutingClient>()
         .AddScoped<IReportsClient, HostReportsClient>()

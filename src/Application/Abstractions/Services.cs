@@ -23,6 +23,12 @@ public interface ITransitCatalog
     Task<TransitNetwork?> GetNetworkAsync(string cityId, CancellationToken ct);
 }
 
+public interface IDataSourcesCatalog
+{
+    /// <summary>Spis zbiorów danych miasta z ostatniego importu albo null, gdy go nie ma.</summary>
+    Task<DataSourcesReport?> GetAsync(string cityId, CancellationToken ct);
+}
+
 public interface INoiseCatalog
 {
     /// <summary>Siatka hałasu miasta albo null, gdy miasto nie udostępnia mapy hałasu.</summary>

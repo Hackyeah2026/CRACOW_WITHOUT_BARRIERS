@@ -300,3 +300,14 @@ internal sealed class GetNearbyPlacesQueryHandler(IPlaceCatalog catalog) : IQuer
         return Result.Success(nearby);
     }
 }
+
+/// <summary>Zbiory danych użyte w katalogu miasta, do strony "Źródła danych".</summary>
+public sealed record GetDataSourcesQuery(string CityId) : IQuery<DataSourcesReport>;
+
+internal sealed class GetDataSourcesQueryHandler(IDataSourcesCatalog catalog) : IQueryHandler<GetDataSourcesQuery, DataSourcesReport>
+{
+    public async Task<Result<DataSourcesReport>> Handle(GetDataSourcesQuery query, CancellationToken ct) =>
+        await catalog.GetAsync(query.CityId, ct) is { } report
+            ? Result.Success(report)
+            : Result.Failure<DataSourcesReport>("Brak spisu źródeł danych dla tego miasta.");
+}

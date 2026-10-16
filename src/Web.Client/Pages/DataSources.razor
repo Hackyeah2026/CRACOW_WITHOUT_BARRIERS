@@ -1,0 +1,68 @@
+@page "/zrodla-danych"
+@inject ISender Sender
+@inject AppState State
+
+<PageTitle>Źródła danych · Kraków bez barier</PageTitle>
+
+<h1>Źródła danych</h1>
+<p class="lead">
+    Skąd wiemy to, co pokazujemy. Każda cecha miejsca ma w karcie miejsca swoje źródło i datę. Gdy źródła podają co innego,
+    pokazujemy obie wartości. Brak danych zawsze daje ocenę „brak danych”, nigdy „dostępne”.
+</p>
+
+@if (_error is not null)
+{
+    <div class="alert alert-warning" role="alert">@_error</div>
+}
+else if (_report is null)
+{
+    <p role="status">Wczytuję spis źródeł…</p>
+}
+else
+{
+    var city = _report.Sources.Where(s => s.CityPortal).ToList();
+    <p>
+        Spis z importu z dnia @_report.GeneratedOn.ToString("dd.MM.yyyy"): @_report.Sources.Count zbiorów, w tym <strong>@city.Count z portali miasta</strong>
+        (msip.krakow.pl, otwartedane.um.krakow.pl). Dane miasta łączymy z OpenStreetMap po położeniu i nazwie przystanku;
+        przy łączeniu mają pierwszeństwo w ocenie, a dane z OSM zostają widoczne obok.
+    </p>
+
+    <ul class="list-unstyled">
+        @foreach (var source in _report.Sources)
+        {
+            <li class="card card-body mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <h2 class="h5 mb-1">@source.Name</h2>
+                    @if (source.CityPortal)
+                    {
+                        <span class="badge text-bg-primary">portal miasta</span>
+                    }
+                </div>
+                <p class="mb-2">@source.Usage</p>
+                <dl class="row small mb-0">
+                    <dt class="col-sm-3">Dostawca</dt><dd class="col-sm-9">@source.Provider</dd>
+                    <dt class="col-sm-3">Licencja</dt><dd class="col-sm-9">@source.License</dd>
+                    <dt class="col-sm-3">Data danych</dt><dd class="col-sm-9">@source.DataDate</dd>
+                    <dt class="col-sm-3">Pobrano</dt><dd class="col-sm-9">@source.RetrievedOn.ToString("dd.MM.yyyy")</dd>
+                    <dt class="col-sm-3">Liczba rekordów</dt><dd class="col-sm-9">@(source.Records is { } n ? n.ToString("N0", Pl) : "usługa, bez zbioru")</dd>
+                    <dt class="col-sm-3">Adres</dt><dd class="col-sm-9 text-break">@source.Url</dd>
+                </dl>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    // WebAssembly nie ma danych kultur, więc polski separator tysięcy (spacja) ustawiamy sami.
+    private static readonly System.Globalization.NumberFormatInfo Pl = new() { NumberGroupSeparator = "\u00a0", NumberDecimalDigits = 0 };
+    private DataSourcesReport? _report;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        var result = await Sender.Send(new GetDataSourcesQuery(State.CityId));
+        _report = result.IsSuccess ? result.Value : null;
+        _error = result.IsSuccess ? null : result.Error;
+    }
+}

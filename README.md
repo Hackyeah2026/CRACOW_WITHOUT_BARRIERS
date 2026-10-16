@@ -100,9 +100,11 @@ flowchart LR
     subgraph Offline["Import danych (Tools)"]
         OSM[(OpenStreetMap<br/>Overpass)]
         GTFS[(GTFS ZTP Kraków)]
+        MSIP[(MSIP Kraków<br/>mapa hałasu 2022)]
     end
     OSM --> STATIC
     GTFS --> STATIC
+    MSIP --> STATIC
 ```
 
 | Projekt | Zawartość |
@@ -152,6 +154,12 @@ dotnet run --project src/Tools -- import krakow
 
 ```bash
 dotnet run --project src/Tools -- transit krakow
+```
+
+Same dane miejskie (MSIP) dla istniejącego katalogu, bez ponownego pobierania OpenStreetMap:
+
+```bash
+dotnet run --project src/Tools -- city krakow
 ```
 
 ## Konfiguracja
@@ -256,6 +264,7 @@ docker run --rm -p 8080:8080 -e Mongo__ConnectionString="<adres>" kbb-web:local
 | Źródło | Co bierzemy | Licencja |
 |---|---|---|
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) (Overpass API) | 28 971 miejsc w 18 kategoriach (po jednym pliku na kategorię): m.in. ławki, sklepy, jedzenie, przystanki, koperty, zdrowie, apteki, urzędy, atrakcje, parki, toalety; tagi `wheelchair`, `toilets:wheelchair`, `tactile_paving`, `bench`, `shelter`, `elevator`, `hearing_loop` | ODbL, © autorzy OpenStreetMap |
+| [MSIP Kraków: mapa hałasu 2022](https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer) | hałas otoczenia (wskaźnik LDWN, ruch drogowy: warstwa 1, tramwaje i kolej: warstwa 5) dla 14 759 miejsc; ławki i miejsca parkingowe pominięte. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | [warunki portalu Otwarte Dane](https://otwartedane.um.krakow.pl/warunki-wykorzystania-danych-udostepnianych-w-portalu): swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) i czasu wytworzenia oraz pozyskania danych |
 | [GTFS ZTP Kraków](https://gtfs.ztp.krakow.pl/) | 218 linii, ok. 95 tys. kursów, 3 474 przystanki | według zasad udostępniania ZTP |
 | [OpenRouteService](https://openrouteservice.org/) | trasy piesze i wózkowe | według regulaminu usługi |
 | Uzupełnienia zespołu ([`overrides/krakow.json`](src/Tools/overrides/krakow.json)) | cechy sensoryczne i szczegóły dla miejsc ze ścieżki demo | **dane demonstracyjne**, oznaczone w aplikacji, niezweryfikowane |
@@ -308,6 +317,7 @@ Profil potrzeb to dane o zdrowiu, dlatego:
 Mówimy o nich wprost, także w aplikacji:
 
 - OpenStreetMap ma niepełne dane o dostępności, a o hałasie i tłumie prawie żadnych. Dla wielu miejsc uczciwy wynik to „brak danych”.
+- Hałas otoczenia pochodzi z miejskiej mapy hałasu z 2022 roku i opisuje hałas na zewnątrz (ulice, tramwaje, kolej). Dla parków, przystanków i innych punktów w terenie to ocena samego miejsca; dla budynków tylko ich okolicy, więc hałas w środku nadal jest „brakiem danych”. O tłumie nie mamy danych miejskich.
 - GTFS ZTP nie zawiera informacji o niskopodłogowości pojazdów ani dostępności przystanków. Aplikacja proponuje przejazd, ale ostrzega, że tego nie wie.
 - Godziny komunikacji są rozkładowe, bez opóźnień.
 - Część cech miejsc ze ścieżki demo to dane demonstracyjne zespołu.
@@ -317,7 +327,7 @@ Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).
 
 ## Rozwój
 
-- **Dane miejskie:** mapa hałasu i budynki publiczne z MSIP Kraków, wiaty i koperty z ArcGIS Hub ZTP, deklaracje dostępności instytucji.
+- **Dane miejskie:** budynki publiczne z MSIP Kraków, wiaty i koperty z ArcGIS Hub ZTP, deklaracje dostępności instytucji.
 - **Komunikacja na żywo:** GTFS-RT z opóźnieniami, dane o taborze niskopodłogowym.
 - **Zgłoszenia zmieniają dane:** zgłoszenia potwierdzone przez urzędnika jako osobne źródło cech na karcie miejsca i w ocenie.
 - **Panel dla miasta:** mapa najczęściej zgłaszanych barier jako wsparcie decyzji inwestycyjnych; weryfikacja przez organizacje pozarządowe.

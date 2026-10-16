@@ -45,7 +45,7 @@
   <tr><td>OpenStreetMap (ODbL)</td><td>ok. 30 tys. obiektów w 18 kategoriach: ławki, przystanki, koperty, urzędy, przychodnie, muzea, sklepy; tagi dostępności (wheelchair, tactile_paving, hearing_loop).</td></tr>
   <tr><td>GTFS ZTP Kraków</td><td>218 linii, 3 474 przystanki: przejazd z przesiadką dla odcinków dłuższych niż limit marszu z profilu.</td></tr>
   <tr><td>OpenRouteService</td><td>trasy piesze i wózkowe z ograniczeniami z profilu (schody, krawężnik) i omijaniem przeszkód potwierdzonych przez urząd.</td></tr>
-  <tr><td>Mieszkańcy i firmy</td><td>zgłoszenia weryfikowane przez urzędnika; deklaracje udogodnień kont firmowych zatwierdzonych przez urząd.</td></tr>
+  <tr><td>Mieszkańcy i firmy</td><td>zgłoszenia potwierdzone przez urzędnika zmieniają ocenę miejsca jako osobne źródło z datą; deklaracje udogodnień kont firmowych zatwierdzonych przez urząd.</td></tr>
 </table>
 <p>Każda cecha ma źródło i datę, dane demonstracyjne zespołu są oznaczone w aplikacji. Import jest powtarzalny jednym poleceniem (<code>dotnet run --project src/Tools -- city krakow</code>), a ponowne uruchomienie daje ten sam katalog.</p>
 
@@ -56,7 +56,7 @@
   <li>Ocena pod konkretną osobę z uzasadnieniem, a nie jedna ikona „dostępne”.</li>
   <li>Uczciwość danych jako funkcja: brak danych, sprzeczne źródła i dane demonstracyjne są widoczne dla użytkownika.</li>
   <li>Łączenie danych miejskich z mapą, rozkładem i routingiem w jeden plan dnia.</li>
-  <li>Pętla z urzędem: zgłoszenie mieszkańca → weryfikacja → przeszkoda na mapie i objazd w planie.</li>
+  <li>Pętla z urzędem: zgłoszenie mieszkańca → potwierdzenie przez urzędnika → zmiana oceny miejsca, przeszkoda na mapie i objazd w planie.</li>
 </ul>
 </div>
 <div>
@@ -76,7 +76,7 @@
 <p>Status zawsze jako kolor, znak i tekst; link „Przejdź do treści”, widoczny fokus, etykiety ARIA, mapa z odpowiednikiem w postaci listy, czytanie na głos, spójny system kolorów statusów w całej aplikacji. Celem jest WCAG 2.2 AA.</p>
 
 <h2>Rozwój</h2>
-<p>Zgłoszenia potwierdzone przez urząd jako źródło cech w ocenie, budynki publiczne i przystanki z MSIP, komunikacja na żywo (GTFS-RT) i dane o taborze niskopodłogowym, deklaracje dostępności instytucji miejskich, publiczne API z dokumentacją OpenAPI, tryb offline.</p>
+<p>Budynki publiczne i przystanki z MSIP, komunikacja na żywo (GTFS-RT) i dane o taborze niskopodłogowym, deklaracje dostępności instytucji miejskich, publiczne API z dokumentacją OpenAPI, tryb offline.</p>
 
 <p class="note">Źródła statystyk: NSP 2021 (niepelnosprawni.gov.pl), Raport o stanie Gminy Miejskiej Kraków za 2024 r., Ruch turystyczny w Krakowie w 2024 r. (MOT). Dane miejskie: Gmina Miejska Kraków, msip.krakow.pl, pobrane 16.10.2026.</p>
 

@@ -63,6 +63,7 @@ Silnik oceny ([`src/Domain/Assessments`](src/Domain/Assessments)) dostaje profil
 - Status końcowy to najgorszy ze statusów cząstkowych.
 - Braki danych dzielą się na blokujące (wejście, hałas, tłum) i informacyjne (toaleta, miejsca do siedzenia).
 - Każdy powód ma źródło i datę, a dane demonstracyjne są wyraźnie oznaczone.
+- **Zgłoszenia mieszkańców zmieniają ocenę po potwierdzeniu przez urząd.** Urzędnik zaznacza w panelu, że brak udogodnienia albo bariera są potwierdzone (np. po wizji lokalnej). Od tej chwili ocena miejsca korzysta z tej informacji jako źródła „Zgłoszenie mieszkańca potwierdzone przez urząd”, z datą potwierdzenia, aż do rozwiązania lub odrzucenia zgłoszenia. Zgłaszający widzi potwierdzenie na swoim koncie.
 - **Sprzeczne źródła są pokazywane, a nie ukrywane.** Gdy dane miasta (MSIP) i OpenStreetMap podają co innego (np. toaleta dostosowana: tak / nie), karta miejsca pokazuje obie wartości z ich źródłami i ostrzeżenie „Źródła się różnią”, a powód oceny mówi, które źródło podaje inaczej. Ocena korzysta z danych miasta.
 
 Ocena liczy się **w przeglądarce**, więc profil potrzeb nie opuszcza urządzenia.
@@ -286,7 +287,8 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 | `POST /api/official/login` / `logout` | sesja urzędnika (ciasteczko HttpOnly, SameSite=Strict) | publiczny, limit 5 prób na minutę |
 | `GET /api/official/me` | zalogowany urzędnik | urzędnik |
 | `GET /api/official/reports?cityId=&status=&placeId=` | lista zgłoszeń | urzędnik |
-| `PATCH /api/official/reports/{id}` | zmiana statusu i odpowiedź dla zgłaszającego | urzędnik |
+| `PATCH /api/official/reports/{id}` | zmiana statusu, odpowiedź dla zgłaszającego i potwierdzenie braku (`confirmed: true`) | urzędnik |
+| `GET /api/reports/confirmed?cityId=` | braki potwierdzone przez urząd, które wpływają na ocenę: miejsce, udogodnienia, data (bez treści zgłoszenia i loginów) | publiczny |
 | `GET /api/plans`, `GET /api/plans/{id}`, `POST /api/plans`, `PUT /api/plans/{id}`, `DELETE /api/plans/{id}` | nazwane plany konta: lista, plan z zapisaną trasą, utworzenie, zmiana nazwy i miejsc, usunięcie | konto |
 | `POST /api/plans/{id}/close` | zapis wyznaczonej trasy; zamyka plan, którego potem nie można edytować (zmiana → 409) | konto |
 | `GET /api/businesses?cityId=` | miejsca z certyfikatem konta firmowego i deklaracje firm | publiczny |
@@ -324,7 +326,6 @@ Mówimy o nich wprost, także w aplikacji:
 - Godziny komunikacji są rozkładowe, bez opóźnień.
 - Część cech miejsc ze ścieżki demo to dane demonstracyjne zespołu.
 - Rejestr toalet publicznych jest ze stanu na 2023 rok; informacja o toaletach nieczynnych (remont, awaria) pochodzi z tego stanu i jest podana w opisie miejsca.
-- Zgłoszenia trafiają do urzędu, ale nie zmieniają jeszcze oceny miejsc.
 
 Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).
 
@@ -332,7 +333,6 @@ Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).
 
 - **Dane miejskie:** budynki publiczne z MSIP Kraków, wiaty i koperty z ArcGIS Hub ZTP, deklaracje dostępności instytucji.
 - **Komunikacja na żywo:** GTFS-RT z opóźnieniami, dane o taborze niskopodłogowym.
-- **Zgłoszenia zmieniają dane:** zgłoszenia potwierdzone przez urzędnika jako osobne źródło cech na karcie miejsca i w ocenie.
 - **Panel dla miasta:** mapa najczęściej zgłaszanych barier jako wsparcie decyzji inwestycyjnych; weryfikacja przez organizacje pozarządowe.
 - **Publiczne API z OpenAPI** dla instytucji kultury i branży turystycznej.
 - **Kolejne miasta:** import z OpenStreetMap działa dla dowolnego obszaru.

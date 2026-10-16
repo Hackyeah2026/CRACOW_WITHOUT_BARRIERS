@@ -1,0 +1,1316 @@
+{
+    "openapi": "3.1.1",
+    "info": {
+        "title": "Kraków bez barier: API hosta",
+        "description": "Trasy dobrane do potrzeb (bez profilu zdrowotnego, tylko 3 parametry), zgłoszenia mieszkańców, braki potwierdzone przez urząd, miejsca z certyfikatem kont firmowych, stan usług. Katalog miejsc z ocenianymi cechami i źródłami jest dostępny jako pliki: /data/cities.json, /data/{miasto}/places/index.json i /data/{miasto}/places/{kategoria}.json.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:5008/"
+        }
+    ],
+    "paths": {
+        "/api/route": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RouteQuery"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/health": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/health/db": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/reports/confirmed": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "cityId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/businesses": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "cityId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/photos/analyze": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "photo"
+                                ],
+                                "type": "object",
+                                "properties": {
+                                    "photo": {
+                                        "$ref": "#/components/schemas/IFormFile"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/photos/{id}": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/login": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OfficialLogin"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/logout": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/me": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/reports": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportDraft"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/reports/mine": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/reports": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "cityId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "$ref": "#/components/schemas/ReportStatus"
+                        }
+                    },
+                    {
+                        "name": "placeId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/reports/{id}": {
+            "patch": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportStatusChange"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/hazards": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "cityId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/HazardDraft"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/hazards/mine": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/hazards": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "cityId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/hazards/{id}": {
+            "patch": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/HazardReview"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/account/register": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserCredentials"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/account/login": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserCredentials"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/account/logout": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/account/me": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/business/mine": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/business/application": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BusinessApplicationDraft"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/business/features": {
+            "put": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BusinessFeaturesUpdate"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/business/certificate": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "inline",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/businesses": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "cityId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/official/businesses/{login}": {
+            "patch": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "login",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BusinessReview"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/plans": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SavedPlanDraft"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/plans/{id}": {
+            "get": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SavedPlanDraft"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/plans/{id}/close": {
+            "post": {
+                "tags": [
+                    "Web"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SavedPlanRoute"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BusinessApplicationDraft": {
+                "required": [
+                    "cityId",
+                    "placeId",
+                    "placeName",
+                    "category",
+                    "lat",
+                    "lon",
+                    "businessName",
+                    "taxId",
+                    "contact",
+                    "note"
+                ],
+                "type": "object",
+                "properties": {
+                    "cityId": {
+                        "type": "string"
+                    },
+                    "placeId": {
+                        "type": "string"
+                    },
+                    "placeName": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "$ref": "#/components/schemas/PlaceCategory"
+                    },
+                    "lat": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "lon": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "businessName": {
+                        "type": "string"
+                    },
+                    "taxId": {
+                        "type": "string"
+                    },
+                    "contact": {
+                        "type": "string"
+                    },
+                    "note": {
+                        "type": "string"
+                    }
+                }
+            },
+            "BusinessFeature": {
+                "required": [
+                    "key",
+                    "available"
+                ],
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "$ref": "#/components/schemas/FeatureKey"
+                    },
+                    "available": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "BusinessFeaturesUpdate": {
+                "required": [
+                    "features"
+                ],
+                "type": "object",
+                "properties": {
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BusinessFeature"
+                        }
+                    }
+                }
+            },
+            "BusinessReview": {
+                "required": [
+                    "status",
+                    "note"
+                ],
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/BusinessStatus"
+                    },
+                    "note": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    }
+                }
+            },
+            "BusinessStatus": {
+                "enum": [
+                    "Pending",
+                    "Approved",
+                    "Rejected",
+                    "Revoked"
+                ]
+            },
+            "FeatureKey": {
+                "enum": [
+                    "WheelchairAccess",
+                    "WheelchairLimited",
+                    "StepFreeEntrance",
+                    "ThresholdHeightCm",
+                    "DoorWidthCm",
+                    "Elevator",
+                    "AccessibleToilet",
+                    "SurfaceCobblestone",
+                    "InclinePercent",
+                    "Stairs",
+                    "TactilePaving",
+                    "AudioDescription",
+                    "AssistanceDogAllowed",
+                    "InductionLoop",
+                    "SignLanguage",
+                    "VisualInformation",
+                    "NoiseLevel",
+                    "CrowdLevel",
+                    "BrightLight",
+                    "LowFloorStop",
+                    "StopShelter",
+                    "QuietHours",
+                    "QuietRoom",
+                    "EasyToReadText",
+                    "Pictograms",
+                    "Benches",
+                    "SeatingInside",
+                    "AmbientNoiseDb"
+                ]
+            },
+            "GeoPoint": {
+                "type": "object",
+                "properties": {
+                    "lat": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "lon": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    }
+                }
+            },
+            "HazardDraft": {
+                "required": [
+                    "cityId",
+                    "lat",
+                    "lon",
+                    "kind",
+                    "description"
+                ],
+                "type": "object",
+                "properties": {
+                    "cityId": {
+                        "type": "string"
+                    },
+                    "lat": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "lon": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/HazardKind"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "photo": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/PhotoAttachment"
+                            }
+                        ]
+                    }
+                }
+            },
+            "HazardKind": {
+                "enum": [
+                    "Stairs",
+                    "HighKerb",
+                    "UnevenSurface",
+                    "SteepSlope",
+                    "NarrowPassage",
+                    "Roadworks",
+                    "Noise",
+                    "Crowd",
+                    "BrightLight",
+                    "Other",
+                    null
+                ]
+            },
+            "HazardReview": {
+                "required": [
+                    "status",
+                    "note"
+                ],
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/HazardStatus"
+                    },
+                    "note": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    }
+                }
+            },
+            "HazardStatus": {
+                "enum": [
+                    "Pending",
+                    "Verified",
+                    "Rejected",
+                    "Removed"
+                ]
+            },
+            "IFormFile": {
+                "type": "string",
+                "format": "binary"
+            },
+            "ObstacleAnalysis": {
+                "required": [
+                    "probability",
+                    "suggestedKind",
+                    "summary"
+                ],
+                "type": "object",
+                "properties": {
+                    "probability": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "suggestedKind": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/HazardKind"
+                            }
+                        ]
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "verdict": {
+                        "$ref": "#/components/schemas/ObstacleVerdict"
+                    },
+                    "percent": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    }
+                }
+            },
+            "ObstacleVerdict": {
+                "enum": [
+                    "Likely",
+                    "Uncertain",
+                    "Unlikely"
+                ]
+            },
+            "OfficialLogin": {
+                "required": [
+                    "login",
+                    "password"
+                ],
+                "type": "object",
+                "properties": {
+                    "login": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PhotoAttachment": {
+                "required": [
+                    "content",
+                    "analysis"
+                ],
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "format": "byte"
+                    },
+                    "analysis": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ObstacleAnalysis"
+                            }
+                        ]
+                    }
+                }
+            },
+            "PlaceCategory": {
+                "enum": [
+                    "Attraction",
+                    "Museum",
+                    "Office",
+                    "Clinic",
+                    "Library",
+                    "Culture",
+                    "Stop",
+                    "Toilet",
+                    "Bench",
+                    "QuietSpot",
+                    "Food",
+                    "DisabledParking",
+                    "Pharmacy",
+                    "Worship",
+                    "Park",
+                    "Shop",
+                    "Hotel",
+                    "Service",
+                    "Education"
+                ]
+            },
+            "ReportDraft": {
+                "required": [
+                    "cityId",
+                    "placeId",
+                    "placeName",
+                    "category",
+                    "lat",
+                    "lon",
+                    "kind",
+                    "features",
+                    "description"
+                ],
+                "type": "object",
+                "properties": {
+                    "cityId": {
+                        "type": "string"
+                    },
+                    "placeId": {
+                        "type": "string"
+                    },
+                    "placeName": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "$ref": "#/components/schemas/PlaceCategory"
+                    },
+                    "lat": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "lon": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/ReportKind"
+                    },
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FeatureKey"
+                        }
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "photo": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/PhotoAttachment"
+                            }
+                        ]
+                    }
+                }
+            },
+            "ReportKind": {
+                "enum": [
+                    "MissingAmenity",
+                    "Barrier",
+                    "WrongData"
+                ]
+            },
+            "ReportStatus": {
+                "enum": [
+                    "New",
+                    "InReview",
+                    "Planned",
+                    "Resolved",
+                    "Rejected",
+                    null
+                ]
+            },
+            "ReportStatusChange": {
+                "required": [
+                    "status",
+                    "note"
+                ],
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/ReportStatus"
+                    },
+                    "note": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    },
+                    "confirmed": {
+                        "type": "boolean",
+                        "default": false
+                    }
+                }
+            },
+            "RouteQuery": {
+                "required": [
+                    "from",
+                    "to",
+                    "wheelchair",
+                    "avoidSteps",
+                    "maxKerbCm"
+                ],
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "$ref": "#/components/schemas/GeoPoint"
+                    },
+                    "to": {
+                        "$ref": "#/components/schemas/GeoPoint"
+                    },
+                    "wheelchair": {
+                        "type": "boolean"
+                    },
+                    "avoidSteps": {
+                        "type": "boolean"
+                    },
+                    "maxKerbCm": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+                        "type": [
+                            "null",
+                            "number",
+                            "string"
+                        ],
+                        "format": "double"
+                    },
+                    "avoid": {
+                        "type": [
+                            "null",
+                            "array"
+                        ],
+                        "items": {
+                            "$ref": "#/components/schemas/GeoPoint"
+                        }
+                    }
+                }
+            },
+            "SavedPlanDraft": {
+                "required": [
+                    "cityId",
+                    "name",
+                    "placeIds"
+                ],
+                "type": "object",
+                "properties": {
+                    "cityId": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "placeIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "SavedPlanRoute": {
+                "required": [
+                    "routeJson"
+                ],
+                "type": "object",
+                "properties": {
+                    "routeJson": {
+                        "type": "string"
+                    }
+                }
+            },
+            "UserCredentials": {
+                "required": [
+                    "login",
+                    "password"
+                ],
+                "type": "object",
+                "properties": {
+                    "login": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Web"
+        }
+    ]
+}

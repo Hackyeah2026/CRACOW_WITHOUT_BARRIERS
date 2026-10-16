@@ -273,9 +273,11 @@ docker run --rm -p 8080:8080 -e Mongo__ConnectionString="<adres>" kbb-web:local
 | [OpenRouteService](https://openrouteservice.org/) | trasy piesze i wózkowe | według regulaminu usługi |
 | Uzupełnienia zespołu ([`overrides/krakow.json`](src/Tools/overrides/krakow.json)) | cechy sensoryczne i szczegóły dla miejsc ze ścieżki demo | **dane demonstracyjne**, oznaczone w aplikacji, niezweryfikowane |
 
-Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), Leaflet 1.9.4 (BSD-2, w repozytorium, bez CDN), Bootstrap (MIT).
+Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), Microsoft.AspNetCore.OpenApi 10.0.13 (MIT), Leaflet 1.9.4 (BSD-2, w repozytorium, bez CDN), Bootstrap (MIT).
 
 ## API hosta
+
+Opis w OpenAPI 3: `GET /openapi/v1.json` na działającej aplikacji, kopia w [`doc/openapi.json`](doc/openapi.json) (do podglądu w dowolnym narzędziu OpenAPI, np. Swagger Editor). Połączony katalog miejsc, czyli dane OSM uzupełnione danymi miejskimi, ze źródłem i datą każdej cechy, jest dostępny jako otwarte pliki JSON: `/data/cities.json`, `/data/{miasto}/places/index.json`, `/data/{miasto}/places/{kategoria}.json`.
 
 | Metoda i ścieżka | Opis | Dostęp |
 |---|---|---|
@@ -335,7 +337,7 @@ Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).
 - **Dane miejskie:** budynki publiczne z MSIP Kraków, wiaty i koperty z ArcGIS Hub ZTP, deklaracje dostępności instytucji.
 - **Komunikacja na żywo:** GTFS-RT z opóźnieniami, dane o taborze niskopodłogowym.
 - **Panel dla miasta:** mapa najczęściej zgłaszanych barier jako wsparcie decyzji inwestycyjnych; weryfikacja przez organizacje pozarządowe.
-- **Publiczne API z OpenAPI** dla instytucji kultury i branży turystycznej.
+- **Klucze API i limity dla partnerów** (instytucje kultury, branża turystyczna) na bazie opisanego już w OpenAPI API hosta.
 - **Kolejne miasta:** import z OpenStreetMap działa dla dowolnego obszaru.
 - **Opis planu w prostym języku (AI)**, tryb offline (PWA), harmonogram godzinowy dnia.
 

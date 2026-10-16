@@ -2,7 +2,8 @@
 @implements IDisposable
 @inject AppState State
 
-<a class="visually-hidden-focusable skip-link" href="#tresc">Przejdź do treści</a>
+@* Sam "#tresc" przy <base href="/"> prowadził na stronę główną; link przenosi fokus do treści bieżącej strony. *@
+<a class="visually-hidden-focusable skip-link" href="#tresc" @onclick="SkipToContentAsync" @onclick:preventDefault>Przejdź do treści</a>
 
 <header class="app-bar">
     <a class="app-bar__brand" href="">
@@ -116,7 +117,7 @@
     </ul>
 </nav>
 
-<main id="tresc" class="app-main container">
+<main id="tresc" class="app-main container" tabindex="-1" @ref="_main">
     @Body
 </main>
 
@@ -146,6 +147,10 @@
 </div>
 
 @code {
+    private ElementReference _main;
+
+    private async Task SkipToContentAsync() => await _main.FocusAsync();
+
     private AppTour? _tour;
 
     protected override async Task OnInitializedAsync()

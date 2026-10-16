@@ -999,3 +999,13 @@ a.place-name {
     align-self: flex-start;
     min-height: var(--kbb-target);
 }
+
+/* Osoby z nadwrażliwością na ruch (ustawienie systemu) nie dostają animacji ani płynnego przewijania. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -73,7 +73,7 @@
 <p>.NET 10, Blazor WebAssembly z hostem ASP.NET Core; warstwy Domain / Application / Infrastructure (Clean Architecture, CQRS na MediatR). <strong>Ocena liczy się w przeglądarce</strong>: profil potrzeb nie opuszcza urządzenia, do serwera trafiają tylko punkty trasy i 3 parametry (wózek, schody, krawężnik). Katalog i rozkład to pliki statyczne dzielone na kategorie, więc awaria zewnętrznej usługi nie wyłącza aplikacji. Routing ma trzy poziomy awaryjne, a plan układa się zawsze. Zgłoszenia, konta i plany są w MongoDB. Wdrożenie: kontener Docker na Mikrusie, GitHub Actions z buildem, testami (243 testy jednostkowe), próbnym uruchomieniem i automatycznym powrotem do poprzedniej wersji, gdy nowa nie odpowiada.</p>
 
 <h2>UX i dostępność, UI</h2>
-<p>Status zawsze jako kolor, znak i tekst; link „Przejdź do treści”, widoczny fokus, etykiety ARIA, mapa z odpowiednikiem w postaci listy, czytanie na głos, spójny system kolorów statusów w całej aplikacji. Celem jest WCAG 2.2 AA.</p>
+<p>Status zawsze jako kolor, znak i tekst; link „Przejdź do treści”, widoczny fokus, etykiety ARIA, mapa z odpowiednikiem w postaci listy, czytanie na głos, tryb ograniczonego ruchu, spójny system kolorów statusów w całej aplikacji. Cel: WCAG 2.2 AA. Automatyczny audyt (axe-core, reguły WCAG 2.0–2.2 A/AA) 13 widoków na telefonie i komputerze oraz test klawiatury: 0 problemów; test z czytnikiem ekranu i użytkownikami przed wdrożeniem produkcyjnym.</p>
 
 <h2>Rozwój</h2>
 <p>Budynki publiczne i przystanki z MSIP, komunikacja na żywo (GTFS-RT) i dane o taborze niskopodłogowym, deklaracje dostępności instytucji miejskich, publiczne API z dokumentacją OpenAPI, tryb offline.</p>

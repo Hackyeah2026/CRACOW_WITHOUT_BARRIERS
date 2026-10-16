@@ -82,6 +82,17 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10) }));
 });
 
+// Opis API hosta w OpenAPI (GET /openapi/v1.json) dla partnerów: instytucji, branży turystycznej, przewoźników.
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+{
+    document.Info.Title = "Kraków bez barier: API hosta";
+    document.Info.Description =
+        "Trasy dobrane do potrzeb (bez profilu zdrowotnego, tylko 3 parametry), zgłoszenia mieszkańców, braki potwierdzone przez urząd, " +
+        "miejsca z certyfikatem kont firmowych, stan usług. Katalog miejsc z ocenianymi cechami i źródłami jest dostępny jako pliki: " +
+        "/data/cities.json, /data/{miasto}/places/index.json i /data/{miasto}/places/{kategoria}.json.";
+    return Task.CompletedTask;
+}));
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -106,6 +117,7 @@ app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapOpenApi();
 app.MapRouteEndpoints();
 app.MapHealthEndpoints();
 app.MapOfficialEndpoints();

@@ -77,6 +77,14 @@ else
                 }
                 else
                 {
+                    var conflicting = place.Features.Select(f => f.Key).Distinct().Where(k => place.ConflictsOn(k).Count > 0).ToList();
+                    @if (conflicting.Count > 0)
+                    {
+                        <div class="alert alert-warning" role="note">
+                            <strong>Źródła się różnią:</strong> @Labels.Features(conflicting).
+                            Ocena korzysta z pierwszego źródła w tabeli (dane miasta mają pierwszeństwo przed OpenStreetMap). Sprawdź przed wizytą albo zgłoś błędne dane.
+                        </div>
+                    }
                     <div class="table-responsive" tabindex="0" role="region" aria-label="Tabela cech miejsca">
                     <table class="table table-sm mb-0">
                         <thead>

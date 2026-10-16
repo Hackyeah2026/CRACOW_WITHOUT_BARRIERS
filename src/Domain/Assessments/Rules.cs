@@ -23,6 +23,9 @@ internal static class Reasons
     private static AssessmentReason Create(Place place, FeatureKey key, ReasonKind kind, AssessmentStatus impact, string message)
     {
         var feature = place.Feature(key);
+        var conflicts = place.ConflictsOn(key);
+        if (conflicts.Count > 0)
+            message += $" Uwaga: źródła się różnią, {string.Join(" i ", conflicts.Select(c => c.Source).Distinct())} podaje inaczej.";
         return new AssessmentReason(key, kind, impact, message, feature?.Source, feature?.IsDemoData ?? false);
     }
 }

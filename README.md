@@ -63,6 +63,7 @@ Silnik oceny ([`src/Domain/Assessments`](src/Domain/Assessments)) dostaje profil
 - Status końcowy to najgorszy ze statusów cząstkowych.
 - Braki danych dzielą się na blokujące (wejście, hałas, tłum) i informacyjne (toaleta, miejsca do siedzenia).
 - Każdy powód ma źródło i datę, a dane demonstracyjne są wyraźnie oznaczone.
+- **Sprzeczne źródła są pokazywane, a nie ukrywane.** Gdy dane miasta (MSIP) i OpenStreetMap podają co innego (np. toaleta dostosowana: tak / nie), karta miejsca pokazuje obie wartości z ich źródłami i ostrzeżenie „Źródła się różnią”, a powód oceny mówi, które źródło podaje inaczej. Ocena korzysta z danych miasta.
 
 Ocena liczy się **w przeglądarce**, więc profil potrzeb nie opuszcza urządzenia.
 
@@ -100,7 +101,7 @@ flowchart LR
     subgraph Offline["Import danych (Tools)"]
         OSM[(OpenStreetMap<br/>Overpass)]
         GTFS[(GTFS ZTP Kraków)]
-        MSIP[(MSIP Kraków<br/>mapa hałasu 2022)]
+        MSIP[(MSIP Kraków<br/>mapa hałasu 2022,<br/>toalety publiczne)]
     end
     OSM --> STATIC
     GTFS --> STATIC
@@ -265,6 +266,7 @@ docker run --rm -p 8080:8080 -e Mongo__ConnectionString="<adres>" kbb-web:local
 |---|---|---|
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) (Overpass API) | 28 971 miejsc w 18 kategoriach (po jednym pliku na kategorię): m.in. ławki, sklepy, jedzenie, przystanki, koperty, zdrowie, apteki, urzędy, atrakcje, parki, toalety; tagi `wheelchair`, `toilets:wheelchair`, `tactile_paving`, `bench`, `shelter`, `elevator`, `hearing_loop` | ODbL, © autorzy OpenStreetMap |
 | [MSIP Kraków: mapa hałasu 2022](https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer) | hałas otoczenia (wskaźnik LDWN, ruch drogowy: warstwa 1, tramwaje i kolej: warstwa 5) dla 14 759 miejsc; ławki i miejsca parkingowe pominięte. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | [warunki portalu Otwarte Dane](https://otwartedane.um.krakow.pl/warunki-wykorzystania-danych-udostepnianych-w-portalu): swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) i czasu wytworzenia oraz pozyskania danych |
+| [MSIP Kraków: toalety publiczne](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/WT_WC_2023/MapServer/0) (rejestr ISDP, stan 2023) | 50 toalet miejskich: dostosowanie dla osób z niepełnosprawnościami i jego rodzaj (wjazd z poziomu 0, pochylnia, platforma, winda, schodołaz), przewijak, godziny, czy czynna. 48 połączonych z toaletą z OSM w promieniu 50 m, 2 dodane. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | jak wyżej (warunki portalu Otwarte Dane) |
 | [GTFS ZTP Kraków](https://gtfs.ztp.krakow.pl/) | 218 linii, ok. 95 tys. kursów, 3 474 przystanki | według zasad udostępniania ZTP |
 | [OpenRouteService](https://openrouteservice.org/) | trasy piesze i wózkowe | według regulaminu usługi |
 | Uzupełnienia zespołu ([`overrides/krakow.json`](src/Tools/overrides/krakow.json)) | cechy sensoryczne i szczegóły dla miejsc ze ścieżki demo | **dane demonstracyjne**, oznaczone w aplikacji, niezweryfikowane |
@@ -321,6 +323,7 @@ Mówimy o nich wprost, także w aplikacji:
 - GTFS ZTP nie zawiera informacji o niskopodłogowości pojazdów ani dostępności przystanków. Aplikacja proponuje przejazd, ale ostrzega, że tego nie wie.
 - Godziny komunikacji są rozkładowe, bez opóźnień.
 - Część cech miejsc ze ścieżki demo to dane demonstracyjne zespołu.
+- Rejestr toalet publicznych jest ze stanu na 2023 rok; informacja o toaletach nieczynnych (remont, awaria) pochodzi z tego stanu i jest podana w opisie miejsca.
 - Zgłoszenia trafiają do urzędu, ale nie zmieniają jeszcze oceny miejsc.
 
 Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).

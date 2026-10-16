@@ -43,7 +43,7 @@ Informacje o dostępności miejsc w Krakowie są rozproszone i zwykle zero-jedyn
 | **Komunikacja miejska** | dla odcinków dłuższych niż limit z profilu: linia, przystanki, godziny odjazdu i przyjazdu, najbliższe odjazdy, jedna przesiadka; rozkład ZTP Kraków (GTFS) |
 | **Zgłoszenia mieszkańców** | na karcie miejsca: „brakuje udogodnienia / bariera / błędne dane”, z listą udogodnień i opisem; zgłoszenie jest anonimowe, a status i odpowiedź urzędu widać w zakładce „Zgłoszenia” |
 | **Panel urzędnika** | logowanie, zestawienie (czego najczęściej brakuje, które miejsca mają najwięcej zgłoszeń), mapa zgłoszeń, zmiana statusu z odpowiedzią dla zgłaszającego |
-| **Dostępny interfejs** | status zawsze jako kolor, znak i tekst; link „Przejdź do treści”; widoczny fokus; etykiety ARIA; mapa ma odpowiednik w postaci listy |
+| **Dostępny interfejs** | status zawsze jako kolor, znak i tekst; link „Przejdź do treści”; widoczny fokus; etykiety ARIA; mapa ma odpowiednik w postaci listy; tryb ograniczonego ruchu. Automatyczny audyt WCAG 2.2 A/AA (axe-core) 13 widoków na telefonie i komputerze: 0 problemów, szczegóły w [`doc/dostepnosc.md`](doc/dostepnosc.md) |
 
 ## Dla kogo
 
@@ -63,6 +63,8 @@ Silnik oceny ([`src/Domain/Assessments`](src/Domain/Assessments)) dostaje profil
 - Status końcowy to najgorszy ze statusów cząstkowych.
 - Braki danych dzielą się na blokujące (wejście, hałas, tłum) i informacyjne (toaleta, miejsca do siedzenia).
 - Każdy powód ma źródło i datę, a dane demonstracyjne są wyraźnie oznaczone.
+- **Zgłoszenia mieszkańców zmieniają ocenę po potwierdzeniu przez urząd.** Urzędnik zaznacza w panelu, że brak udogodnienia albo bariera są potwierdzone (np. po wizji lokalnej). Od tej chwili ocena miejsca korzysta z tej informacji jako źródła „Zgłoszenie mieszkańca potwierdzone przez urząd”, z datą potwierdzenia, aż do rozwiązania lub odrzucenia zgłoszenia. Zgłaszający widzi potwierdzenie na swoim koncie.
+- **Sprzeczne źródła są pokazywane, a nie ukrywane.** Gdy dane miasta (MSIP) i OpenStreetMap podają co innego (np. toaleta dostosowana: tak / nie), karta miejsca pokazuje obie wartości z ich źródłami i ostrzeżenie „Źródła się różnią”, a powód oceny mówi, które źródło podaje inaczej. Ocena korzysta z danych miasta.
 
 Ocena liczy się **w przeglądarce**, więc profil potrzeb nie opuszcza urządzenia.
 
@@ -100,9 +102,11 @@ flowchart LR
     subgraph Offline["Import danych (Tools)"]
         OSM[(OpenStreetMap<br/>Overpass)]
         GTFS[(GTFS ZTP Kraków)]
+        MSIP[(MSIP Kraków<br/>mapa hałasu 2022,<br/>toalety publiczne,<br/>wiaty ZTP)]
     end
     OSM --> STATIC
     GTFS --> STATIC
+    MSIP --> STATIC
 ```
 
 | Projekt | Zawartość |
@@ -152,6 +156,12 @@ dotnet run --project src/Tools -- import krakow
 
 ```bash
 dotnet run --project src/Tools -- transit krakow
+```
+
+Same dane miejskie (MSIP) dla istniejącego katalogu, bez ponownego pobierania OpenStreetMap:
+
+```bash
+dotnet run --project src/Tools -- city krakow
 ```
 
 ## Konfiguracja
@@ -256,6 +266,9 @@ docker run --rm -p 8080:8080 -e Mongo__ConnectionString="<adres>" kbb-web:local
 | Źródło | Co bierzemy | Licencja |
 |---|---|---|
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) (Overpass API) | 28 971 miejsc w 18 kategoriach (po jednym pliku na kategorię): m.in. ławki, sklepy, jedzenie, przystanki, koperty, zdrowie, apteki, urzędy, atrakcje, parki, toalety; tagi `wheelchair`, `toilets:wheelchair`, `tactile_paving`, `bench`, `shelter`, `elevator`, `hearing_loop` | ODbL, © autorzy OpenStreetMap |
+| [MSIP Kraków: mapa hałasu 2022](https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer) | hałas otoczenia (wskaźnik LDWN, ruch drogowy: warstwa 1, tramwaje i kolej: warstwa 5) dla 14 759 miejsc; ławki i miejsca parkingowe pominięte. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | [warunki portalu Otwarte Dane](https://otwartedane.um.krakow.pl/warunki-wykorzystania-danych-udostepnianych-w-portalu): swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) i czasu wytworzenia oraz pozyskania danych |
+| [MSIP Kraków: toalety publiczne](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/WT_WC_2023/MapServer/0) (rejestr ISDP, stan 2023) | 50 toalet miejskich: dostosowanie dla osób z niepełnosprawnościami i jego rodzaj (wjazd z poziomu 0, pochylnia, platforma, winda, schodołaz), przewijak, godziny, czy czynna. 48 połączonych z toaletą z OSM w promieniu 50 m, 2 dodane. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | jak wyżej (warunki portalu Otwarte Dane) |
+| [MSIP Kraków: wiaty przystankowe KMK](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/9) (rejestr ZTP, import do MSIP 10.10.2026) | 1557 wiat dopasowanych do przystanków po nazwie ze słupkiem (np. „Agatowa 01”), a bez zgodnej nazwy do najbliższego przystanku w promieniu 30 m: wiata przy 1439 przystankach, przy 98 OSM podaje „brak wiaty” (sprzeczność widoczna na karcie). Rejestr mówi tylko, gdzie wiata jest, więc nie zapisujemy „brak wiaty”. Pobrane 17.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | jak wyżej (warunki portalu Otwarte Dane) |
 | [GTFS ZTP Kraków](https://gtfs.ztp.krakow.pl/) | 218 linii, ok. 95 tys. kursów, 3 474 przystanki | według zasad udostępniania ZTP |
 | [OpenRouteService](https://openrouteservice.org/) | trasy piesze i wózkowe | według regulaminu usługi |
 | Uzupełnienia zespołu ([`overrides/krakow.json`](src/Tools/overrides/krakow.json)) | cechy sensoryczne i szczegóły dla miejsc ze ścieżki demo | **dane demonstracyjne**, oznaczone w aplikacji, niezweryfikowane |
@@ -275,7 +288,8 @@ Zależności: MediatR 12.4.1 (Apache-2.0), MongoDB.Driver 3.12.0 (Apache-2.0), L
 | `POST /api/official/login` / `logout` | sesja urzędnika (ciasteczko HttpOnly, SameSite=Strict) | publiczny, limit 5 prób na minutę |
 | `GET /api/official/me` | zalogowany urzędnik | urzędnik |
 | `GET /api/official/reports?cityId=&status=&placeId=` | lista zgłoszeń | urzędnik |
-| `PATCH /api/official/reports/{id}` | zmiana statusu i odpowiedź dla zgłaszającego | urzędnik |
+| `PATCH /api/official/reports/{id}` | zmiana statusu, odpowiedź dla zgłaszającego i potwierdzenie braku (`confirmed: true`) | urzędnik |
+| `GET /api/reports/confirmed?cityId=` | braki potwierdzone przez urząd, które wpływają na ocenę: miejsce, udogodnienia, data (bez treści zgłoszenia i loginów) | publiczny |
 | `GET /api/plans`, `GET /api/plans/{id}`, `POST /api/plans`, `PUT /api/plans/{id}`, `DELETE /api/plans/{id}` | nazwane plany konta: lista, plan z zapisaną trasą, utworzenie, zmiana nazwy i miejsc, usunięcie | konto |
 | `POST /api/plans/{id}/close` | zapis wyznaczonej trasy; zamyka plan, którego potem nie można edytować (zmiana → 409) | konto |
 | `GET /api/businesses?cityId=` | miejsca z certyfikatem konta firmowego i deklaracje firm | publiczny |
@@ -308,23 +322,29 @@ Profil potrzeb to dane o zdrowiu, dlatego:
 Mówimy o nich wprost, także w aplikacji:
 
 - OpenStreetMap ma niepełne dane o dostępności, a o hałasie i tłumie prawie żadnych. Dla wielu miejsc uczciwy wynik to „brak danych”.
+- Hałas otoczenia pochodzi z miejskiej mapy hałasu z 2022 roku i opisuje hałas na zewnątrz (ulice, tramwaje, kolej). Dla parków, przystanków i innych punktów w terenie to ocena samego miejsca; dla budynków tylko ich okolicy, więc hałas w środku nadal jest „brakiem danych”. O tłumie nie mamy danych miejskich.
 - GTFS ZTP nie zawiera informacji o niskopodłogowości pojazdów ani dostępności przystanków. Aplikacja proponuje przejazd, ale ostrzega, że tego nie wie.
 - Godziny komunikacji są rozkładowe, bez opóźnień.
 - Część cech miejsc ze ścieżki demo to dane demonstracyjne zespołu.
-- Zgłoszenia trafiają do urzędu, ale nie zmieniają jeszcze oceny miejsc.
+- Rejestr toalet publicznych jest ze stanu na 2023 rok; informacja o toaletach nieczynnych (remont, awaria) pochodzi z tego stanu i jest podana w opisie miejsca.
 
 Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).
 
 ## Rozwój
 
-- **Dane miejskie:** mapa hałasu i budynki publiczne z MSIP Kraków, wiaty i koperty z ArcGIS Hub ZTP, deklaracje dostępności instytucji.
+- **Dane miejskie:** budynki publiczne z MSIP Kraków, wiaty i koperty z ArcGIS Hub ZTP, deklaracje dostępności instytucji.
 - **Komunikacja na żywo:** GTFS-RT z opóźnieniami, dane o taborze niskopodłogowym.
-- **Zgłoszenia zmieniają dane:** zgłoszenia potwierdzone przez urzędnika jako osobne źródło cech na karcie miejsca i w ocenie.
 - **Panel dla miasta:** mapa najczęściej zgłaszanych barier jako wsparcie decyzji inwestycyjnych; weryfikacja przez organizacje pozarządowe.
 - **Publiczne API z OpenAPI** dla instytucji kultury i branży turystycznej.
 - **Kolejne miasta:** import z OpenStreetMap działa dla dowolnego obszaru.
 - **Opis planu w prostym języku (AI)**, tryb offline (PWA), harmonogram godzinowy dnia.
 
 ---
+
+Opis projektu do zgłoszenia (2 strony): [`doc/opis-projektu.pdf`](doc/opis-projektu.pdf), źródło w [`doc/opis-projektu/opis-projektu.html`](doc/opis-projektu/opis-projektu.html). PDF po zmianie źródła:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --no-pdf-header-footer --print-to-pdf="$PWD/doc/opis-projektu.pdf" "file://$PWD/doc/opis-projektu/opis-projektu.html"
+```
 
 Dokumentacja projektu: [jak działa aplikacja](doc/jak-dziala-aplikacja.md) · [wymagania konkursu](doc/WYMAGANIA_KONKURSU.md) · [plan prac](doc/plan-prac.md) · [plan implementacji](doc/plan-implementacji.md) · [stan realizacji](doc/stan-realizacji.md)

@@ -14,7 +14,11 @@ const PICK_STEP_PX = 10;
 
 export function init(id, lat, lon, zoom, dotnet, reportBounds, pickable, pickLabel) {
     // Canvas zamiast SVG: katalog całego miasta to kilka tysięcy pinezek.
-    const map = L.map(id, { preferCanvas: true }).setView([lat, lon], zoom);
+    // Bez zanikania: usuwane dymki znikają od razu, a nie zostają puste w drzewie dostępności (role="tooltip" bez nazwy)
+    // przy przestawianiu etykiet planu. Przy okazji mniej ruchu na ekranie.
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const map = L.map(id, { preferCanvas: true, fadeAnimation: false, zoomAnimation: !still, markerZoomAnimation: !still })
+        .setView([lat, lon], zoom);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; autorzy <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -66,6 +70,7 @@ function symbol(name, color, fill) {
     const span = document.createElement('span');
     span.className = fill ? 'msym msym-fill' : 'msym';
     span.textContent = name;
+    span.setAttribute('aria-hidden', 'true');
     if (color) span.style.color = color;
     return span;
 }
@@ -97,6 +102,7 @@ export function setMarkers(id, items, fit) {
             pin.className = 'map-certified msym-fill';
             pin.style.background = item.color;
             pin.textContent = 'star';
+            pin.setAttribute('aria-hidden', 'true');
             marker = iconMarker(item, pin, 'map-certified-icon', 34);
             marker.setZIndexOffset(500);
             marker.bindTooltip(text(item.name), { direction: 'top', offset: [0, -16] });
@@ -112,8 +118,9 @@ export function setMarkers(id, items, fit) {
         }
         marker.on('click', () => entry.dotnet.invokeMethodAsync('MarkerClicked', item.id));
         marker.addTo(entry.markers);
+        // Nazwa zawiera widoczny numer przystanku planu (WCAG 2.5.3); ikony mają aria-hidden.
         if (item.label || item.icon || item.certified)
-            marker.getElement()?.setAttribute('aria-label', item.name);
+            marker.getElement()?.setAttribute('aria-label', item.label ? `${item.label}. ${item.name}` : item.name);
     }
 
     entry.allBounds = items.length > 0 ? L.latLngBounds(items.map(i => [i.lat, i.lon])).pad(0.35) : null;

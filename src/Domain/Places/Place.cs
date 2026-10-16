@@ -18,7 +18,9 @@ public enum FeatureKey
     WheelchairAccess, WheelchairLimited, StepFreeEntrance, ThresholdHeightCm, DoorWidthCm, Elevator, AccessibleToilet,
     SurfaceCobblestone, InclinePercent, Stairs, TactilePaving, AudioDescription, AssistanceDogAllowed,
     InductionLoop, SignLanguage, VisualInformation, NoiseLevel, CrowdLevel, BrightLight, LowFloorStop,
-    StopShelter, QuietHours, QuietRoom, EasyToReadText, Pictograms, Benches, SeatingInside
+    StopShelter, QuietHours, QuietRoom, EasyToReadText, Pictograms, Benches, SeatingInside,
+    // Nowe cechy dopisujemy na końcu, tak jak kategorie.
+    AmbientNoiseDb
 }
 
 /// <summary>
@@ -40,7 +42,13 @@ public sealed record Place(
     /// <summary>Punkt w terenie, a nie obiekt z wnętrzem: nie oczekujemy tam np. toalety.</summary>
     public bool IsOutdoorPoint => Category is PlaceCategory.Stop or PlaceCategory.Bench or PlaceCategory.DisabledParking or PlaceCategory.Park;
 
+    /// <summary>Cecha, z której korzysta ocena: pierwsza na liście (dane miasta są przed danymi z OSM).</summary>
     public AccessibilityFeature? Feature(FeatureKey key) => Features.FirstOrDefault(f => f.Key == key);
+
+    /// <summary>Cechy z innych źródeł, które dla tego samego klucza podają inny stan lub wartość niż <see cref="Feature"/>.</summary>
+    public IReadOnlyList<AccessibilityFeature> ConflictsOn(FeatureKey key) => Feature(key) is { } used
+        ? Features.Where(f => f.Key == key && !ReferenceEquals(f, used) && (f.State != used.State || f.Value != used.Value)).ToList()
+        : [];
 
     public FeatureState StateOf(FeatureKey key) => Feature(key)?.State ?? FeatureState.Unknown;
 

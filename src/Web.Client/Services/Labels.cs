@@ -113,11 +113,12 @@ public static class Labels
         FeatureKey.Pictograms => "Piktogramy",
         FeatureKey.Benches => "Ławki",
         FeatureKey.SeatingInside => "Miejsca do siedzenia w środku",
+        FeatureKey.AmbientNoiseDb => "Hałas otoczenia (mapa hałasu)",
         _ => key.ToString()
     };
 
     public static string Value(AccessibilityFeature feature) => feature.Value is { } value
-        ? value.ToString("0.#")
+        ? feature.Key == FeatureKey.AmbientNoiseDb ? AmbientNoise.Describe(value) : value.ToString("0.#")
         : feature.State switch { FeatureState.Yes => "tak", FeatureState.No => "nie", _ => "nieznane" };
 
     public static string Of(TransitKind kind) => kind == TransitKind.Tram ? "Tramwaj" : "Autobus";

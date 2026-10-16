@@ -23,6 +23,9 @@ internal static class Reasons
     private static AssessmentReason Create(Place place, FeatureKey key, ReasonKind kind, AssessmentStatus impact, string message)
     {
         var feature = place.Feature(key);
+        var conflicts = place.ConflictsOn(key);
+        if (conflicts.Count > 0)
+            message += $" Uwaga: źródła się różnią, {string.Join(" i ", conflicts.Select(c => c.Source).Distinct())} podaje inaczej.";
         return new AssessmentReason(key, kind, impact, message, feature?.Source, feature?.IsDemoData ?? false);
     }
 }
@@ -55,6 +58,8 @@ public sealed class MobilityRule : IAssessmentRule
             {
                 if (place.StateOf(FeatureKey.Elevator) == FeatureState.Yes)
                     yield return Reasons.Amenity(place, FeatureKey.Elevator, "Są schody, ale jest też winda.");
+                else if (place.StateOf(FeatureKey.Elevator) == FeatureState.No)
+                    yield return Reasons.Barrier(place, FeatureKey.Elevator, hard, "Są schody, a windy brak.");
                 else
                     yield return Reasons.Barrier(place, FeatureKey.Stairs, hard, "Schody bez potwierdzonej windy.");
             }
@@ -103,7 +108,19 @@ public sealed class SensoryRule : IAssessmentRule
     public IEnumerable<AssessmentReason> Evaluate(NeedsProfile profile, Place place)
     {
         if (profile.MaxNoiseLevel is { } maxNoise)
-            yield return Level(place, FeatureKey.NoiseLevel, maxNoise, "hałasu", "Brak informacji o poziomie hałasu.");
+        {
+            var ambientDb = place.ValueOf(FeatureKey.AmbientNoiseDb);
+
+            // Na zewnątrz mapa hałasu opisuje samo miejsce; w budynku tylko jego okolicę, więc hałas w środku zostaje niewiadomą.
+            if (place.IsOutdoorPoint && place.ValueOf(FeatureKey.NoiseLevel) is null && ambientDb is { } outdoorDb)
+                yield return OutdoorNoise(place, outdoorDb, maxNoise);
+            else
+            {
+                yield return Level(place, FeatureKey.NoiseLevel, maxNoise, "hałasu", "Brak informacji o poziomie hałasu.");
+                if (!place.IsOutdoorPoint && ambientDb is { } surroundingsDb)
+                    yield return Surroundings(place, surroundingsDb, maxNoise);
+            }
+        }
 
         if (profile.MaxCrowdLevel is { } maxCrowd)
             yield return Level(place, FeatureKey.CrowdLevel, maxCrowd, "tłumu", "Brak informacji o tym, jak tłoczno jest w tym miejscu.");
@@ -129,6 +146,30 @@ public sealed class SensoryRule : IAssessmentRule
         var impact = value - max >= 2 ? AssessmentStatus.Inaccessible : AssessmentStatus.Limited;
         return Reasons.Barrier(place, key, impact, $"Poziom {what}: {label}, powyżej Twojej tolerancji.");
     }
+
+    private static AssessmentReason OutdoorNoise(Place place, double db, int max)
+    {
+        var level = AmbientNoise.Level(db);
+        var text = $"Hałas w tym miejscu według miejskiej mapy hałasu: {AmbientNoise.Describe(db)} ({LevelLabel(level)})";
+        if (level <= max)
+            return Reasons.Amenity(place, FeatureKey.AmbientNoiseDb, $"{text}.");
+
+        var impact = level - max >= 2 ? AssessmentStatus.Inaccessible : AssessmentStatus.Limited;
+        return Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, impact, $"{text}, powyżej Twojej tolerancji.");
+    }
+
+    /// <summary>Głośna ulica utrudnia dojście i wejście, ale nie przesądza o hałasie w środku, więc najwyżej "z ograniczeniami".</summary>
+    private static AssessmentReason Surroundings(Place place, double db, int max)
+    {
+        var level = AmbientNoise.Level(db);
+        var band = $"{AmbientNoise.Describe(db)} ({LevelLabel(level)})";
+        const string inside = "Mapa nie mówi nic o hałasie w środku.";
+        return level <= max
+            ? Reasons.Amenity(place, FeatureKey.AmbientNoiseDb, $"Okolica budynku według miejskiej mapy hałasu: {band}, w granicach Twojej tolerancji. {inside}")
+            : Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, AssessmentStatus.Limited, $"Głośna okolica budynku według miejskiej mapy hałasu: {band}. {inside}");
+    }
+
+    private static string LevelLabel(int level) => level switch { <= 1 => "niski", 2 => "umiarkowany", _ => "wysoki" };
 }
 
 /// <summary>Miejsca do siedzenia i odpoczynku.</summary>
@@ -138,6 +179,10 @@ public sealed class StaminaRule : IAssessmentRule
     {
         if (!profile.NeedsSeating)
             yield break;
+
+        // Na przystanku wiata to schronienie w czasie czekania na deszcz i upał; jej brak nie przekreśla przystanku.
+        if (place.Category == PlaceCategory.Stop && place.StateOf(FeatureKey.StopShelter) == FeatureState.Yes)
+            yield return Reasons.Amenity(place, FeatureKey.StopShelter, "Wiata na przystanku: można przeczekać deszcz lub upał.");
 
         var benches = place.StateOf(FeatureKey.Benches);
         var seating = place.StateOf(FeatureKey.SeatingInside);

@@ -35,13 +35,29 @@ internal sealed class MongoReportRepository(MongoCollections collections) : IRep
                 .ToListAsync(ct);
         });
 
-    public Task<Report?> UpdateStatusAsync(string id, ReportStatusChange change, string officialLogin, DateTime now, CancellationToken ct) =>
+    public Task<Report?> FindAsync(string id, CancellationToken ct) =>
+        MongoCollections.RunAsync<Report?>(async () => await Reports.Find(r => r.Id == id).FirstOrDefaultAsync(ct));
+
+    public Task<IReadOnlyList<Report>> ListConfirmedAsync(string cityId, int limit, CancellationToken ct) =>
+        MongoCollections.RunAsync<IReadOnlyList<Report>>(async () =>
+        {
+            var where = Builders<Report>.Filter;
+            return await Reports
+                .Find(where.Eq(r => r.CityId, cityId) & where.Ne(r => r.ConfirmedAt, null)
+                      & where.Nin(r => r.Status, [ReportStatus.Resolved, ReportStatus.Rejected]))
+                .SortByDescending(r => r.ConfirmedAt)
+                .Limit(limit)
+                .ToListAsync(ct);
+        });
+
+    public Task<Report?> UpdateStatusAsync(string id, ReportStatusChange change, DateTime? confirmedAt, string officialLogin, DateTime now, CancellationToken ct) =>
         MongoCollections.RunAsync<Report?>(async () =>
         {
             var note = string.IsNullOrWhiteSpace(change.Note) ? null : change.Note.Trim();
             var update = Builders<Report>.Update
                 .Set(r => r.Status, change.Status)
                 .Set(r => r.OfficialNote, note)
+                .Set(r => r.ConfirmedAt, confirmedAt)
                 .Set(r => r.HandledBy, officialLogin)
                 .Set(r => r.UpdatedAt, now);
 

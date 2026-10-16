@@ -91,6 +91,10 @@ else if (State.User is { } user)
                             <p class="small text-body-secondary mb-2">Wysłane @Labels.When(report.CreatedAt)</p>
                             <p class="mb-1"><strong>@Labels.Of(report.Kind)</strong>@(report.Features.Count > 0 ? $": {Labels.Features(report.Features)}" : "")</p>
                             <ReportPhotoView Photo="report.Photo" Subject="@report.PlaceName" />
+                            @if (report.ConfirmedAt is { } confirmedAt)
+                            {
+                                <p class="small mb-1"><span class="badge text-bg-success">Urząd potwierdził @Labels.When(confirmedAt)</span>@(report.Status is ReportStatus.Resolved or ReportStatus.Rejected ? "" : " Ocena tego miejsca w aplikacji już to uwzględnia.")</p>
+                            }
                             @if (report.OfficialNote is not null)
                             {
                                 <div class="border-start border-3 ps-3 mt-2">

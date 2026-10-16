@@ -1,14 +1,14 @@
 using System.Text.Json;
 using Domain;
-using Domain.Places;
 using Tools;
 
 // Użycie (z katalogu repozytorium):
-//   dotnet run --project src/Tools -- import krakow     miejsca z OpenStreetMap + ręczne uzupełnienia
+//   dotnet run --project src/Tools -- import krakow     miejsca z OpenStreetMap + dane miejskie + ręczne uzupełnienia
+//   dotnet run --project src/Tools -- city krakow       same dane miejskie (MSIP) dla istniejącego katalogu, bez pobierania OSM
 //   dotnet run --project src/Tools -- transit krakow    sieć komunikacji miejskiej z GTFS
-if (args is not [var command and ("import" or "transit"), var cityId] || !CityImports.All.TryGetValue(cityId, out var city))
+if (args is not [var command and ("import" or "city" or "transit"), var cityId] || !CityImports.All.TryGetValue(cityId, out var city))
 {
-    Console.Error.WriteLine($"Użycie: <import|transit> <miasto>. Dostępne miasta: {string.Join(", ", CityImports.All.Keys)}");
+    Console.Error.WriteLine($"Użycie: <import|city|transit> <miasto>. Dostępne miasta: {string.Join(", ", CityImports.All.Keys)}");
     return 1;
 }
 
@@ -34,6 +34,15 @@ if (command == "transit")
 }
 
 var output = Path.Combine(dataDir, "places");
+using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+http.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowBezBarier/1.0 (+https://github.com/Hackyeah2026/CRACOW_WITHOUT_BARRIERS)");
+
+if (command == "city")
+{
+    PlaceFiles.Write(output, await CityData.ApplyAsync(PlaceFiles.Read(output), cityId, city, http));
+    return 0;
+}
+
 var overrides = Path.Combine(root, "src", "Tools", "overrides", $"{cityId}.json");
 
 var places = await new OsmOverpassSource().GetPlacesAsync(cityId, city);
@@ -44,24 +53,9 @@ if (places.Count == 0)
     return 1;
 }
 
+places = await CityData.ApplyAsync(places, cityId, city, http);
 places = OverridesApplier.Apply(places, overrides);
-
-// Jeden plik na kategorię: aplikacja pobiera tylko kategorie potrzebne w danym widoku.
-if (Directory.Exists(output))
-    Directory.Delete(output, recursive: true);
-Directory.CreateDirectory(output);
-
-var groups = places.GroupBy(p => p.Category).OrderBy(g => g.Key).ToList();
-foreach (var group in groups)
-    await File.WriteAllTextAsync(Path.Combine(output, $"{group.Key}.json"), JsonSerializer.Serialize(group.ToList(), DomainJson.Options));
-
-var index = new PlaceIndex(DateOnly.FromDateTime(DateTime.UtcNow), groups.Select(g => new PlaceCategoryCount(g.Key, g.Count())).ToList());
-await File.WriteAllTextAsync(Path.Combine(output, "index.json"), JsonSerializer.Serialize(index, DomainJson.Indented));
-
-Console.WriteLine($"Zapisano {places.Count} miejsc do {output}");
-foreach (var group in groups.OrderByDescending(g => g.Count()))
-    Console.WriteLine($"  {group.Key}: {group.Count()}, z cechami: {group.Count(p => p.Features.Count > 0)}, " +
-                      $"plik {new FileInfo(Path.Combine(output, $"{group.Key}.json")).Length / 1024} KB");
+PlaceFiles.Write(output, places);
 return 0;
 
 static string FindRepoRoot()

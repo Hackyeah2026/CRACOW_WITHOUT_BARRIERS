@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Kraków bez barier: opis projektu</title>
+<style>
+  @page { size: A4; margin: 14mm 15mm 13mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9.6pt; line-height: 1.38; color: #1b1b1f; margin: 0; }
+  h1 { font-size: 17pt; margin: 0 0 1mm; color: #0b3d91; }
+  .lead { font-size: 10.4pt; margin: 0 0 3mm; }
+  .meta { font-size: 8.6pt; color: #44474f; margin-bottom: 3mm; }
+  h2 { font-size: 11pt; color: #0b3d91; margin: 3.4mm 0 1.2mm; border-bottom: 0.4pt solid #c4c6d0; padding-bottom: 0.6mm; }
+  p { margin: 0 0 1.6mm; }
+  ul { margin: 0 0 1.6mm; padding-left: 4.5mm; }
+  li { margin-bottom: 0.7mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin: 1mm 0 2mm; }
+  th, td { border: 0.4pt solid #c4c6d0; padding: 1mm 1.4mm; text-align: left; vertical-align: top; }
+  th { background: #eef1f8; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .note { font-size: 8.4pt; color: #44474f; }
+  .todo { background: #fff3c4; padding: 0 1mm; }
+  strong { color: #10203f; }
+</style>
+</head>
+<body>
+
+<h1>Kraków bez barier</h1>
+<p class="lead">Aplikacja webowa, która ocenia dostępność miejsc i tras w Krakowie dla konkretnych potrzeb osoby: zamiast „dostępne: tak/nie” podaje bariery, udogodnienia i braki danych, a przy każdej informacji jej źródło i datę.</p>
+<p class="meta">Zespół HackYeah 2026 · Kod: github.com/Hackyeah2026/CRACOW_WITHOUT_BARRIERS · Demo: <span class="todo">[adres wdrożenia na Mikrusie]</span> · Instrukcja uruchomienia i dokumentacja techniczna: README.md w repozytorium</p>
+
+<h2>Problem i wpływ na miasto</h2>
+<p>W Polsce żyje 5,4 mln osób z niepełnosprawnościami (14,3% ludności, NSP 2021). W Krakowie mieszka 184 tys. osób w wieku 60+ (22,8%), a w 2024 r. miasto odwiedziło 14,7 mln osób. Informacje o dostępności są rozproszone i zero-jedynkowe, choć osoba na wózku, osoba niewidoma, osoba w spektrum autyzmu i senior potrzebują zupełnie innych informacji o tym samym muzeum. Do tego dochodzi droga: bruk, schody, hałas, odległość do przystanku.</p>
+<ul>
+  <li><strong>Dla mieszkańców i turystów:</strong> 11 profili potrzeb do łączenia (wózek elektryczny i ręczny, kule, osoba niewidoma, Głucha, słabosłysząca, spektrum autyzmu, nadwrażliwość sensoryczna, niepełnosprawność intelektualna, senior, wózek dziecięcy). To samo miejsce dostaje inną ocenę dla każdego profilu: dostępne, z ograniczeniami, niedostępne albo brak danych. <strong>Brak danych nigdy nie oznacza „dostępne”.</strong></li>
+  <li><strong>Plan dnia, który da się przejść:</strong> kolejność miejsc, trasa po ulicach dobrana do profilu, ostrzeżenia o stromiznach, ławki na odpoczynek, przejazd komunikacją miejską według rozkładu, objazd potwierdzonych przeszkód, czytanie planu na głos.</li>
+  <li><strong>Dla Urzędu Miasta:</strong> zgłoszenia mieszkańców (brakujące udogodnienia, bariery, błędne dane, przeszkody na mapie, ze zdjęciem ocenianym przez AI) i panel urzędnika z weryfikacją i zestawieniem: czego brakuje najczęściej i gdzie.</li>
+</ul>
+
+<h2>Wykorzystanie danych i korelacje między źródłami</h2>
+<table>
+  <tr><th style="width:27%">Źródło</th><th>Co wnosi i jak łączymy je z innymi</th></tr>
+  <tr><td><strong>MSIP Kraków: mapa hałasu 2022</strong> (LDWN, ruch drogowy i szynowy)</td><td>17 444 poligony hałasu połączone przestrzennie z 14 761 miejscami katalogu. Profile sensoryczne dostają poziom hałasu z danych miasta: dla parków i przystanków to ocena samego miejsca, dla budynków ich okolicy (hałas w środku pozostaje uczciwie „brakiem danych”).</td></tr>
+  <tr><td><strong>MSIP Kraków: toalety publiczne</strong> (rejestr ISDP, stan 2023)</td><td>50 toalet miejskich z rodzajem dostosowania (wjazd z poziomu 0, pochylnia, platforma, winda, schodołaz), przewijakiem, godzinami i stanem. 48 połączonych z obiektami z OpenStreetMap w promieniu 50 m. W 5 toaletach źródła sobie przeczą: aplikacja pokazuje obie wartości i ostrzega, zamiast po cichu wybierać jedną.</td></tr>
+  <tr><td><strong>MSIP Kraków: wiaty przystankowe ZTP</strong> (import 10.10.2026)</td><td>1557 wiat dopasowanych do przystanków po nazwie ze słupkiem: wiata potwierdzona przy 1439 przystankach, przy 98 OSM podaje inaczej i aplikacja to pokazuje. Dla seniorów i osób, które muszą odpoczywać, wiata to schronienie w czasie czekania.</td></tr>
+  <tr><td>OpenStreetMap (ODbL)</td><td>ok. 30 tys. obiektów w 18 kategoriach: ławki, przystanki, koperty, urzędy, przychodnie, muzea, sklepy; tagi dostępności (wheelchair, tactile_paving, hearing_loop).</td></tr>
+  <tr><td>GTFS ZTP Kraków</td><td>218 linii, 3 474 przystanki: przejazd z przesiadką dla odcinków dłuższych niż limit marszu z profilu.</td></tr>
+  <tr><td>OpenRouteService</td><td>trasy piesze i wózkowe z ograniczeniami z profilu (schody, krawężnik) i omijaniem przeszkód potwierdzonych przez urząd.</td></tr>
+  <tr><td>Mieszkańcy i firmy</td><td>zgłoszenia potwierdzone przez urzędnika zmieniają ocenę miejsca jako osobne źródło z datą; deklaracje udogodnień kont firmowych zatwierdzonych przez urząd.</td></tr>
+</table>
+<p>Każda cecha ma źródło i datę, dane demonstracyjne zespołu są oznaczone w aplikacji. Import jest powtarzalny jednym poleceniem (<code>dotnet run --project src/Tools -- city krakow</code>), a ponowne uruchomienie daje ten sam katalog.</p>
+
+<div class="cols">
+<div>
+<h2>Innowacyjność</h2>
+<ul>
+  <li>Ocena pod konkretną osobę z uzasadnieniem, a nie jedna ikona „dostępne”.</li>
+  <li>Uczciwość danych jako funkcja: brak danych, sprzeczne źródła i dane demonstracyjne są widoczne dla użytkownika.</li>
+  <li>Łączenie danych miejskich z mapą, rozkładem i routingiem w jeden plan dnia.</li>
+  <li>Pętla z urzędem: zgłoszenie mieszkańca → potwierdzenie przez urzędnika → zmiana oceny miejsca, przeszkoda na mapie i objazd w planie.</li>
+</ul>
+</div>
+<div>
+<h2>Potencjał biznesowy</h2>
+<ul>
+  <li><strong>Sektor publiczny:</strong> panel zgłoszeń i statystyk jako narzędzie do planowania inwestycji.</li>
+  <li><strong>Sektor prywatny:</strong> konta firmowe (hotele, gastronomia, kultura) z deklaracją udogodnień, certyfikatem z kodem QR i wyróżnieniem na mapie.</li>
+  <li><strong>Skalowanie:</strong> import działa dla dowolnego miasta z OSM i GTFS; dane miejskie podpina się konfiguracją warstw ArcGIS.</li>
+</ul>
+</div>
+</div>
+
+<h2>Architektura techniczna</h2>
+<p>.NET 10, Blazor WebAssembly z hostem ASP.NET Core; warstwy Domain / Application / Infrastructure (Clean Architecture, CQRS na MediatR). <strong>Ocena liczy się w przeglądarce</strong>: profil potrzeb nie opuszcza urządzenia, do serwera trafiają tylko punkty trasy i 3 parametry (wózek, schody, krawężnik). Katalog i rozkład to pliki statyczne dzielone na kategorie, więc awaria zewnętrznej usługi nie wyłącza aplikacji. Routing ma trzy poziomy awaryjne, a plan układa się zawsze. Zgłoszenia, konta i plany są w MongoDB. Wdrożenie: kontener Docker na Mikrusie, GitHub Actions z buildem, testami (243 testy jednostkowe), próbnym uruchomieniem i automatycznym powrotem do poprzedniej wersji, gdy nowa nie odpowiada.</p>
+
+<h2>UX i dostępność, UI</h2>
+<p>Status zawsze jako kolor, znak i tekst; link „Przejdź do treści”, widoczny fokus, etykiety ARIA, mapa z odpowiednikiem w postaci listy, czytanie na głos, tryb ograniczonego ruchu, spójny system kolorów statusów w całej aplikacji. Cel: WCAG 2.2 AA. Automatyczny audyt (axe-core, reguły WCAG 2.0–2.2 A/AA) 13 widoków na telefonie i komputerze oraz test klawiatury: 0 problemów; test z czytnikiem ekranu i użytkownikami przed wdrożeniem produkcyjnym.</p>
+
+<h2>Rozwój</h2>
+<p>Budynki publiczne i przystanki z MSIP, komunikacja na żywo (GTFS-RT) i dane o taborze niskopodłogowym, deklaracje dostępności instytucji miejskich, publiczne API z dokumentacją OpenAPI, tryb offline.</p>
+
+<p class="note">Źródła statystyk: NSP 2021 (niepelnosprawni.gov.pl), Raport o stanie Gminy Miejskiej Kraków za 2024 r., Ruch turystyczny w Krakowie w 2024 r. (MOT). Dane miejskie: Gmina Miejska Kraków, msip.krakow.pl, pobrane 16.10.2026.</p>
+
+</body>
+</html>

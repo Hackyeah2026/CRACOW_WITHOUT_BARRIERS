@@ -1,0 +1,12 @@
+{
+  "name": "a11y",
+  "private": true,
+  "description": "Automatyczny audyt dostępności (axe-core, reguły WCAG 2.2 A/AA) stron aplikacji uruchomionej lokalnie.",
+  "scripts": {
+    "audit": "node audit.js"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "playwright": "^1.63.0"
+  }
+}

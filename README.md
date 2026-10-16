@@ -340,4 +340,10 @@ Szczegółowy stan prac: [`doc/stan-realizacji.md`](doc/stan-realizacji.md).
 
 ---
 
+Opis projektu do zgłoszenia (2 strony): [`doc/opis-projektu.pdf`](doc/opis-projektu.pdf), źródło w [`doc/opis-projektu/opis-projektu.html`](doc/opis-projektu/opis-projektu.html). PDF po zmianie źródła:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --no-pdf-header-footer --print-to-pdf="$PWD/doc/opis-projektu.pdf" "file://$PWD/doc/opis-projektu/opis-projektu.html"
+```
+
 Dokumentacja projektu: [jak działa aplikacja](doc/jak-dziala-aplikacja.md) · [wymagania konkursu](doc/WYMAGANIA_KONKURSU.md) · [plan prac](doc/plan-prac.md) · [plan implementacji](doc/plan-implementacji.md) · [stan realizacji](doc/stan-realizacji.md)

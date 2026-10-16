@@ -171,6 +171,13 @@ else
                                 <ReportStatusBadge Status="report.Status" />
                             </div>
                             <p class="mb-1"><strong>@Labels.Of(report.Kind)</strong>@(report.Features.Count > 0 ? $": {Labels.Features(report.Features)}" : "")</p>
+                            @if (report.ConfirmedAt is { } confirmedAt)
+                            {
+                                <p class="small mb-1">
+                                    <span class="badge text-bg-success">Potwierdzone @Labels.When(confirmedAt)</span>
+                                    @(report.AffectsAssessment ? "Uwzględnione w ocenie miejsca." : "Zgłoszenie zamknięte: już nie wpływa na ocenę.")
+                                </p>
+                            }
                             @if (!string.IsNullOrEmpty(report.Description))
                             {
                                 <p class="mb-1 report-description">@report.Description</p>
@@ -195,6 +202,16 @@ else
                                             }
                                         </select>
                                     </div>
+                                    @if (report.CanBeConfirmed)
+                                    {
+                                        <div class="form-check mb-2">
+                                            <input id="edit-confirmed" class="form-check-input" type="checkbox" @bind="_editing.Confirmed" aria-describedby="edit-confirmed-help" />
+                                            <label class="form-check-label" for="edit-confirmed">Potwierdzam: w tym miejscu brakuje zaznaczonych udogodnień (@Labels.Features(report.Features))</label>
+                                            <div id="edit-confirmed-help" class="form-text">
+                                                Aplikacja od razu uwzględni to w ocenie miejsca jako „zgłoszenie potwierdzone przez urząd”, aż do rozwiązania lub odrzucenia zgłoszenia. Publicznie widać tylko miejsce, udogodnienia i datę.
+                                            </div>
+                                        </div>
+                                    }
                                     <div class="mb-2">
                                         <label class="form-label" for="edit-note">Odpowiedź dla zgłaszającego (widoczna dla niego)</label>
                                         <textarea id="edit-note" class="form-control" rows="3" maxlength="@Report.MaxNoteLength" @bind="_editing.Note"></textarea>
@@ -345,7 +362,7 @@ else
     private void Edit(Report report)
     {
         _saveError = null;
-        _editing = new EditState { Id = report.Id, Status = report.Status, Note = report.OfficialNote ?? "" };
+        _editing = new EditState { Id = report.Id, Status = report.Status, Note = report.OfficialNote ?? "", Confirmed = report.ConfirmedAt is not null };
     }
 
     private async Task SaveAsync()
@@ -354,7 +371,7 @@ else
             return;
 
         _busy = true;
-        var result = await Sender.Send(new UpdateReportStatusCommand(_editing.Id, new ReportStatusChange(_editing.Status, _editing.Note)));
+        var result = await Sender.Send(new UpdateReportStatusCommand(_editing.Id, new ReportStatusChange(_editing.Status, _editing.Note, _editing.Confirmed)));
         _busy = false;
 
         if (result.IsFailure)
@@ -372,5 +389,6 @@ else
         public string Id { get; init; } = "";
         public ReportStatus Status { get; set; }
         public string Note { get; set; } = "";
+        public bool Confirmed { get; set; }
     }
 }

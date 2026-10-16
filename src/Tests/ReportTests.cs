@@ -239,6 +239,9 @@ public class ReportTests
 
         public Task<Result<IReadOnlyList<ReportStatusView>>> GetMineAsync(CancellationToken ct) =>
             Task.FromResult(Result.Success<IReadOnlyList<ReportStatusView>>([]));
+
+        public Task<Result<IReadOnlyList<ConfirmedGap>>> GetConfirmedAsync(string cityId, CancellationToken ct) =>
+            Task.FromResult(Result.Success<IReadOnlyList<ConfirmedGap>>([]));
     }
 
 }

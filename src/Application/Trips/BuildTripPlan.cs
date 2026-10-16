@@ -117,7 +117,8 @@ internal sealed class BuildTripPlanCommandHandler(
             IReadOnlyList<RestStop> rests = [];
             if (NeedsRest(leg, command.Profile, out var maxWithoutRest))
             {
-                benches ??= await catalog.GetAsync(command.CityId, [PlaceCategory.Bench], ct);
+                // Toalety też są przerwą w marszu: miejskie mają w karcie godziny i dostosowanie.
+                benches ??= await catalog.GetAsync(command.CityId, [PlaceCategory.Bench, PlaceCategory.Toilet], ct);
                 rests = RestStopRules.AlongRoute(benches, leg.Geometry, leg.DistanceM, maxWithoutRest);
             }
 
@@ -215,13 +216,13 @@ internal sealed class BuildTripPlanCommandHandler(
         {
             warnings.Add((hasTransit, rests.Count > 0) switch
             {
-                (true, true) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską albo iść pieszo i odpocząć na ławce po drodze.",
+                (true, true) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską albo iść pieszo i odpocząć po drodze.",
                 (true, false) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską.",
-                (false, true) => $"Odcinek dłuższy niż {max} m. Po drodze są ławki, na których możesz odpocząć.",
+                (false, true) => $"Odcinek dłuższy niż {max} m. Po drodze są miejsca, w których możesz odpocząć.",
                 _ => $"Odcinek dłuższy niż {max} m bez odpoczynku. Zaplanuj przerwę po drodze."
             });
             if (rests.Count > 0 && RestStopRules.LongestStretchM(rests, leg.DistanceM) is var stretch && stretch > max)
-                warnings.Add($"Ławek nie ma na całej trasie: najdłuższy fragment bez przerwy ma około {Math.Round(stretch / 10) * 10} m.");
+                warnings.Add($"Miejsc na przerwę nie ma na całej trasie: najdłuższy fragment bez przerwy ma około {Math.Round(stretch / 10) * 10} m.");
         }
         return warnings;
     }

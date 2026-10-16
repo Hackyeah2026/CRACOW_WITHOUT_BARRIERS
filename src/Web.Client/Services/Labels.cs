@@ -121,6 +121,8 @@ public static class Labels
         ? feature.Key == FeatureKey.AmbientNoiseDb ? AmbientNoise.Describe(value) : value.ToString("0.#")
         : feature.State switch { FeatureState.Yes => "tak", FeatureState.No => "nie", _ => "nieznane" };
 
+    public static string RestKind(PlaceCategory category) => category == PlaceCategory.Toilet ? "Toaleta" : "Ławka";
+
     public static string Of(TransitKind kind) => kind == TransitKind.Tram ? "Tramwaj" : "Autobus";
 
     /// <summary>Minuta od północy jako godzina; czasy po północy zawijają się do następnej doby.</summary>

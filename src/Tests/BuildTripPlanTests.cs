@@ -223,7 +223,8 @@ public class BuildTripPlanTests
         var rest = Assert.Single(leg.RestStops!);
         Assert.Equal("bench-ac", rest.PlaceId);
         Assert.InRange(rest.DistanceFromStartM, 130, 180);
-        Assert.Contains(leg.Warnings, w => w.Contains("ławki"));
+        Assert.Equal(PlaceCategory.Bench, rest.Kind);
+        Assert.Contains(leg.Warnings, w => w.Contains("możesz odpocząć"));
     }
 
     [Fact]

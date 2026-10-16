@@ -66,7 +66,7 @@ public class NarrationTests
         Assert.Contains("możesz odpocząć. Trasa omija utrudnienie potwierdzone przez urząd: schody lub stopnie.", read);
         Assert.Contains("Droga jest przez to dłuższa o około 120 metrów.", read);
         Assert.Contains("hałas, około 20 metrów od trasy. Dotyczy Twojego profilu.", read);
-        Assert.EndsWith("Ławki na przerwę przy trasie: 2. Pierwsza około 300 metrów od początku odcinka.", read);
+        Assert.EndsWith("Miejsca na przerwę przy trasie: 2. Pierwsze (ławka) około 300 metrów od początku odcinka.", read);
     }
 
     [Fact]

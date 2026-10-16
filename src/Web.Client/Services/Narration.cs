@@ -104,8 +104,8 @@ public static class Narration
         if (leg.RestStops is { Count: > 0 } rests)
         {
             text.Add(rests.Count == 1
-                ? $"Przy trasie jest ławka na przerwę, {About(rests[0].DistanceFromStartM)} od początku odcinka."
-                : $"Ławki na przerwę przy trasie: {rests.Count}. Pierwsza {About(rests[0].DistanceFromStartM)} od początku odcinka.");
+                ? $"Przy trasie jest miejsce na przerwę ({Labels.RestKind(rests[0].Kind).ToLowerInvariant()}), {About(rests[0].DistanceFromStartM)} od początku odcinka."
+                : $"Miejsca na przerwę przy trasie: {rests.Count}. Pierwsze ({Labels.RestKind(rests[0].Kind).ToLowerInvariant()}) {About(rests[0].DistanceFromStartM)} od początku odcinka.");
         }
 
         if (leg.Transit is { } transit)

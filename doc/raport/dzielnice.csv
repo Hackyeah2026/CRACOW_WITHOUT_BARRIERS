@@ -1,0 +1,19 @@
+nr;dzielnica;miejsca;z_wejsciem_dla_wozkow;proc_z_wejsciem;bez_danych_o_dostepnosci;proc_bez_danych;z_danymi_o_toalecie;proc_z_toaleta;z_halasem_otoczenia;proc_z_halasem_otoczenia;z_halasem_w_miejscu;potwierdzone_bariery
+I;Stare Miasto;3485;485;13,9;2998;86,0;46;1,3;3485;100,0;5;0
+II;Grzegórzki;733;169;23,1;563;76,8;15;2,0;733;100,0;2;0
+III;Prądnik Czerwony;438;99;22,6;338;77,2;9;2,1;438;100,0;0;0
+IV;Prądnik Biały;854;123;14,4;731;85,6;4;0,5;854;100,0;0;0
+V;Krowodrza;764;268;35,1;495;64,8;17;2,2;764;100,0;1;0
+VI;Bronowice;355;103;29,0;252;71,0;7;2,0;355;100,0;0;0
+VII;Zwierzyniec;437;71;16,2;366;83,8;12;2,7;437;100,0;0;0
+VIII;Dębniki;807;171;21,2;635;78,7;22;2,7;807;100,0;1;0
+IX;Łagiewniki-Borek Fałęcki;264;27;10,2;237;89,8;5;1,9;264;100,0;0;0
+X;Swoszowice;205;22;10,7;183;89,3;1;0,5;205;100,0;0;0
+XI;Podgórze Duchackie;534;21;3,9;513;96,1;2;0,4;534;100,0;0;0
+XII;Bieżanów-Prokocim;571;73;12,8;498;87,2;7;1,2;571;100,0;0;0
+XIII;Podgórze;1060;157;14,8;903;85,2;23;2,2;1060;100,0;1;0
+XIV;Czyżyny;754;59;7,8;695;92,2;13;1,7;754;100,0;0;0
+XV;Mistrzejowice;352;20;5,7;332;94,3;1;0,3;352;100,0;0;0
+XVI;Bieńczyce;337;66;19,6;271;80,4;8;2,4;337;100,0;0;0
+XVII;Wzgórza Krzesławickie;108;4;3,7;104;96,3;1;0,9;108;100,0;0;0
+XVIII;Nowa Huta;523;252;48,2;270;51,6;12;2,3;523;100,0;0;0

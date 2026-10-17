@@ -1,0 +1,21 @@
+pozycja;id;nazwa;kategoria;adres;dzielnica;szer_geogr;dl_geogr;odjazdy_w_300_m;waga;wynik
+1;osm-node-1919370567;Izba Administracji Skarbowej w Krakowie;Office;Aleja Zygmunta Krasińskiego 11b;Stare Miasto;50,057541;19,926680;5486;2;10972
+2;osm-node-1415949390;Specjalistyczna Poradnia Diagnozy i Rehabilitacji Dzieci i Młodzieży z Wadą Słuchu PZG;Clinic;;Stare Miasto;50,069926;19,927808;4082;2;8164
+3;osm-way-233355066;Starostwo Powiatowe w Krakowie;Office;;Krowodrza;50,071112;19,927959;4082;2;8164
+4;osm-node-14093697150;"ДП ""Документ""";Office;Pawia 5;Stare Miasto;50,066266;19,945380;3878;2;7756
+5;osm-relation-3179399;Komenda Regionalna Straży Ochrony Kolei w Krakowie;Office;Lubicz 14;Stare Miasto;50,065104;19,948922;3565;2;7130
+6;osm-node-5817950071;Komisja Nadzoru Finansowego;Office;;Stare Miasto;50,065680;19,942468;3552;2;7104
+7;osm-node-6036102179;Agencja Mienia Wojskowego;Office;;Stare Miasto;50,074702;19,940136;3523;2;7046
+8;osm-way-1194850128;Szpital Uniwersytecki CM UJ;Clinic;;Grzegórzki;50,064682;19,955958;3026;2;6052
+9;osm-way-143916313;Wody Polskie;Office;Marszałka Józefa Piłsudskiego 22;Stare Miasto;50,059797;19,928791;3013;2;6026
+10;osm-relation-1847136;Sąd Apelacyjny w Krakowie;Office;;Grzegórzki;50,065035;19,961962;2979;2;5958
+11;osm-way-154353720;Sąd Rejonowy;Office;Mogilska 17;Grzegórzki;50,065904;19,962728;2979;2;5958
+12;osm-node-7556969890;Najwyższa Izba Kontroli;Office;;Krowodrza;50,071655;19,927823;2963;2;5926
+13;osm-node-2430985204;Powiatowy Inspektorat Nadzoru Budowlanego w Krakowie;Office;Aleja Juliusza Słowackiego 20;Krowodrza;50,071156;19,928025;2963;2;5926
+14;osm-node-12860488433;Wojewódzki Inspektorat Nadzoru Budowlanego;Office;;Krowodrza;50,071470;19,927802;2963;2;5926
+15;osm-way-152980027;Centrum Powiadamiania Ratunkowego;Office;Szlak 73a;Stare Miasto;50,070166;19,943058;2789;2;5578
+16;osm-way-231816680;Komisariat Policji IV w Krakowie;Office;Królewska 4;Krowodrza;50,070239;19,924060;2740;2;5480
+17;osm-node-12481073274;Rada i Zarząd Dzielnicy V Krowodrza;Office;;Krowodrza;50,070096;19,925419;2740;2;5480
+18;osm-node-11398965431;"Punkt Obsługi Programu WFOŚiGW ""Czyste Powietrze""";Office;;Czyżyny;50,073444;20,014820;2723;2;5446
+19;osm-node-11067571910;Szpital na Siemiradzkiego - Ośrodek Medycyny Matczyno-Płodowej;Clinic;;Stare Miasto;50,068217;19,929188;2707;2;5414
+20;osm-way-668507469;Narodowe Centrum Nauki;Office;Twardowskiego 16;Dębniki;50,046564;19,930557;2664;2;5328

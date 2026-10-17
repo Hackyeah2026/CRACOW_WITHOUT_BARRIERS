@@ -43,6 +43,7 @@ Informacje o dostępności miejsc w Krakowie są rozproszone i zwykle zero-jedyn
 | **Komunikacja miejska** | dla odcinków dłuższych niż limit z profilu: linia, przystanki, godziny odjazdu i przyjazdu, najbliższe odjazdy, jedna przesiadka; rozkład ZTP Kraków (GTFS) |
 | **Zgłoszenia mieszkańców** | na karcie miejsca: „brakuje udogodnienia / bariera / błędne dane”, z listą udogodnień i opisem; zgłoszenie jest anonimowe, a status i odpowiedź urzędu widać w zakładce „Zgłoszenia” |
 | **Panel urzędnika** | logowanie, zestawienie (czego najczęściej brakuje, które miejsca mają najwięcej zgłoszeń), mapa zgłoszeń, zmiana statusu z odpowiedzią dla zgłaszającego, potwierdzanie braków; zakładka **„Braki danych”**: w których kategoriach miejsc publicznych brakuje informacji o dostępności (np. urzędy 15%, przychodnie 14%, parki 3% miejsc z informacją dla wózków) i lista miejsc, w których źródła się różnią, do sprawdzenia w terenie |
+| **Luki w danych i bariery** (`/miasto`, bez logowania) | raport dla urzędu: wskaźniki dla miasta (12 589 miejsc: 17,4% z danymi o wejściu dla wózków, 82,5% bez żadnych danych), rozbicie na 18 dzielnic (granice z MSIP) i kategorie, kartogram dzielnic, 20 miejsc do sprawdzenia w pierwszej kolejności z opisaną regułą (obiekty publiczne bez danych, ruch przybliżony odjazdami komunikacji z GTFS), bariery potwierdzone przez urząd na mapie, eksport CSV i GeoJSON. Liczby odtwarza `dotnet run --project src/Tools -- report krakow` ([`doc/RAPORT_LUKI_W_DANYCH.md`](doc/RAPORT_LUKI_W_DANYCH.md), pliki w [`doc/raport/`](doc/raport/)) |
 | **Dostępny interfejs** | status zawsze jako kolor, znak i tekst; link „Przejdź do treści”; widoczny fokus; etykiety ARIA; mapa ma odpowiednik w postaci listy; tryb ograniczonego ruchu. Automatyczny audyt WCAG 2.2 A/AA (axe-core) 13 widoków na telefonie i komputerze: 0 problemów, szczegóły w [`doc/dostepnosc.md`](doc/dostepnosc.md) |
 
 ## Dla kogo
@@ -164,6 +165,12 @@ Same dane miejskie (MSIP) dla istniejącego katalogu, bez ponownego pobierania O
 
 ```bash
 dotnet run --project src/Tools -- city krakow
+```
+
+Liczby raportu „Luki w danych i bariery” (te same co strona `/miasto`, bez barier z bazy), zapis do `doc/RAPORT_LUKI_W_DANYCH.md` i `doc/raport/`:
+
+```bash
+dotnet run --project src/Tools -- report krakow
 ```
 
 ## Konfiguracja

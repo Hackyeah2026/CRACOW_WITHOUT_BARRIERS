@@ -29,6 +29,12 @@ public interface IDataSourcesCatalog
     Task<DataSourcesReport?> GetAsync(string cityId, CancellationToken ct);
 }
 
+public interface IDistrictsCatalog
+{
+    /// <summary>Granice dzielnic miasta albo null, gdy miasto ich nie udostępnia.</summary>
+    Task<DistrictMap?> GetAsync(string cityId, CancellationToken ct);
+}
+
 public interface INoiseCatalog
 {
     /// <summary>Siatka hałasu miasta albo null, gdy miasto nie udostępnia mapy hałasu.</summary>

@@ -74,6 +74,17 @@ public static class CityData
                 $"Najbliższe koperty przy miejscu i start trasy pieszej; {groups.Count} miejsc, {matched} połączonych z OSM.", false));
         }
 
+        if (city.DistrictsLayer is { } districtsLayer)
+        {
+            var districts = await new MsipDistrictsSource(http).LoadAsync(districtsLayer);
+            var districtsPath = Path.Combine(dataDir, "districts.json");
+            await File.WriteAllTextAsync(districtsPath, JsonSerializer.Serialize(districts, DomainJson.Options));
+            Console.WriteLine($"Dzielnice: {districts.Districts.Count}, {new FileInfo(districtsPath).Length / 1024} KB");
+            sources.Add(new DataSource("Dzielnice administracyjne", "Gmina Miejska Kraków, MSIP", districtsLayer, CityPortalLicense,
+                districts.DataDate?.ToString("dd.MM.yyyy") ?? "brak daty", today, districts.Districts.Count,
+                "Rozbicie raportu „Luki w danych i bariery” na dzielnice i kartogram pokrycia danymi.", true));
+        }
+
         if (city.NoiseLayers is { Count: > 0 } layers)
         {
             var map = await new MsipNoiseSource(http).LoadAsync(layers);

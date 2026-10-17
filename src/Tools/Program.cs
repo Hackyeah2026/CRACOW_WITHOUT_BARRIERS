@@ -7,15 +7,31 @@ using Tools;
 //   dotnet run --project src/Tools -- import krakow     miejsca z OpenStreetMap + dane miejskie + ręczne uzupełnienia
 //   dotnet run --project src/Tools -- city krakow       same dane miejskie (MSIP) dla istniejącego katalogu, bez pobierania OSM
 //   dotnet run --project src/Tools -- transit krakow    sieć komunikacji miejskiej z GTFS
-if (args is not [var command and ("import" or "city" or "transit"), var cityId] || !CityImports.All.TryGetValue(cityId, out var city))
+//   dotnet run --project src/Tools -- report krakow     liczby raportu "Luki w danych i bariery" (te same co strona /miasto)
+if (args is not [var command and ("import" or "city" or "transit" or "report"), var cityId] || !CityImports.All.TryGetValue(cityId, out var city))
 {
-    Console.Error.WriteLine($"Użycie: <import|city|transit> <miasto>. Dostępne miasta: {string.Join(", ", CityImports.All.Keys)}");
+    Console.Error.WriteLine($"Użycie: <import|city|transit|report> <miasto>. Dostępne miasta: {string.Join(", ", CityImports.All.Keys)}");
     return 1;
 }
 
 var root = FindRepoRoot();
 var dataDir = Path.Combine(root, "src", "Web.Client", "wwwroot", "data", cityId);
 Directory.CreateDirectory(dataDir);
+
+if (command == "report")
+{
+    var report = CityGapsReportWriter.Build(dataDir, out var districts);
+    var markdown = CityGapsReportWriter.Markdown(report);
+    await File.WriteAllTextAsync(Path.Combine(root, "doc", "RAPORT_LUKI_W_DANYCH.md"), markdown);
+    var exportDir = Path.Combine(root, "doc", "raport");
+    Directory.CreateDirectory(exportDir);
+    await File.WriteAllTextAsync(Path.Combine(exportDir, "dzielnice.csv"), CityGapsExport.DistrictsCsv(report));
+    await File.WriteAllTextAsync(Path.Combine(exportDir, "kategorie.csv"), CityGapsExport.GroupsCsv(report));
+    await File.WriteAllTextAsync(Path.Combine(exportDir, "priorytety.csv"), CityGapsExport.PrioritiesCsv(report));
+    await File.WriteAllTextAsync(Path.Combine(exportDir, "raport.geojson"), CityGapsExport.GeoJson(report, districts, []));
+    Console.WriteLine(markdown);
+    return 0;
+}
 
 if (command == "transit")
 {

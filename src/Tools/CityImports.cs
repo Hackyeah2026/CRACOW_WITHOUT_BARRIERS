@@ -9,9 +9,10 @@ namespace Tools;
 /// <param name="DisabledParkingLayer">Warstwa punktowa kopert z polami ID_MIEJSCA i punkt_adresowy (ArcGIS REST).</param>
 /// <param name="StopsLayer">Warstwa punktowa przystanków z polami nazwa_przystanku_nr i na_żądanie (ArcGIS REST).</param>
 /// <param name="ServicePointsLayer">Warstwa punktowa punktów obsługi mieszkańców z polami Adres i Godziny otwarcia (ArcGIS REST).</param>
+/// <param name="DistrictsLayer">Warstwa poligonowa dzielnic z polami id_dzielni, nr_dzielni, nazwa (ArcGIS REST).</param>
 public sealed record CityImport(double South, double West, double North, double East, string? GtfsUrl = null, string? GtfsSource = null,
     long? OsmRelationId = null, IReadOnlyList<string>? NoiseLayers = null, string? PublicToiletsLayer = null, string? StopSheltersLayer = null,
-    string? DisabledParkingLayer = null, string? StopsLayer = null, string? ServicePointsLayer = null);
+    string? DisabledParkingLayer = null, string? StopsLayer = null, string? ServicePointsLayer = null, string? DistrictsLayer = null);
 
 public static class CityImports
 {
@@ -31,6 +32,7 @@ public static class CityImports
             StopSheltersLayer: "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/9",
             DisabledParkingLayer: "https://services-eu1.arcgis.com/svTzSt3AvH7sK6q9/arcgis/rest/services/Miejsca_postojowe_OZN/FeatureServer/0",
             StopsLayer: "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/10",
-            ServicePointsLayer: "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/K07_Admini_i_Bezpiecz/MapServer/1")
+            ServicePointsLayer: "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/K07_Admini_i_Bezpiecz/MapServer/1",
+            DistrictsLayer: "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/Dzielnice/MapServer/0")
     };
 }

@@ -19,6 +19,7 @@ public static class DependencyInjection
         .AddScoped<ITransitCatalog, HttpTransitCatalog>()
         .AddScoped<INoiseCatalog, HttpNoiseCatalog>()
         .AddScoped<IDataSourcesCatalog, HttpDataSourcesCatalog>()
+        .AddScoped<IDistrictsCatalog, HttpDistrictsCatalog>()
         .AddScoped<ILocalStore, IndexedDbLocalStore>()
         .AddScoped<IRoutingClient, HostRoutingClient>()
         .AddScoped<IReportsClient, HostReportsClient>()

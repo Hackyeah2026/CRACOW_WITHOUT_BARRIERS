@@ -1,5 +1,6 @@
 using Application.Abstractions;
 using Domain.Assessments;
+using Domain.Hazards;
 using Domain.Needs;
 using Domain.Places;
 
@@ -310,4 +311,25 @@ internal sealed class GetDataSourcesQueryHandler(IDataSourcesCatalog catalog) : 
         await catalog.GetAsync(query.CityId, ct) is { } report
             ? Result.Success(report)
             : Result.Failure<DataSourcesReport>("Brak spisu źródeł danych dla tego miasta.");
+}
+
+/// <param name="HazardsAvailable">Czy udało się pobrać bariery potwierdzone przez urząd (wymagają bazy hosta).</param>
+public sealed record CityGapsView(CityGapsReport Report, DistrictMap? Districts, IReadOnlyList<VerifiedHazard> Hazards, bool HazardsAvailable);
+
+/// <summary>Raport "Luki w danych i bariery" dla całego miasta (strona /miasto).</summary>
+public sealed record GetCityGapsQuery(string CityId) : IQuery<CityGapsView>;
+
+internal sealed class GetCityGapsQueryHandler(IPlaceCatalog catalog, IDistrictsCatalog districts, ITransitCatalog transit, IHazardsClient hazards)
+    : IQueryHandler<GetCityGapsQuery, CityGapsView>
+{
+    public async Task<Result<CityGapsView>> Handle(GetCityGapsQuery query, CancellationToken ct)
+    {
+        var categories = Enum.GetValues<PlaceCategory>().Where(c => c is not (PlaceCategory.Bench or PlaceCategory.Stop or PlaceCategory.DisabledParking)).ToList();
+        var places = await catalog.GetAsync(query.CityId, categories, ct);
+        var map = await districts.GetAsync(query.CityId, ct);
+        var network = await transit.GetNetworkAsync(query.CityId, ct);
+        var verified = await hazards.GetVerifiedAsync(query.CityId, ct);
+        IReadOnlyList<VerifiedHazard> known = verified.IsSuccess ? verified.Value : [];
+        return Result.Success(new CityGapsView(CityGaps.Build(places, map, network, known), map, known, verified.IsSuccess));
+    }
 }

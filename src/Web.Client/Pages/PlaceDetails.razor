@@ -69,6 +69,11 @@ else
                 </section>
             }
 
+            @if (!place.IsOutdoorPoint)
+            {
+                <NearbyParking Target="place" />
+            }
+
             <section class="card card-body mt-3">
                 <h2 class="h5">Wszystkie znane cechy</h2>
                 @if (place.Features.Count == 0)

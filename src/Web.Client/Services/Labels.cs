@@ -114,12 +114,16 @@ public static class Labels
         FeatureKey.Benches => "Ławki",
         FeatureKey.SeatingInside => "Miejsca do siedzenia w środku",
         FeatureKey.AmbientNoiseDb => "Hałas otoczenia (mapa hałasu)",
+        FeatureKey.DisabledParkingSpaces => "Miejsca postojowe dla osób z niepełnosprawnościami (liczba)",
+        FeatureKey.RequestStop => "Przystanek na żądanie",
         _ => key.ToString()
     };
 
     public static string Value(AccessibilityFeature feature) => feature.Value is { } value
         ? feature.Key == FeatureKey.AmbientNoiseDb ? AmbientNoise.Describe(value) : value.ToString("0.#")
         : feature.State switch { FeatureState.Yes => "tak", FeatureState.No => "nie", _ => "nieznane" };
+
+    public static string RestKind(PlaceCategory category) => category == PlaceCategory.Toilet ? "Toaleta" : "Ławka";
 
     public static string Of(TransitKind kind) => kind == TransitKind.Tram ? "Tramwaj" : "Autobus";
 

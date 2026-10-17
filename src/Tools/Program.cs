@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Domain;
+using Domain.Places;
 using Tools;
 
 // Użycie (z katalogu repozytorium):
@@ -37,9 +38,15 @@ var output = Path.Combine(dataDir, "places");
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
 http.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowBezBarier/1.0 (+https://github.com/Hackyeah2026/CRACOW_WITHOUT_BARRIERS)");
 
+var docPath = Path.Combine(root, "doc", "DATA_SOURCES.md");
+var sources = new List<DataSource>();
+
 if (command == "city")
 {
-    PlaceFiles.Write(output, await CityData.ApplyAsync(PlaceFiles.Read(output), cityId, city, http));
+    var osmRetrieved = DataSourcesWriter.OsmRetrievedOn(dataDir, freshImport: false);
+    var enriched = await CityData.ApplyAsync(PlaceFiles.Read(output), cityId, city, http, dataDir, sources);
+    PlaceFiles.Write(output, enriched);
+    DataSourcesWriter.Write(dataDir, docPath, enriched, osmRetrieved, sources);
     return 0;
 }
 
@@ -53,9 +60,10 @@ if (places.Count == 0)
     return 1;
 }
 
-places = await CityData.ApplyAsync(places, cityId, city, http);
+places = await CityData.ApplyAsync(places, cityId, city, http, dataDir, sources);
 places = OverridesApplier.Apply(places, overrides);
 PlaceFiles.Write(output, places);
+DataSourcesWriter.Write(dataDir, docPath, places, DataSourcesWriter.OsmRetrievedOn(dataDir, freshImport: true), sources);
 return 0;
 
 static string FindRepoRoot()

@@ -20,7 +20,7 @@ public enum FeatureKey
     InductionLoop, SignLanguage, VisualInformation, NoiseLevel, CrowdLevel, BrightLight, LowFloorStop,
     StopShelter, QuietHours, QuietRoom, EasyToReadText, Pictograms, Benches, SeatingInside,
     // Nowe cechy dopisujemy na końcu, tak jak kategorie.
-    AmbientNoiseDb
+    AmbientNoiseDb, DisabledParkingSpaces, RequestStop
 }
 
 /// <summary>

@@ -33,7 +33,7 @@ public class BuildTripPlanTests
     private static async Task<Result<Domain.Trips.TripPlan>> BuildAsync(
         IReadOnlyList<string> ids, GeoPoint? start = null, bool optimize = true,
         NeedsProfile? profile = null, IReadOnlyList<VerifiedHazard>? hazards = null, ITransitCatalog? transit = null,
-        IRoutingClient? routing = null)
+        IRoutingClient? routing = null, NoiseGrid? noise = null)
     {
         var services = new ServiceCollection()
             .AddApplication()
@@ -41,6 +41,7 @@ public class BuildTripPlanTests
             .AddSingleton(routing ?? new FakeRouting())
             .AddSingleton(transit ?? new NoTransit())
             .AddSingleton<IHazardsClient>(new FakeHazards(hazards))
+            .AddSingleton<INoiseCatalog>(new FakeNoise(noise))
             .BuildServiceProvider();
 
         return await services.GetRequiredService<ISender>().Send(
@@ -48,6 +49,20 @@ public class BuildTripPlanTests
     }
 
     private static IEnumerable<string> Ids(Domain.Trips.TripPlan plan) => plan.Stops.Select(s => s.Place.Id);
+
+    [Fact]
+    public async Task Leg_along_a_loud_street_warns_a_sensory_profile_with_the_source_and_skips_others()
+    {
+        // Cała okolica 75-80 dB.
+        var grid = new NoiseGrid(49.9, 19.8, 0.01, 0.01, 30, 30, Convert.ToBase64String(Enumerable.Repeat(NoiseGrid.Encode(75), 900).ToArray()), "MSIP test");
+        var sensory = new NeedsProfile { MaxNoiseLevel = 1 };
+
+        var warned = await BuildAsync(["a", "b"], optimize: false, profile: sensory, noise: grid);
+        var other = await BuildAsync(["a", "b"], optimize: false, profile: NeedsProfile.Empty, noise: grid);
+
+        Assert.Contains(warned.Value.Legs[0].Warnings, w => w.Contains("75–80 dB") && w.Contains("MSIP test"));
+        Assert.DoesNotContain(other.Value.Legs[0].Warnings, w => w.Contains("hałas"));
+    }
 
     [Fact]
     public async Task Optimized_plan_keeps_first_place_as_start_and_shortens_the_route()
@@ -208,7 +223,8 @@ public class BuildTripPlanTests
         var rest = Assert.Single(leg.RestStops!);
         Assert.Equal("bench-ac", rest.PlaceId);
         Assert.InRange(rest.DistanceFromStartM, 130, 180);
-        Assert.Contains(leg.Warnings, w => w.Contains("ławki"));
+        Assert.Equal(PlaceCategory.Bench, rest.Kind);
+        Assert.Contains(leg.Warnings, w => w.Contains("możesz odpocząć"));
     }
 
     [Fact]
@@ -288,6 +304,11 @@ public class BuildTripPlanTests
             return Task.FromResult(Result.Success(new RouteLeg(
                 request.From.DistanceTo(via) + via.DistanceTo(request.To), 1, [request.From, via, request.To], false, [])));
         }
+    }
+
+    private sealed class FakeNoise(NoiseGrid? grid) : INoiseCatalog
+    {
+        public Task<NoiseGrid?> GetGridAsync(string cityId, CancellationToken ct) => Task.FromResult(grid);
     }
 
     private sealed class NoTransit : ITransitCatalog

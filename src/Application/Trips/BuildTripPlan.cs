@@ -45,7 +45,7 @@ public static class StartLocationRules
 }
 
 internal sealed class BuildTripPlanCommandHandler(
-    IPlaceCatalog catalog, IRoutingClient routing, ITransitCatalog transit, IHazardsClient hazards)
+    IPlaceCatalog catalog, IRoutingClient routing, ITransitCatalog transit, IHazardsClient hazards, INoiseCatalog noise)
     : ICommandHandler<BuildTripPlanCommand, TripPlan>
 {
     public async Task<Result<TripPlan>> Handle(BuildTripPlanCommand command, CancellationToken ct)
@@ -92,6 +92,8 @@ internal sealed class BuildTripPlanCommandHandler(
         TransitPlanner? planner = null;
         var transitLoaded = false;
         IReadOnlyList<Place>? benches = null;
+        var noiseLoaded = false;
+        NoiseGrid? noiseGrid = null;
         var legs = new List<TripLeg>();
         for (var i = 0; i < ordered.Count - 1; i++)
         {
@@ -115,7 +117,8 @@ internal sealed class BuildTripPlanCommandHandler(
             IReadOnlyList<RestStop> rests = [];
             if (NeedsRest(leg, command.Profile, out var maxWithoutRest))
             {
-                benches ??= await catalog.GetAsync(command.CityId, [PlaceCategory.Bench], ct);
+                // Toalety też są przerwą w marszu: miejskie mają w karcie godziny i dostosowanie.
+                benches ??= await catalog.GetAsync(command.CityId, [PlaceCategory.Bench, PlaceCategory.Toilet], ct);
                 rests = RestStopRules.AlongRoute(benches, leg.Geometry, leg.DistanceM, maxWithoutRest);
             }
 
@@ -124,9 +127,25 @@ internal sealed class BuildTripPlanCommandHandler(
             if (detour is not null)
                 along = along.Where(h => !detour.Avoided.Contains(h.Hazard)).ToList();
 
+            // Hałas sprawdzamy tylko dla profili, które mają tolerancję hałasu, i tylko na trasie po ulicach.
+            RouteNoise? loud = null;
+            if (command.Profile.MaxNoiseLevel is { } maxNoise && !leg.IsEstimated)
+            {
+                if (!noiseLoaded)
+                {
+                    noiseGrid = await noise.GetGridAsync(command.CityId, ct);
+                    noiseLoaded = true;
+                }
+                loud = noiseGrid is null ? null : RouteNoiseRules.Above(noiseGrid, leg.Geometry, maxNoise);
+            }
+
+            var warnings = LegWarnings(leg, command.Profile, advice?.Status == TransitStatus.Found, rests, detourFailed);
+            if (loud is not null)
+                warnings.Add($"Około {Math.Round(loud.LoudM / 10) * 10:0} m trasy prowadzi przy hałasie powyżej Twojej tolerancji, " +
+                             $"najgłośniej {AmbientNoise.Describe(loud.LoudestDb)} (źródło: {noiseGrid!.Source}).");
+
             legs.Add(new TripLeg(from.Id, to.Id, leg.DistanceM, leg.DurationMin, leg.Geometry, leg.IsEstimated,
-                LegWarnings(leg, command.Profile, advice?.Status == TransitStatus.Found, rests, detourFailed), advice,
-                along, rests, detour));
+                warnings, advice, along, rests, detour));
         }
 
         return Result.Success(new TripPlan(Guid.NewGuid().ToString("N"), command.Mode, DateTimeOffset.UtcNow, stops, legs));
@@ -197,13 +216,13 @@ internal sealed class BuildTripPlanCommandHandler(
         {
             warnings.Add((hasTransit, rests.Count > 0) switch
             {
-                (true, true) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską albo iść pieszo i odpocząć na ławce po drodze.",
+                (true, true) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską albo iść pieszo i odpocząć po drodze.",
                 (true, false) => $"Odcinek dłuższy niż {max} m. Możesz podjechać komunikacją miejską.",
-                (false, true) => $"Odcinek dłuższy niż {max} m. Po drodze są ławki, na których możesz odpocząć.",
+                (false, true) => $"Odcinek dłuższy niż {max} m. Po drodze są miejsca, w których możesz odpocząć.",
                 _ => $"Odcinek dłuższy niż {max} m bez odpoczynku. Zaplanuj przerwę po drodze."
             });
             if (rests.Count > 0 && RestStopRules.LongestStretchM(rests, leg.DistanceM) is var stretch && stretch > max)
-                warnings.Add($"Ławek nie ma na całej trasie: najdłuższy fragment bez przerwy ma około {Math.Round(stretch / 10) * 10} m.");
+                warnings.Add($"Miejsc na przerwę nie ma na całej trasie: najdłuższy fragment bez przerwy ma około {Math.Round(stretch / 10) * 10} m.");
         }
         return warnings;
     }

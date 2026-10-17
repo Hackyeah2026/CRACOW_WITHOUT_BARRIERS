@@ -39,7 +39,7 @@ Informacje o dostępności miejsc w Krakowie są rozproszone i zwykle zero-jedyn
 | **Profil potrzeb** | 11 gotowych profili, które można łączyć: wózek elektryczny i ręczny, kule lub balkonik, osoba niewidoma, głucha, słabosłysząca, spektrum autyzmu, nadwrażliwość sensoryczna, niepełnosprawność intelektualna, senior, wózek dziecięcy. Każdy parametr można potem zmienić |
 | **Katalog miejsc** | blisko 29 000 miejsc w Krakowie w 18 kategoriach, na mapie i liście, posortowanych od najlepiej dopasowanych do profilu; filtr kategorii i wyszukiwarka po nazwie, adresie i rodzaju miejsca (np. „hotel”, „kawiarnia”), która nie rozróżnia polskich znaków |
 | **Karta miejsca** | status (dostępne / z ograniczeniami / niedostępne / brak danych), bariery, udogodnienia, braki danych, a przy każdej cesze źródło i data |
-| **Planer trasy** | kolejność przystanków (najbliższy sąsiad + 2-opt), trasa po ulicach dobrana do profilu (OpenRouteService: profil wózkowy, omijanie schodów, limit krawężnika), ostrzeżenia o stromych odcinkach; gdy odcinek jest dłuższy niż limit marszu z profilu, plan wskazuje ławki przy trasie, na których można odpocząć |
+| **Planer trasy** | kolejność przystanków (najbliższy sąsiad + 2-opt), trasa po ulicach dobrana do profilu (OpenRouteService: profil wózkowy, omijanie schodów, limit krawężnika), ostrzeżenia o stromych odcinkach; gdy odcinek jest dłuższy niż limit marszu z profilu, plan wskazuje ławki i toalety przy trasie, w których można odpocząć; dla profili sensorycznych ostrzeżenie, ile metrów odcinka prowadzi przy hałasie powyżej tolerancji (siatka z mapy hałasu MSIP); start trasy z wybranej koperty ZDMK |
 | **Komunikacja miejska** | dla odcinków dłuższych niż limit z profilu: linia, przystanki, godziny odjazdu i przyjazdu, najbliższe odjazdy, jedna przesiadka; rozkład ZTP Kraków (GTFS) |
 | **Zgłoszenia mieszkańców** | na karcie miejsca: „brakuje udogodnienia / bariera / błędne dane”, z listą udogodnień i opisem; zgłoszenie jest anonimowe, a status i odpowiedź urzędu widać w zakładce „Zgłoszenia” |
 | **Panel urzędnika** | logowanie, zestawienie (czego najczęściej brakuje, które miejsca mają najwięcej zgłoszeń), mapa zgłoszeń, zmiana statusu z odpowiedzią dla zgłaszającego, potwierdzanie braków; zakładka **„Braki danych”**: w których kategoriach miejsc publicznych brakuje informacji o dostępności (np. urzędy 15%, przychodnie 14%, parki 3% miejsc z informacją dla wózków) i lista miejsc, w których źródła się różnią, do sprawdzenia w terenie |
@@ -102,11 +102,13 @@ flowchart LR
     subgraph Offline["Import danych (Tools)"]
         OSM[(OpenStreetMap<br/>Overpass)]
         GTFS[(GTFS ZTP Kraków)]
-        MSIP[(MSIP Kraków<br/>mapa hałasu 2022,<br/>toalety publiczne,<br/>wiaty ZTP)]
+        MSIP[(MSIP Kraków<br/>mapa hałasu 2022, toalety,<br/>wiaty i przystanki ZTP,<br/>punkty obsługi mieszkańców)]
+        ZDMK[(ZDMK<br/>koperty)]
     end
     OSM --> STATIC
     GTFS --> STATIC
     MSIP --> STATIC
+    ZDMK --> STATIC
 ```
 
 | Projekt | Zawartość |
@@ -263,12 +265,17 @@ docker run --rm -p 8080:8080 -e Mongo__ConnectionString="<adres>" kbb-web:local
 
 ## Dane i licencje
 
+Pełny spis z liczbą rekordów, datami i zastosowaniem generuje import: [`doc/DATA_SOURCES.md`](doc/DATA_SOURCES.md); w aplikacji pokazuje go strona **„Źródła danych”** (`/zrodla-danych`, link w stopce).
+
 | Źródło | Co bierzemy | Licencja |
 |---|---|---|
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) (Overpass API) | 28 971 miejsc w 18 kategoriach (po jednym pliku na kategorię): m.in. ławki, sklepy, jedzenie, przystanki, koperty, zdrowie, apteki, urzędy, atrakcje, parki, toalety; tagi `wheelchair`, `toilets:wheelchair`, `tactile_paving`, `bench`, `shelter`, `elevator`, `hearing_loop` | ODbL, © autorzy OpenStreetMap |
 | [MSIP Kraków: mapa hałasu 2022](https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer) | hałas otoczenia (wskaźnik LDWN, ruch drogowy: warstwa 1, tramwaje i kolej: warstwa 5) dla 14 759 miejsc; ławki i miejsca parkingowe pominięte. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | [warunki portalu Otwarte Dane](https://otwartedane.um.krakow.pl/warunki-wykorzystania-danych-udostepnianych-w-portalu): swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) i czasu wytworzenia oraz pozyskania danych |
 | [MSIP Kraków: toalety publiczne](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/WT_WC_2023/MapServer/0) (rejestr ISDP, stan 2023) | 50 toalet miejskich: dostosowanie dla osób z niepełnosprawnościami i jego rodzaj (wjazd z poziomu 0, pochylnia, platforma, winda, schodołaz), przewijak, godziny, czy czynna. 48 połączonych z toaletą z OSM w promieniu 50 m, 2 dodane. Pobrane 16.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | jak wyżej (warunki portalu Otwarte Dane) |
 | [MSIP Kraków: wiaty przystankowe KMK](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/9) (rejestr ZTP, import do MSIP 10.10.2026) | 1557 wiat dopasowanych do przystanków po nazwie ze słupkiem (np. „Agatowa 01”), a bez zgodnej nazwy do najbliższego przystanku w promieniu 30 m: wiata przy 1439 przystankach, przy 98 OSM podaje „brak wiaty” (sprzeczność widoczna na karcie). Rejestr mówi tylko, gdzie wiata jest, więc nie zapisujemy „brak wiaty”. Pobrane 17.10.2026, odświeżanie: `dotnet run --project src/Tools -- city krakow` | jak wyżej (warunki portalu Otwarte Dane) |
+| [MSIP Kraków: przystanki KMK](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/10) (rejestr ZTP) | 3758 przystanków ze słupkiem: „na żądanie” dla 2073 przystanków katalogu (533 na żądanie); dla osób niewidomych to „z ograniczeniami” z wyjaśnieniem | jak wyżej |
+| [MSIP Kraków: punkty obsługi mieszkańców UMK](https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/K07_Admini_i_Bezpiecz/MapServer/1) | 14 punktów z adresem i linkiem do godzin w BIP, jako urzędy w trybie „Załatwiam sprawę” | jak wyżej |
+| [ZDMK: miejsca postojowe dla pojazdów osób z niepełnosprawnościami](https://zdmk.krakow.pl/nasze-dzialania/mapa-miejsc-parkingowych-dla-osob-z-niepelnosprawnoscia-juz-w-internecie/) ([warstwa](https://services-eu1.arcgis.com/svTzSt3AvH7sK6q9/arcgis/rest/services/Miejsca_postojowe_OZN/FeatureServer/0)) | 2037 stanowisk w 1467 miejscach (stan na 17.09.2026); 424 połączone z OSM, 1043 dodane. Karta miejsca pokazuje 3 najbliższe w 500 m z przyciskiem „Zacznij trasę stąd” | **licencja niepodana**: warstwa publiczna na koncie ArcGIS Gminy Miejskiej Kraków, spoza portali MSIP i Otwarte Dane; podajemy źródło i nie liczymy jej do zbiorów z portali miasta |
 | [GTFS ZTP Kraków](https://gtfs.ztp.krakow.pl/) | 218 linii, ok. 95 tys. kursów, 3 474 przystanki | według zasad udostępniania ZTP |
 | [OpenRouteService](https://openrouteservice.org/) | trasy piesze i wózkowe | według regulaminu usługi |
 | Uzupełnienia zespołu ([`overrides/krakow.json`](src/Tools/overrides/krakow.json)) | cechy sensoryczne i szczegóły dla miejsc ze ścieżki demo | **dane demonstracyjne**, oznaczone w aplikacji, niezweryfikowane |

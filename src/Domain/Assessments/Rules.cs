@@ -154,8 +154,8 @@ public sealed class SensoryRule : IAssessmentRule
         if (level <= max)
             return Reasons.Amenity(place, FeatureKey.AmbientNoiseDb, $"{text}.");
 
-        var impact = level - max >= 2 ? AssessmentStatus.Inaccessible : AssessmentStatus.Limited;
-        return Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, impact, $"{text}, powyżej Twojej tolerancji.");
+        // Mapa ma przedziały co 5 dB i opisuje hałas uśredniony z doby, więc daje najwyżej "z ograniczeniami".
+        return Reasons.Barrier(place, FeatureKey.AmbientNoiseDb, AssessmentStatus.Limited, $"{text}, powyżej Twojej tolerancji.");
     }
 
     /// <summary>Głośna ulica utrudnia dojście i wejście, ale nie przesądza o hałasie w środku, więc najwyżej "z ograniczeniami".</summary>
@@ -229,6 +229,21 @@ public sealed class VisionRule : IAssessmentRule
                     break;
                 default:
                     yield return Reasons.Missing(FeatureKey.AudioDescription, "Brak informacji o audiodeskrypcji.", blocking: false);
+                    break;
+            }
+        }
+
+        // Na przystanku na żądanie trzeba dać znak kierowcy, a osoba niewidoma może nie widzieć nadjeżdżającego pojazdu.
+        if ((profile.NeedsTactilePaving || profile.NeedsAudioDescription) && place.Category == PlaceCategory.Stop)
+        {
+            switch (place.StateOf(FeatureKey.RequestStop))
+            {
+                case FeatureState.Yes:
+                    yield return Reasons.Barrier(place, FeatureKey.RequestStop, AssessmentStatus.Limited,
+                        "Przystanek na żądanie: pojazd zatrzyma się tylko na znak. Przy wsiadaniu trzeba go dać kierowcy, przy wysiadaniu nacisnąć przycisk w pojeździe.");
+                    break;
+                case FeatureState.No:
+                    yield return Reasons.Amenity(place, FeatureKey.RequestStop, "Pojazdy zatrzymują się tu zawsze, bez dawania znaku.");
                     break;
             }
         }

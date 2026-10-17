@@ -23,7 +23,8 @@ const PAGES = [
     ['plan', 'plan'],
     ['zgłoś na mapie', 'zglos'],
     ['konto', 'konto'],
-    ['panel urzędnika', 'urzednik']
+    ['panel urzędnika', 'urzednik'],
+    ['źródła danych', 'zrodla-danych']
 ];
 
 // Lista miejsc czyta pliki katalogu kilka sekund, więc audyt czeka na pierwszą pozycję, a nie tylko na nagłówek.

@@ -15,6 +15,7 @@ public static class RestStopRules
     /// Ławki w kolejności marszu. Każda kolejna to najdalsza, do której da się dojść w limicie; gdy w limicie nie ma
     /// żadnej, bierzemy najbliższą następną, a zbyt długi fragment pokazuje <see cref="LongestStretchM"/>.
     /// </summary>
+    /// <param name="benches">Miejsca, w których da się przerwać marsz: ławki i toalety.</param>
     /// <param name="routeDistanceM">Długość odcinka według silnika tras; do niej skalujemy położenie ławek.</param>
     public static IReadOnlyList<RestStop> AlongRoute(
         IReadOnlyList<Place> benches, IReadOnlyList<GeoPoint> route, double routeDistanceM, int maxWithoutRestM)
@@ -53,7 +54,7 @@ public static class RestStopRules
 
             var reachable = ahead.Where(c => c.WalkedM <= walked + maxWithoutRestM).ToList();
             var next = reachable.Count > 0 ? reachable[^1] : ahead[0];
-            stops.Add(new RestStop(next.Bench.Id, next.Bench.Lat, next.Bench.Lon, Math.Round(next.WalkedM)));
+            stops.Add(new RestStop(next.Bench.Id, next.Bench.Lat, next.Bench.Lon, Math.Round(next.WalkedM), next.Bench.Category));
             walked = next.WalkedM;
         }
         return stops;

@@ -26,7 +26,7 @@ export function init(id, lat, lon, zoom, dotnet, reportBounds, pickable, pickLab
 
     const entry = {
         map, dotnet, frame: map.getContainer().parentElement,
-        markers: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
+        areas: L.layerGroup().addTo(map), markers: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
         labelled: [], routeLabels: [], allBounds: null, pick: null, pickLabel: pickLabel || 'Punkt startu'
     };
     maps[id] = entry;
@@ -75,12 +75,13 @@ function symbol(name, color, fill) {
     return span;
 }
 
-function iconMarker(item, html, className, size) {
+function iconMarker(item, html, className, size, interactive) {
     const icon = L.divIcon({ html, className, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
-    return L.marker([item.lat, item.lon], { icon, keyboard: true });
+    return L.marker([item.lat, item.lon], { icon, keyboard: interactive, interactive });
 }
 
-export function setMarkers(id, items, fit) {
+// interactive: false, gdy ta sama lista z linkami jest obok mapy, a pinezki leżą zbyt gęsto, by były wygodnym celem (WCAG 2.5.8).
+export function setMarkers(id, items, fit, interactive = true) {
     const entry = maps[id];
     if (!entry) return;
     entry.markers.clearLayers();
@@ -94,7 +95,7 @@ export function setMarkers(id, items, fit) {
             pin.className = 'map-pin';
             pin.style.background = item.color;
             pin.textContent = item.label;
-            marker = iconMarker(item, pin, 'map-pin-icon', 30);
+            marker = iconMarker(item, pin, 'map-pin-icon', 30, interactive);
             entry.labelled.push({ marker, content: text(`${item.label}. ${item.name}`) });
         } else if (item.certified) {
             // Miejsce z certyfikatem: gwiazdka w złotej obwódce, kolor wypełnienia nadal mówi o ocenie.
@@ -103,23 +104,27 @@ export function setMarkers(id, items, fit) {
             pin.style.background = item.color;
             pin.textContent = 'star';
             pin.setAttribute('aria-hidden', 'true');
-            marker = iconMarker(item, pin, 'map-certified-icon', 34);
+            marker = iconMarker(item, pin, 'map-certified-icon', 34, interactive);
             marker.setZIndexOffset(500);
             marker.bindTooltip(text(item.name), { direction: 'top', offset: [0, -16] });
         } else if (item.icon) {
             // Punkt odpoczynku (toaleta, ławka, ciche miejsce): sam symbol, bez kółka.
-            marker = iconMarker(item, symbol(item.icon, item.color), 'map-symbol-icon', 28);
+            marker = iconMarker(item, symbol(item.icon, item.color), 'map-symbol-icon', 28, interactive);
             marker.bindTooltip(text(item.name), { direction: 'top', offset: [0, -12] });
         } else {
             marker = L.circleMarker([item.lat, item.lon], {
-                radius: 8, color: '#191C20', weight: 1.5, fillColor: item.color, fillOpacity: 0.95
+                radius: 8, color: '#191C20', weight: 1.5, fillColor: item.color, fillOpacity: 0.95, interactive
             });
             marker.bindTooltip(text(item.name));
         }
-        marker.on('click', () => entry.dotnet.invokeMethodAsync('MarkerClicked', item.id));
+        if (interactive)
+            marker.on('click', () => entry.dotnet.invokeMethodAsync('MarkerClicked', item.id));
         marker.addTo(entry.markers);
-        // Nazwa zawiera widoczny numer przystanku planu (WCAG 2.5.3); ikony mają aria-hidden.
-        if (item.label || item.icon || item.certified)
+        // Nazwa zawiera widoczny numer przystanku planu (WCAG 2.5.3); ikony mają aria-hidden. Pinezka poglądowa jest ukryta
+        // przed czytnikiem w całości, bo jej odpowiednik (lista z linkami) jest obok mapy.
+        if (!interactive)
+            marker.getElement()?.setAttribute('aria-hidden', 'true');
+        else if (item.label || item.icon || item.certified)
             marker.getElement()?.setAttribute('aria-label', item.label ? `${item.label}. ${item.name}` : item.name);
     }
 
@@ -274,6 +279,29 @@ function fullscreenChanged(entry, on) {
     entry.map.invalidateSize();
     fitAndLayout(entry);
     entry.dotnet.invokeMethodAsync('FullscreenChanged', on);
+}
+
+// Kartogram: obszary (np. dzielnice) wypełnione kolorem wskaźnika, pod pinezkami. Nie są interaktywne: te same liczby są
+// w tabeli obok, więc mapa nie jest jedynym źródłem informacji. Nazwa i wartość pokazują się jako stała etykieta.
+export function setAreas(id, areas, fit) {
+    const entry = maps[id];
+    if (!entry) return;
+    entry.areas.clearLayers();
+    const all = [];
+    for (const area of areas) {
+        const rings = area.rings.map(ring => {
+            const points = [];
+            for (let i = 0; i + 1 < ring.length; i += 2) points.push([ring[i], ring[i + 1]]);
+            return points;
+        });
+        rings.forEach(r => all.push(...r));
+        const polygon = L.polygon(rings, {
+            color: '#191C20', weight: 1, fillColor: area.color, fillOpacity: 0.55, interactive: false
+        }).addTo(entry.areas);
+        if (area.label)
+            polygon.bindTooltip(text(area.label), { permanent: true, direction: 'center', className: 'map-area-label', interactive: false });
+    }
+    if (fit && all.length > 0) entry.map.fitBounds(L.latLngBounds(all), { animate: false });
 }
 
 export function dispose(id) {

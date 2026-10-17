@@ -1,0 +1,219 @@
+@page "/miasto"
+@inject ISender Sender
+@inject AppState State
+@inject IJSRuntime JS
+
+<PageTitle>Luki w danych i bariery · Kraków bez barier</PageTitle>
+
+<h1>Luki w danych i bariery</h1>
+<p class="lead">Gdzie miasto powinno najpierw zebrać dane o dostępności albo poprawić infrastrukturę? Wszystkie liczby są policzone z danych tej aplikacji.</p>
+
+@if (_view is null)
+{
+    <p role="status">Liczę raport dla całego miasta…</p>
+}
+else
+{
+    var r = _view.Report;
+    <p class="small text-body-secondary">
+        Miejsca to cele wizyt: wszystkie kategorie katalogu poza ławkami, przystankami i kopertami (@r.Total.Places.ToString("N0", Pl) miejsc).
+        Dane: OpenStreetMap uzupełnione danymi miasta (MSIP, ZTP, ZDMK), rozkład GTFS ZTP, granice dzielnic z MSIP.
+        „Bez danych” nie liczy hałasu otoczenia z mapy hałasu, bo ta obejmuje każde miejsce. <a href="zrodla-danych">Źródła danych</a>
+    </p>
+
+    <section aria-labelledby="gaps-total" class="mb-4">
+        <h2 id="gaps-total" class="h4">Wskaźniki dla całego miasta</h2>
+        <div class="row g-3">
+            @Tile("Miejsca w katalogu", r.Total.Places.ToString("N0", Pl), "cele wizyt")
+            @Tile("Z danymi o wejściu dla wózków", Pct(r.Total.Share(r.Total.WithWheelchair)), $"{r.Total.WithWheelchair.ToString("N0", Pl)} miejsc")
+            @Tile("Bez żadnych danych o dostępności", Pct(r.Total.Share(r.Total.WithoutAny)), $"{r.Total.WithoutAny.ToString("N0", Pl)} miejsc")
+            @Tile("Z danymi o toalecie", Pct(r.Total.Share(r.Total.WithToilet)), $"{r.Total.WithToilet.ToString("N0", Pl)} miejsc")
+            @Tile("Z hałasem otoczenia (mapa MSIP)", Pct(r.Total.Share(r.Total.WithAmbientNoise)), $"hałas w samym miejscu: {r.Total.WithOnSiteNoise} miejsc")
+            @Tile("Bariery potwierdzone przez urząd", _view.HazardsAvailable ? r.Hazards.ToString(Pl) : "–",
+                _view.HazardsAvailable ? "zgłoszone przez mieszkańców" : "baza zgłoszeń niedostępna")
+        </div>
+    </section>
+
+    <section aria-labelledby="gaps-map" class="mb-4">
+        <h2 id="gaps-map" class="h4">Mapa: dane o wejściu dla wózków w dzielnicach</h2>
+        <p class="small mb-2">
+            Kolor dzielnicy to odsetek miejsc z informacją o wejściu dla wózków (im jaśniej, tym mniej wiemy). Czerwone pinezki z numerem to miejsca z listy priorytetowej,
+            znaki ostrzegawcze to bariery potwierdzone przez urząd. Pinezki są poglądowe: miejsca otworzysz z listy niżej, a liczby są w tabelach.
+        </p>
+        <MapView Label="Kartogram pokrycia danymi o dostępności w dzielnicach Krakowa" Areas="_areas" Markers="_markers" FitToAreas="true" Zoom="11"
+                 MarkersInteractive="false" />
+        <ul class="gaps-legend small mt-2" aria-label="Legenda kolorów dzielnic">
+            @foreach (var (from, color) in Scale)
+            {
+                <li><span class="gaps-legend-swatch" style="background:@color" aria-hidden="true"></span>@(from == 0 ? "poniżej 10%" : from >= 40 ? "40% i więcej" : $"{from}–{from + 10}%")</li>
+            }
+        </ul>
+    </section>
+
+    <section aria-labelledby="gaps-districts" class="mb-4">
+        <h2 id="gaps-districts" class="h4">Dzielnice</h2>
+        @if (r.Districts.Count == 0)
+        {
+            <p>Brak granic dzielnic dla tego miasta.</p>
+        }
+        else
+        {
+            var weakest = r.Districts.MinBy(d => d.Stats.Share(d.Stats.WithWheelchair))!;
+            <p>Najmniej wiemy w dzielnicy <strong>@weakest.Roman @weakest.Name</strong>: dane o wejściu dla wózków ma @Pct(weakest.Stats.Share(weakest.Stats.WithWheelchair)) miejsc.
+                @if (r.OutsideDistricts > 0)
+                {
+                    <text>@r.OutsideDistricts miejsc leży poza granicami dzielnic (na skraju miasta).</text>
+                }
+            </p>
+            @StatsTable("gaps-districts-table", "Pokrycie danymi w dzielnicach", "Dzielnica",
+                r.Districts.Select(d => ($"{d.Roman} {d.Name}", d.Stats, (int?)d.Hazards)).ToList())
+        }
+    </section>
+
+    <section aria-labelledby="gaps-groups" class="mb-4">
+        <h2 id="gaps-groups" class="h4">Kategorie</h2>
+        @StatsTable("gaps-groups-table", "Pokrycie danymi w kategoriach miejsc", "Kategoria",
+            r.Groups.Select(g => (g.Group, g.Stats, (int?)null)).Prepend(("Razem", r.Total, (int?)null)).ToList())
+    </section>
+
+    <section aria-labelledby="gaps-priorities" class="mb-4">
+        <h2 id="gaps-priorities" class="h4">20 miejsc do sprawdzenia w pierwszej kolejności</h2>
+        <p class="small"><strong>Reguła rankingu.</strong> @CityGaps.RankingRule Kandydatów: @r.PriorityCandidates.ToString("N0", Pl)@(r.TrafficDay is { } day ? $"; dzień rozkładu: {day:dd.MM.yyyy}" : "; brak rozkładu, więc ranking nie uwzględnia ruchu").</p>
+        <ol>
+            @foreach (var p in r.Priorities)
+            {
+                <li class="mb-1">
+                    <a href="@($"miejsca/{p.Place.Id}")">@p.Place.Name</a>
+                    <span class="text-body-secondary">· @Labels.Of(p.Place.Category)@(p.District is { } d ? $" · {d}" : "")@(p.Place.Address is { } a ? $" · {a}" : "")
+                        · @p.DeparturesNearby.ToString("N0", Pl) odjazdów w 300 m · wynik @p.Score.ToString("N0", Pl)</span>
+                </li>
+            }
+        </ol>
+    </section>
+
+    <section aria-labelledby="gaps-hazards" class="mb-4">
+        <h2 id="gaps-hazards" class="h4">Bariery zgłoszone przez mieszkańców</h2>
+        @if (!_view.HazardsAvailable)
+        {
+            <p>Baza zgłoszeń jest teraz niedostępna, więc mapa i tabele nie pokazują barier. Pozostałe liczby są pełne.</p>
+        }
+        else if (_view.Hazards.Count == 0)
+        {
+            <p>Nie ma jeszcze barier potwierdzonych przez urząd.</p>
+        }
+        else
+        {
+            <p>@_view.Hazards.Count barier potwierdzonych przez urząd; liczba w każdej dzielnicy jest w tabeli dzielnic.</p>
+            <ul>
+                @foreach (var h in _view.Hazards.Take(50))
+                {
+                    <li>@Labels.Verified(h)</li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section aria-labelledby="gaps-export" class="mb-4">
+        <h2 id="gaps-export" class="h4">Eksport</h2>
+        <p class="small">Pliki dla systemów miasta. CSV: separator średnik, przecinek dziesiętny, UTF-8. GeoJSON: dzielnice ze wskaźnikami, miejsca priorytetowe i bariery, układ WGS 84.</p>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary" @onclick='() => SaveAsync("luki-dzielnice.csv", "text/csv", CityGapsExport.DistrictsCsv(r))'>Dzielnice (CSV)</button>
+            <button type="button" class="btn btn-outline-primary" @onclick='() => SaveAsync("luki-kategorie.csv", "text/csv", CityGapsExport.GroupsCsv(r))'>Kategorie (CSV)</button>
+            <button type="button" class="btn btn-outline-primary" @onclick='() => SaveAsync("luki-priorytety.csv", "text/csv", CityGapsExport.PrioritiesCsv(r))'>Priorytety (CSV)</button>
+            <button type="button" class="btn btn-outline-primary" @onclick='() => SaveAsync("luki-raport.geojson", "application/geo+json", CityGapsExport.GeoJson(r, _view.Districts, _view.Hazards))'>Cały raport (GeoJSON)</button>
+        </div>
+        <p class="small text-body-secondary mt-2">Te same liczby (bez barier z bazy) odtworzysz poleceniem <code>dotnet run --project src/Tools -- report krakow</code>.</p>
+    </section>
+}
+
+@code {
+    // WebAssembly nie ma danych kultur, więc polski separator tysięcy (spacja) ustawiamy sami.
+    private static readonly System.Globalization.NumberFormatInfo Pl = new() { NumberGroupSeparator = " ", NumberDecimalDigits = 0 };
+
+    /// <summary>Skala jednego koloru (od jasnego do ciemnego niebieskiego): dolna granica przedziału w procentach i kolor.</summary>
+    private static readonly (int From, string Color)[] Scale =
+        [(0, "#EFF3FF"), (10, "#BDD7E7"), (20, "#6BAED6"), (30, "#3182BD"), (40, "#08519C")];
+
+    private CityGapsView? _view;
+    private IReadOnlyList<MapArea> _areas = [];
+    private IReadOnlyList<MapMarker> _markers = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.EnsureLoadedAsync();
+        var result = await Sender.Send(new GetCityGapsQuery(State.CityId));
+        if (result.IsFailure)
+            return;
+
+        _view = result.Value;
+        var byNumber = _view.Report.Districts.ToDictionary(d => d.Number);
+        _areas = (_view.Districts?.Districts ?? [])
+            .Where(d => byNumber.ContainsKey(d.Number))
+            .Select(d =>
+            {
+                var share = byNumber[d.Number].Stats.Share(byNumber[d.Number].Stats.WithWheelchair);
+                return new MapArea(d.Name, d.Rings, ColorFor(share), $"{d.Roman} {Pct(share)}");
+            })
+            .ToList();
+        _markers = _view.Report.Priorities
+            .Select((p, i) => new MapMarker(p.Place.Id, p.Place.Name, p.Place.Lat, p.Place.Lon, "#BA1A1A", (i + 1).ToString()))
+            .Concat(_view.Hazards.Select(h => Labels.Marker(h) with { Id = "" }))
+            .ToList();
+    }
+
+    private static string ColorFor(double share) => Scale.Last(s => share * 100 >= s.From).Color;
+
+    private static string Pct(double share) => (share * 100).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',') + "%";
+
+    private async Task SaveAsync(string fileName, string mimeType, string content)
+    {
+        await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/download.js");
+        await module.InvokeVoidAsync("saveText", fileName, mimeType, content);
+    }
+
+    private static RenderFragment Tile(string title, string value, string note) => @<section class="col-6 col-lg-4">
+        <div class="card card-body h-100">
+            <h3 class="h6">@title</h3>
+            <p class="display-6 mb-0">@value</p>
+            <p class="small text-body-secondary mb-0">@note</p>
+        </div>
+    </section>;
+
+    private static RenderFragment StatsTable(string id, string caption, string firstColumn, IReadOnlyList<(string Name, CoverageStats Stats, int? Hazards)> rows) =>
+        @<div class="table-responsive" tabindex="0" role="region" aria-labelledby="@($"{id}-caption")">
+            <table class="table table-sm align-middle" id="@id">
+                <caption id="@($"{id}-caption")" class="caption-top">@caption</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">@firstColumn</th>
+                        <th scope="col" class="text-end">Miejsca</th>
+                        <th scope="col" class="text-end">Z wejściem dla wózków</th>
+                        <th scope="col" class="text-end">Bez danych</th>
+                        <th scope="col" class="text-end">Z danymi o toalecie</th>
+                        <th scope="col" class="text-end">Z hałasem otoczenia</th>
+                        @if (rows.Any(x => x.Hazards is not null))
+                        {
+                            <th scope="col" class="text-end">Potwierdzone bariery</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (name, s, hazards) in rows)
+                    {
+                        <tr>
+                            <th scope="row" class="fw-normal">@name</th>
+                            <td class="text-end">@s.Places.ToString("N0", Pl)</td>
+                            <td class="text-end">@Pct(s.Share(s.WithWheelchair))</td>
+                            <td class="text-end">@Pct(s.Share(s.WithoutAny))</td>
+                            <td class="text-end">@Pct(s.Share(s.WithToilet))</td>
+                            <td class="text-end">@Pct(s.Share(s.WithAmbientNoise))</td>
+                            @if (hazards is { } h)
+                            {
+                                <td class="text-end">@h</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>;
+}

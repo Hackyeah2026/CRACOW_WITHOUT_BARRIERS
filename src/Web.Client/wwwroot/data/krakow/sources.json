@@ -1,5 +1,5 @@
 {
-  "generatedOn": "2026-10-16",
+  "generatedOn": "2026-10-17",
   "sources": [
     {
       "name": "OpenStreetMap",
@@ -18,7 +18,7 @@
       "url": "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/WT_WC_2023/MapServer/0",
       "license": "Warunki portalu Otwarte Dane Krakowa: swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) oraz czasu wytworzenia i pozyskania danych",
       "dataDate": "stan 2023",
-      "retrievedOn": "2026-10-16",
+      "retrievedOn": "2026-10-17",
       "records": 50,
       "usage": "Dostosowanie dla osób z niepełnosprawnościami i jego rodzaj, przewijak, godziny; toalety jako miejsca przerwy na trasie. 48 połączone z toaletami z OSM.",
       "cityPortal": true
@@ -29,7 +29,7 @@
       "url": "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/9",
       "license": "Warunki portalu Otwarte Dane Krakowa: swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) oraz czasu wytworzenia i pozyskania danych",
       "dataDate": "import do MSIP 10.10.2026",
-      "retrievedOn": "2026-10-16",
+      "retrievedOn": "2026-10-17",
       "records": 1557,
       "usage": "Wiata na przystanku (schronienie w czasie czekania); 1439 przystanków, przy 98 OSM podaje inaczej.",
       "cityPortal": true
@@ -40,7 +40,7 @@
       "url": "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/ZTP_Komunikacja_Miejska_i_Rowerowa/MapServer/10",
       "license": "Warunki portalu Otwarte Dane Krakowa: swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) oraz czasu wytworzenia i pozyskania danych",
       "dataDate": "import do MSIP 10.10.2026",
-      "retrievedOn": "2026-10-16",
+      "retrievedOn": "2026-10-17",
       "records": 3758,
       "usage": "Przystanek na żądanie (ważne dla osób niewidomych); informacja dla 2073 przystanków, 533 na żądanie.",
       "cityPortal": true
@@ -51,7 +51,7 @@
       "url": "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/K07_Admini_i_Bezpiecz/MapServer/1",
       "license": "Warunki portalu Otwarte Dane Krakowa: swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) oraz czasu wytworzenia i pozyskania danych",
       "dataDate": "brak daty w usłudze",
-      "retrievedOn": "2026-10-16",
+      "retrievedOn": "2026-10-17",
       "records": 14,
       "usage": "Urzędy w trybie „Załatwiam sprawę”: adres i link do godzin otwarcia w BIP.",
       "cityPortal": true
@@ -62,10 +62,21 @@
       "url": "https://services-eu1.arcgis.com/svTzSt3AvH7sK6q9/arcgis/rest/services/Miejsca_postojowe_OZN/FeatureServer/0",
       "license": "Dane publiczne, licencja niepodana; nie pochodzą z portali MSIP ani Otwarte Dane",
       "dataDate": "17.09.2026",
-      "retrievedOn": "2026-10-16",
+      "retrievedOn": "2026-10-17",
       "records": 2037,
       "usage": "Najbliższe koperty przy miejscu i start trasy pieszej; 1467 miejsc, 424 połączonych z OSM.",
       "cityPortal": false
+    },
+    {
+      "name": "Dzielnice administracyjne",
+      "provider": "Gmina Miejska Kraków, MSIP",
+      "url": "https://msip.um.krakow.pl/arcgis/rest/services/Obserwatorium/Dzielnice/MapServer/0",
+      "license": "Warunki portalu Otwarte Dane Krakowa: swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) oraz czasu wytworzenia i pozyskania danych",
+      "dataDate": "01.04.2014",
+      "retrievedOn": "2026-10-17",
+      "records": 18,
+      "usage": "Rozbicie raportu „Luki w danych i bariery” na dzielnice i kartogram pokrycia danymi.",
+      "cityPortal": true
     },
     {
       "name": "Mapa hałasu 2022 (LDWN, ruch drogowy i szynowy)",
@@ -73,7 +84,7 @@
       "url": "https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer/1 ; https://msip.um.krakow.pl/arcgis/rest/services/Mapa_halasu_2022/8_2_MH_2022_IMISJA_5/MapServer/5",
       "license": "Warunki portalu Otwarte Dane Krakowa: swobodne ponowne wykorzystanie z podaniem źródła (Gmina Miejska Kraków) oraz czasu wytworzenia i pozyskania danych",
       "dataDate": "2022",
-      "retrievedOn": "2026-10-16",
+      "retrievedOn": "2026-10-17",
       "records": 17444,
       "usage": "Hałas otoczenia 14766 miejsc i odcinków trasy dla profili sensorycznych (najwyżej „z ograniczeniami”).",
       "cityPortal": true
@@ -95,7 +106,7 @@
       "url": "https://openrouteservice.org/",
       "license": "Regulamin usługi",
       "dataDate": "na bieżąco (na danych OSM)",
-      "retrievedOn": "2026-10-16",
+      "retrievedOn": "2026-10-17",
       "usage": "Trasy piesze i wózkowe z ograniczeniami z profilu; do usługi trafiają tylko punkty trasy i 3 parametry.",
       "cityPortal": false
     }

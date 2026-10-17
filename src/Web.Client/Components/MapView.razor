@@ -15,6 +15,7 @@
     private DotNetObjectReference<MapView>? _self;
     private IReadOnlyList<MapMarker>? _shownMarkers;
     private IReadOnlyList<MapRouteSegment>? _shownRoute;
+    private IReadOnlyList<MapArea>? _shownAreas;
     private GeoPoint? _shownPick;
     private bool _fullscreen;
 
@@ -23,6 +24,16 @@
     [Parameter] public int Zoom { get; set; } = AppState.DefaultZoom;
     [Parameter] public IReadOnlyList<MapMarker> Markers { get; set; } = [];
     [Parameter] public IReadOnlyList<MapRouteSegment> Route { get; set; } = [];
+    [Parameter] public IReadOnlyList<MapArea> Areas { get; set; } = [];
+
+    /// <summary>
+    /// Pinezki do klikania i obsługi klawiaturą. Wyłączamy, gdy te same miejsca są obok mapy jako lista z linkami,
+    /// a pinezki leżą zbyt gęsto, żeby były wygodnym celem.
+    /// </summary>
+    [Parameter] public bool MarkersInteractive { get; set; } = true;
+
+    /// <summary>Ustawia widok tak, żeby objął wszystkie obszary kartogramu.</summary>
+    [Parameter] public bool FitToAreas { get; set; }
     [Parameter] public bool FitToMarkers { get; set; }
     [Parameter] public EventCallback<string> OnMarkerSelected { get; set; }
 
@@ -51,10 +62,16 @@
         if (_module is null)
             return;
 
+        if (!ReferenceEquals(_shownAreas, Areas))
+        {
+            _shownAreas = Areas;
+            await _module.InvokeVoidAsync("setAreas", _id, Areas, FitToAreas);
+        }
+
         if (!ReferenceEquals(_shownMarkers, Markers))
         {
             _shownMarkers = Markers;
-            await _module.InvokeVoidAsync("setMarkers", _id, Markers, FitToMarkers);
+            await _module.InvokeVoidAsync("setMarkers", _id, Markers, FitToMarkers, MarkersInteractive);
         }
 
         if (!ReferenceEquals(_shownRoute, Route))

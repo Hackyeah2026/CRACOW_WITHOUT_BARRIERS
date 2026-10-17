@@ -8,6 +8,9 @@ namespace Web.Client.Components;
 public sealed record MapMarker(
     string Id, string Name, double Lat, double Lon, string Color, string? Label = null, string? Icon = null, bool Certified = false);
 
+/// <summary>Obszar kartogramu (np. dzielnica): pierścienie [lat0, lon0, lat1, lon1, ...], kolor wypełnienia i etykieta.</summary>
+public sealed record MapArea(string Name, IReadOnlyList<double[]> Rings, string Color, string? Label = null);
+
 /// <summary>
 /// Odcinek trasy na mapie: pieszo (linia przerywana), komunikacją miejską (linia ciągła z nazwą linii)
 /// albo najkrótsza droga, którą trasa omija z powodu utrudnienia (cienka linia kropkowana).

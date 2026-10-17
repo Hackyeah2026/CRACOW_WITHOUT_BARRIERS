@@ -1174,3 +1174,36 @@ legend {
         forced-color-adjust: none;
     }
 }
+
+/* Etykiety kartogramu dzielnic na stronie /miasto: nazwa i wartość wskaźnika na środku dzielnicy. */
+.map-area-label {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #44474F;
+    color: #191C20;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 1px 4px;
+    box-shadow: none;
+    text-align: center;
+}
+
+.map-area-label::before {
+    display: none;
+}
+
+.gaps-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    list-style: none;
+    padding: 0;
+}
+
+.gaps-legend-swatch {
+    display: inline-block;
+    width: 1.25rem;
+    height: 0.9rem;
+    border: 1px solid #44474F;
+    vertical-align: middle;
+    margin-right: 0.25rem;
+}

@@ -35,5 +35,7 @@ public_smoke() {
         sleep 5
     done
     echo 'Database check failed: inspect MONGO_CONNECTION_STRING and the Atlas network access list. The container is running and is NOT rolled back.' >&2
+    # upload.sh definiuje diagnostykę z serwera (adres wychodzący, ostatni błąd bazy); bez niej tylko komunikat wyżej.
+    if declare -F database_diagnostics >/dev/null; then database_diagnostics; fi
     return 1
 }

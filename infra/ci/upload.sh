@@ -30,6 +30,16 @@ options=(-i "$ssh_dir/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostK
 on_server() { ssh "${options[@]}" -p "$MIKRUS_SSH_PORT" "root@$MIKRUS_HOST" "$@"; }
 remote=$(on_server 'set -eu; umask 077; mktemp -d /root/kbb.XXXXXXXX')
 [[ $remote =~ ^/root/kbb\.[a-zA-Z0-9]+$ ]] || exit 1
+# Diagnostyka dla osób bez dostępu do serwera: log GitHub Actions jest publiczny, więc nazwy serwerów Atlasa
+# i ewentualny adres połączenia są zamaskowane. Adres wychodzący serwera trzeba dodać w Atlasie (Network Access).
+database_diagnostics() {
+    echo '--- Database diagnostics from the server ---' >&2
+    echo 'Outgoing addresses of the server (add the IPv4 one to Atlas Network Access):' >&2
+    on_server 'curl -4 --silent --max-time 5 https://api.ipify.org || printf "no IPv4"; echo; curl -6 --silent --max-time 5 https://api64.ipify.org || printf "no IPv6"; echo' >&2 || true
+    echo 'Last database errors from the application log:' >&2
+    on_server "docker logs --tail 300 kbb-web 2>&1 | grep -A2 'Baza niedostępna' | tail -n 9" |
+        sed -E 's#mongodb(\+srv)?://[^ ]+#<connection-string>#g; s/[A-Za-z0-9.-]+\.mongodb\.net/<atlas-host>/g' >&2 || true
+}
 cleanup() {
     on_server "rm -rf -- '$remote'" || true
     rm -rf -- "$ssh_dir"
